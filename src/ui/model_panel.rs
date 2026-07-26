@@ -1,4 +1,4 @@
-use crate::config::settings::AppSettings;
+﻿use crate::config::settings::AppSettings;
 use crate::i18n;
 use crate::ui::widgets;
 
@@ -195,34 +195,42 @@ fn render_file_list(
         return;
     }
 
-    for entry in entries {
-        let file_path = entry.clone();
-        let filename = file_path
-            .file_name()
-            .map(|name| name.to_string_lossy().to_string())
-            .unwrap_or_default();
-        let selected = selected_path == file_path;
+    let scroll_id = match mode {
+        FileMode::Main => "model_scroll_main",
+        FileMode::Mmproj => "model_scroll_mmproj",
+        FileMode::Dflash => "model_scroll_dflash",
+    };
+    egui::ScrollArea::horizontal().id_salt(scroll_id).show(ui, |ui| {
+        ui.spacing_mut().item_spacing.y = 4.0;
+        for entry in entries {
+            let file_path = entry.clone();
+            let filename = file_path
+                .file_name()
+                .map(|name| name.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let selected = selected_path == file_path;
 
-        ui.horizontal(|ui| {
-            let tags = parse_tags(&filename);
-            for (text, color) in &tags {
-                ui.add(
-                    egui::Button::new(egui::RichText::new(text).color(widgets::contrast_text(*color)))
-                        .fill(*color)
-                        .corner_radius(4.0),
-                );
-            }
-            ui.separator();
-            let relative = file_path
-                .strip_prefix(dir)
-                .unwrap_or(&file_path)
-                .to_string_lossy();
-            ui.label(egui::RichText::new(relative.as_ref()).color(ui.visuals().weak_text_color()));
-            if ui.add(egui::RadioButton::new(selected, "")).clicked() {
-                on_select(file_path);
-            }
-        });
-    }
+            ui.horizontal(|ui| {
+                if ui.add(egui::RadioButton::new(selected, "")).clicked() {
+                    on_select(file_path.clone());
+                }
+                let tags = parse_tags(&filename);
+                for (text, color) in &tags {
+                    ui.add(
+                        egui::Button::new(egui::RichText::new(text).color(widgets::contrast_text(*color)))
+                            .fill(*color)
+                            .corner_radius(4.0),
+                    );
+                }
+                ui.separator();
+                let relative = file_path
+                    .strip_prefix(dir)
+                    .unwrap_or(&file_path)
+                    .to_string_lossy();
+                ui.label(egui::RichText::new(relative.as_ref()).color(ui.visuals().weak_text_color()));
+    });
+        }
+    });
 }
 
 pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) {
