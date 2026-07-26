@@ -1,8 +1,8 @@
 use crate::config::settings::AppSettings;
 use crate::i18n;
+use crate::ui::widgets;
 
 /// 自动检测模型文件夹
-/// 检查应用所在目录中是否有 model 或 models 文件夹（不区分大小写）
 fn auto_detect_model_dir() -> Option<std::path::PathBuf> {
     let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
 
@@ -14,7 +14,6 @@ fn auto_detect_model_dir() -> Option<std::path::PathBuf> {
         Err(_) => return None,
     };
 
-    // 优先匹配 "models"，其次 "model"
     let models_dir = dirs.iter().find(|e| {
         e.file_name()
             .to_string_lossy()
@@ -42,13 +41,11 @@ fn auto_detect_model_dir() -> Option<std::path::PathBuf> {
 fn parse_tags(filename: &str) -> Vec<(String, egui::Color32)> {
     let stem = filename.strip_suffix(".gguf").unwrap_or(filename);
 
-    // 原有 5 色
     let purple = egui::Color32::from_rgb(180, 120, 255); // 参数量
     let orange = egui::Color32::from_rgb(255, 165, 0); // 量化类型
     let gray = egui::Color32::from_rgb(160, 160, 160); // 版本号
     let green = egui::Color32::from_rgb(100, 200, 100); // 训练方法
     let blue = egui::Color32::from_rgb(100, 150, 255); // 模型名称 (兜底)
-                                                       // 新增 4 色
     let yellow = egui::Color32::from_rgb(255, 215, 0); // 精度
     let pink = egui::Color32::from_rgb(255, 100, 130); // LoRA/Adapter
     let brown = egui::Color32::from_rgb(205, 133, 63); // 上下文长度
@@ -63,39 +60,30 @@ fn parse_tags(filename: &str) -> Vec<(String, egui::Color32)> {
 
         let lower = trimmed.to_lowercase();
         let color = if is_param_size(&lower) {
-            // 🟣 参数量: 7b, 335m, 1.5b
             purple
         } else if is_quantization(&lower) {
-            // 🟠 量化类型: q4_k_m, q8_0, iq4_nl, iq2_xs …
             orange
         } else if trimmed.chars().all(|c| c.is_ascii_digit() || c == '.') {
-            // ⚫ 版本号: 3.1, 2
             gray
         } else if is_training_method(&lower) {
-            // 🟢 训练方法: instruct/chat/sft/rlhf/dpo/orpo/grpo
             green
         } else if lower.contains("fp16")
             || lower.contains("bf16")
             || lower.contains("f32")
             || lower.contains("fp8")
         {
-            // 🟡 精度: fp16, bf16, f32, fp8
             yellow
         } else if lower.contains("lora") || lower.contains("adapter") || lower.contains("delta") {
-            // 🩷 LoRA/Adapter/Delta
             pink
         } else if is_context_length(&lower) {
-            // 🟤 上下文长度: 128k, c4k, long
             brown
         } else if lower.contains("mamba")
             || lower.contains("rwkv")
             || lower.contains("hyena")
             || lower.contains("decoder")
         {
-            // 🩵 架构类型: mamba, rwkv, hyena, decoder
             cyan
         } else {
-            // 🔵 模型名称 (兜底)
             blue
         };
 
@@ -105,22 +93,18 @@ fn parse_tags(filename: &str) -> Vec<(String, egui::Color32)> {
     tags
 }
 
-/// 参数量: 包含数字且以 b/m 结尾（k 留给上下文长度）
 fn is_param_size(s: &str) -> bool {
     let has_digit = s.chars().any(|c| c.is_ascii_digit());
     has_digit && (s.ends_with('b') || s.ends_with('m'))
 }
 
-/// 量化类型: q4_k_m, q8_0, iq4_nl, iq2_xs … (排除 qwen/qwq 等模型名)
 fn is_quantization(s: &str) -> bool {
     if s.starts_with("iq") && s.chars().nth(2).map_or(false, |c| c.is_ascii_digit()) {
-        return true; // iq4_nl, iq2_xs …
+        return true;
     }
-    // q 开头，第二个字符是数字（排除 "qwen", "qwq" 等模型名）
     s.starts_with('q') && s.chars().nth(1).map_or(false, |c| c.is_ascii_digit())
 }
 
-/// 训练方法关键词
 fn is_training_method(s: &str) -> bool {
     s.contains("instruct")
         || s.contains("chat")
@@ -131,28 +115,56 @@ fn is_training_method(s: &str) -> bool {
         || s.contains("grpo")
 }
 
-/// 上下文长度: 含 "128"/"64k"/"32k"/"c4k"/"long" 等模式
 fn is_context_length(s: &str) -> bool {
     if s.ends_with('k') && s.contains(|c: char| c.is_ascii_digit()) {
-        return true; // 128k, c4k, 4k, 32k...
+        return true;
     }
     s.contains("long") || s == "128" || s == "64" || s == "32"
 }
 
-/// 判断是否为 mmproj 文件
 fn is_mmproj_file(filename: &str) -> bool {
     let lower = filename.to_lowercase();
-    lower.contains("mmproj")
-        || lower.contains("clip")
-        || (lower.contains("proj") && lower.contains("vision"))
+    lower.contains("mmproj") || lower.contains("clip") || (lower.contains("proj") && lower.contains("vision"))
 }
 
-/// 判断是否为 DFlash 草稿文件
 fn is_dflash_file(filename: &str) -> bool {
     filename.to_lowercase().contains("dflash")
 }
 
-/// 文件列表展示模式
+/// 递归收集模型文件。选中的目录及其所有子目录都会被扫描，
+/// 并跳过符号链接目录，避免循环引用导致界面卡住。
+fn collect_model_files(dir: &std::path::Path, mode: FileMode) -> Vec<std::path::PathBuf> {
+    let mut files = Vec::new();
+    let Ok(entries) = std::fs::read_dir(dir) else { return files };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(file_type) = entry.file_type() else { continue };
+        if file_type.is_symlink() {
+            continue;
+        }
+        if file_type.is_dir() {
+            files.extend(collect_model_files(&path, mode));
+            continue;
+        }
+        if !file_type.is_file() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string().to_lowercase();
+        if !name.ends_with(".gguf") {
+            continue;
+        }
+        let include = match mode {
+            FileMode::Main => !is_mmproj_file(&name) && !is_dflash_file(&name),
+            FileMode::Mmproj => is_mmproj_file(&name),
+            FileMode::Dflash => is_dflash_file(&name),
+        };
+        if include {
+            files.push(path);
+        }
+    }
+    files
+}
+
 #[derive(Clone, Copy, PartialEq)]
 enum FileMode {
     Main,
@@ -168,23 +180,8 @@ fn render_file_list(
     lang: &i18n::Language,
     mode: FileMode,
 ) {
-    let entries: Vec<_> = match std::fs::read_dir(dir) {
-        Ok(entries) => entries
-            .filter_map(|e| e.ok())
-            .filter(|e| {
-                let name = e.file_name().to_string_lossy().to_string().to_lowercase();
-                if !name.ends_with(".gguf") {
-                    return false;
-                }
-                match mode {
-                    FileMode::Main => !is_mmproj_file(&name) && !is_dflash_file(&name),
-                    FileMode::Mmproj => is_mmproj_file(&name),
-                    FileMode::Dflash => is_dflash_file(&name),
-                }
-            })
-            .collect(),
-        Err(_) => Vec::new(),
-    };
+    let mut entries = collect_model_files(dir, mode);
+    entries.sort_by(|a, b| a.to_string_lossy().cmp(&b.to_string_lossy()));
 
     if entries.is_empty() {
         ui.colored_label(
@@ -199,24 +196,28 @@ fn render_file_list(
     }
 
     for entry in entries {
-        let file_path = entry.path();
-        let filename = entry.file_name().to_string_lossy().to_string();
+        let file_path = entry.clone();
+        let filename = file_path
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_default();
         let selected = selected_path == file_path;
 
         ui.horizontal(|ui| {
-            // 标签
             let tags = parse_tags(&filename);
             for (text, color) in &tags {
                 ui.add(
-                    egui::Button::new(egui::RichText::new(text).color(egui::Color32::WHITE))
+                    egui::Button::new(egui::RichText::new(text).color(widgets::contrast_text(*color)))
                         .fill(*color)
                         .corner_radius(4.0),
                 );
             }
-
             ui.separator();
-
-            // 单选框
+            let relative = file_path
+                .strip_prefix(dir)
+                .unwrap_or(&file_path)
+                .to_string_lossy();
+            ui.label(egui::RichText::new(relative.as_ref()).color(ui.visuals().weak_text_color()));
             if ui.add(egui::RadioButton::new(selected, "")).clicked() {
                 on_select(file_path);
             }
@@ -225,103 +226,96 @@ fn render_file_list(
 }
 
 pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) {
-    ui.heading(i18n::t(i18n::Key::PanelModelTitle, lang));
-    ui.separator();
+    let accent = crate::theme::accent_color(&settings.accent_color);
 
-    // 文件夹选择
-    ui.horizontal(|ui| {
-        ui.label(i18n::t(i18n::Key::LabelModelDir, lang));
-        let mut dir_str = settings.model_dir.to_string_lossy().to_string();
-        let response = ui.text_edit_singleline(&mut dir_str);
-        if response.changed() {
-            settings.model_dir = std::path::PathBuf::from(&dir_str);
-        }
-    });
+    // ── 模型文件夹 ──
+    widgets::card(ui, i18n::t(i18n::Key::PanelModelTitle, lang), accent, |ui| {
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelModelDir, lang));
+            let mut dir_str = settings.model_dir.to_string_lossy().to_string();
+            let response = ui.text_edit_singleline(&mut dir_str);
+            if response.changed() {
+                settings.model_dir = std::path::PathBuf::from(&dir_str);
+            }
+        });
 
-    // 按钮行
-    ui.horizontal(|ui| {
-        if ui
-            .button(i18n::t(i18n::Key::BtnSelectFolder, lang))
-            .clicked()
-        {
-            if let Some(path) = rfd::FileDialog::new()
-                .set_title(i18n::t(i18n::Key::DialogSelectFolder, lang))
-                .pick_folder()
+        ui.horizontal(|ui| {
+            if ui
+                .button(i18n::t(i18n::Key::BtnSelectFolder, lang))
+                .clicked()
             {
-                settings.model_dir = path;
+                if let Some(path) = rfd::FileDialog::new()
+                    .set_title(i18n::t(i18n::Key::DialogSelectFolder, lang))
+                    .pick_folder()
+                {
+                    settings.model_dir = path;
+                }
             }
-        }
-        if ui.button(i18n::t(i18n::Key::BtnAutoDetect, lang)).clicked() {
-            if let Some(path) = auto_detect_model_dir() {
-                settings.model_dir = path;
-            } else {
-                settings.model_dir = std::path::PathBuf::from("");
+            if ui.button(i18n::t(i18n::Key::BtnAutoDetect, lang)).clicked() {
+                if let Some(path) = auto_detect_model_dir() {
+                    settings.model_dir = path;
+                } else {
+                    settings.model_dir = std::path::PathBuf::from("");
+                }
             }
-        }
+        });
     });
 
-    ui.add_space(12.0);
-
-    // 文件夹为空时提示
     if settings.model_dir.as_os_str().is_empty() {
         ui.colored_label(egui::Color32::GRAY, i18n::t(i18n::Key::NoModelDir, lang));
         return;
     }
 
-    // 模型文件列表
-    ui.heading(i18n::t(i18n::Key::SectionModels, lang));
-    ui.separator();
-    let selected_model = settings.model_path.clone();
-    render_file_list(
-        ui,
-        &settings.model_dir,
-        selected_model,
-        &mut |path| {
-            settings.model_path = path;
-        },
-        lang,
-        FileMode::Main,
-    );
+    // ── 模型文件 ──
+    widgets::card(ui, i18n::t(i18n::Key::SectionModels, lang), accent, |ui| {
+        let selected_model = settings.model_path.clone();
+        render_file_list(
+            ui,
+            &settings.model_dir,
+            selected_model,
+            &mut |path| {
+                settings.model_path = path;
+            },
+            lang,
+            FileMode::Main,
+        );
+    });
 
-    // 分隔
-    ui.add_space(12.0);
-    ui.heading(i18n::t(i18n::Key::SectionMmproj, lang));
-    ui.separator();
-    let selected_mmproj = settings.mmproj_path.clone();
-    render_file_list(
-        ui,
-        &settings.model_dir,
-        selected_mmproj.clone(),
-        &mut |path| {
-            // 再次点击已选中的路径 → 取消选中
-            settings.mmproj_path = if selected_mmproj == path {
-                std::path::PathBuf::new()
-            } else {
-                path
-            };
-        },
-        lang,
-        FileMode::Mmproj,
-    );
+    // ── mmproj ──
+    widgets::card(ui, i18n::t(i18n::Key::SectionMmproj, lang), accent, |ui| {
+        let selected_mmproj = settings.mmproj_path.clone();
+        render_file_list(
+            ui,
+            &settings.model_dir,
+            selected_mmproj.clone(),
+            &mut |path| {
+                settings.mmproj_path = if selected_mmproj == path {
+                    std::path::PathBuf::new()
+                } else {
+                    path
+                };
+            },
+            lang,
+            FileMode::Mmproj,
+        );
+    });
 
-    // DFlash 草稿文件
-    ui.add_space(12.0);
-    ui.heading(i18n::t(i18n::Key::SectionDflash, lang));
-    ui.separator();
-    let selected_dflash = settings.dflash_path.clone();
-    render_file_list(
-        ui,
-        &settings.model_dir,
-        selected_dflash.clone(),
-        &mut |path| {
-            // 再次点击已选中的路径 → 取消选中
-            settings.dflash_path = if selected_dflash == path {
-                std::path::PathBuf::new()
-            } else {
-                path
-            };
-        },
-        lang,
-        FileMode::Dflash,
-    );
+    // ── DFlash ──
+    widgets::card(ui, i18n::t(i18n::Key::SectionDflash, lang), accent, |ui| {
+        let selected_dflash = settings.dflash_path.clone();
+        render_file_list(
+            ui,
+            &settings.model_dir,
+            selected_dflash.clone(),
+            &mut |path| {
+                settings.dflash_path = if selected_dflash == path {
+                    std::path::PathBuf::new()
+                } else {
+                    path
+                };
+            },
+            lang,
+            FileMode::Dflash,
+        );
+    });
 }

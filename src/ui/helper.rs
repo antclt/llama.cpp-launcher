@@ -1,4 +1,5 @@
 /// 帮助按钮组件 - 问号气泡提示
+use crate::ui::widgets;
 use egui::{Color32, RichText, Stroke, Vec2};
 
 /// 帮助按钮样式配置
@@ -72,14 +73,14 @@ pub fn help_button_with_style(
     let response = ui.add(
         egui::Button::new(
             RichText::new("❓")
-                .color(Color32::WHITE)
+                .color(widgets::contrast_text(style.fill))
                 .strong()
                 .size(style.text_size),
         )
         .fill(style.fill)
         .corner_radius(style.corner_radius)
         .min_size(style.size)
-        .stroke(Stroke::new(1.0, style.stroke_color))
+        .stroke(Stroke::new(1.0_f32, style.stroke_color))
         .sense(egui::Sense::hover()), // 只响应悬停，不响应点击
     );
 

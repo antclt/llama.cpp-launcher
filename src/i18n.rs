@@ -31,6 +31,20 @@ pub enum Key {
     TabCommands,
     TabPresets,
 
+    // 侧边栏导航（中文优先）
+    NavServer,
+    NavRpc,
+    NavSettings,
+
+    // 设置面板
+    ThemeAppearance,
+    ThemeColor,
+    DarkMode,
+    LabelLanguage,
+    SettingsTitle,
+    SettingsLauncher,
+    SettingsAbout,
+
     // 按钮
     BtnStartServer,
     BtnStopServer,
@@ -136,6 +150,11 @@ pub enum Key {
 
     // 推测解码（Speculative Decoding）区域
     SectionSpecDecoding,
+    // 卡片分组标题
+    SectionNetwork,
+    SectionFeatures,
+    SectionCache,
+    SectionContextBatch,
     SpecTypeLabel,
     SpecDraftNMaxLabel,
     SpecDraftNMinLabel,
@@ -207,6 +226,10 @@ pub enum Key {
     MenuItemLogToFile,
     MenuItemDebugMode,
 
+    // 语言选择
+    LangZh,
+    LangEn,
+
     // Server 面板 - 版本
     BtnCheckVersion,
 
@@ -267,6 +290,10 @@ impl Key {
             (Key::MenuItemLogToFile, &Language::En) => "Save Log File",
             (Key::MenuItemDebugMode, &Language::Zh) => "调试模式",
             (Key::MenuItemDebugMode, &Language::En) => "Debug Mode (Inspector)",
+            (Key::LangZh, &Language::Zh) => "中文",
+            (Key::LangZh, &Language::En) => "Chinese",
+            (Key::LangEn, &Language::Zh) => "English",
+            (Key::LangEn, &Language::En) => "English",
             (Key::MenuItemCreateShortcut, &Language::Zh) => "创建桌面快捷方式",
             (Key::MenuItemCreateShortcut, &Language::En) => "Create Desktop Shortcut",
             // 标签页
@@ -285,6 +312,30 @@ impl Key {
             (Key::TabCommands, &Language::En) => "Launch Cmd",
             (Key::TabPresets, &Language::Zh) => "预设",
             (Key::TabPresets, &Language::En) => "Presets",
+
+            // 侧边栏导航
+            (Key::NavServer, &Language::Zh) => "服务器",
+            (Key::NavServer, &Language::En) => "Server",
+            (Key::NavRpc, &Language::Zh) => "远程调用",
+            (Key::NavRpc, &Language::En) => "RPC",
+            (Key::NavSettings, &Language::Zh) => "设置",
+            (Key::NavSettings, &Language::En) => "Settings",
+
+            // 设置面板
+            (Key::ThemeAppearance, &Language::Zh) => "外观",
+            (Key::ThemeAppearance, &Language::En) => "Appearance",
+            (Key::ThemeColor, &Language::Zh) => "主题色",
+            (Key::ThemeColor, &Language::En) => "Accent Color",
+            (Key::DarkMode, &Language::Zh) => "深色模式",
+            (Key::DarkMode, &Language::En) => "Dark Mode",
+            (Key::LabelLanguage, &Language::Zh) => "语言",
+            (Key::LabelLanguage, &Language::En) => "Language",
+            (Key::SettingsTitle, &Language::Zh) => "设置",
+            (Key::SettingsTitle, &Language::En) => "Settings",
+            (Key::SettingsLauncher, &Language::Zh) => "启动器",
+            (Key::SettingsLauncher, &Language::En) => "Launcher",
+            (Key::SettingsAbout, &Language::Zh) => "关于",
+            (Key::SettingsAbout, &Language::En) => "About",
 
             // 按钮
             (Key::BtnStartServer, &Language::Zh) => "启动 Server",
@@ -477,6 +528,14 @@ impl Key {
             // 推测解码（Speculative Decoding）
             (Key::SectionSpecDecoding, &Language::Zh) => "推测解码",
             (Key::SectionSpecDecoding, &Language::En) => "Speculative Decoding",
+            (Key::SectionNetwork, &Language::Zh) => "网络",
+            (Key::SectionNetwork, &Language::En) => "Network",
+            (Key::SectionFeatures, &Language::Zh) => "功能",
+            (Key::SectionFeatures, &Language::En) => "Features",
+            (Key::SectionCache, &Language::Zh) => "缓存",
+            (Key::SectionCache, &Language::En) => "Cache",
+            (Key::SectionContextBatch, &Language::Zh) => "上下文与批次",
+            (Key::SectionContextBatch, &Language::En) => "Context & Batch",
             (Key::SpecTypeLabel, &Language::Zh) => "算法类型 (--spec-type):",
             (Key::SpecTypeLabel, &Language::En) => "Algorithm Type (--spec-type):",
             (Key::SpecDraftNMaxLabel, &Language::Zh) => "最大推测数量 (--spec-draft-n-max):",

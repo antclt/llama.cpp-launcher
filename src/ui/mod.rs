@@ -1,5 +1,7 @@
 pub mod helper;
 pub mod launch_commands_panel;
+pub mod settings_panel;
+pub mod widgets;
 pub mod log_panel;
 pub mod model_panel;
 pub mod params_panel;
