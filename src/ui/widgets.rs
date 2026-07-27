@@ -285,7 +285,7 @@ pub fn nav_row(
     resp
 }
 
-// ──── 主题切换按钮 ────
+// ──── 主题切换按钮（双态：sun / moon）────
 
 pub fn theme_toggle_button(ui: &mut Ui, dark: bool, _accent: Color32) -> bool {
     let size = 24.0_f32;
@@ -293,37 +293,24 @@ pub fn theme_toggle_button(ui: &mut Ui, dark: bool, _accent: Color32) -> bool {
     let r = resp.rect;
     let cx = r.center().x;
     let cy = r.center().y;
-    // 图标颜色跟随主题文字色（不再固定黄色）
     let icon_color = ui.visuals().text_color();
     if dark {
-        // ★ 月亮：填充式月牙（crescent）—— 实心圆 + 偏移内切圆制造缺口
-        // 外圆 = 实心填充的月亮主体（icon_color）
-        // 内圆 = 用背景色(panel_fill)填充，覆盖右侧形成月牙弯缺
-        let moon_r = size * 0.34;       // 月亮外圆半径
-        let notch_r = moon_r * 0.85;    // 缺口内圆半径（稍小，保留月牙厚度）
-        let moon_cx = cx - size * 0.03; // 月亮中心微偏左
-        let moon_cy = cy;
-        let notch_offset_x = size * 0.17; // 内圆右偏量
-        let notch_offset_y = size * 0.08; // 内圆上偏量（让月牙更自然）
-
-        // 1. 画实心月亮（icon_color 填充）
-        painter.circle_filled(Pos2::new(moon_cx, moon_cy), moon_r, icon_color);
-        // 2. 用背景色画内切圆，制造月牙缺口（颜色必须 = 背景色才能"挖空"）
+        let moon_r = size * 0.34;
+        let notch_r = moon_r * 0.85;
+        let moon_cx = cx - size * 0.03;
+        let notch_offset_x = size * 0.17;
+        let notch_offset_y = size * 0.08;
+        painter.circle_filled(Pos2::new(moon_cx, cy), moon_r, icon_color);
         painter.circle_filled(
-            Pos2::new(moon_cx + notch_offset_x, moon_cy - notch_offset_y),
+            Pos2::new(moon_cx + notch_offset_x, cy - notch_offset_y),
             notch_r,
             ui.visuals().window_fill,
         );
     } else {
-        // ★ 太阳：精美 SVG 风格 —— 圆心 + 均匀分布的圆润射线
-        let sun_r = size * 0.30;   // 太阳中心圆半径
-        let ray_len = size * 0.13; // 射线长度
-        let ray_w = 1.8_f32;       // 射线粗细
-
-        // 中心圆（填充）
+        let sun_r = size * 0.30;
+        let ray_len = size * 0.13;
+        let ray_w = 1.8_f32;
         painter.circle_filled(r.center(), sun_r, icon_color);
-
-        // 8 条均匀射线（每条是一个小圆角矩形/粗线段）
         for i in 0..8 {
             let angle = i as f32 * std::f32::consts::TAU / 8.0;
             let inner_dist = sun_r + size * 0.06;

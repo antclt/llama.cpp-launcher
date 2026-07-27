@@ -43,7 +43,18 @@ pub fn ui(
         });
         ui.add_space(8.0);
         // ★ Toggle 新签名：开关在左，标签在右
-        widgets::toggle(ui, &mut settings.dark_mode, i18n::t(i18n::Key::DarkMode, lang), accent);
+        let theme_opts = [i18n::t(i18n::Key::ThemeLight, lang), i18n::t(i18n::Key::ThemeDark, lang), i18n::t(i18n::Key::ThemeSystem, lang)];
+        let mut theme_idx = match settings.theme_mode.as_str() {
+            "light" => 0,
+            "dark" => 1,
+            _ => 2,
+        };
+        widgets::segmented(ui, &theme_opts, &mut theme_idx, accent);
+        settings.theme_mode = match theme_idx {
+            0 => "light".to_string(),
+            1 => "dark".to_string(),
+            _ => "auto".to_string(),
+        };
     });
 
     // ── 语言 ──

@@ -112,6 +112,10 @@ fn default_dark_mode() -> bool {
     true
 }
 
+fn default_theme_mode() -> String {
+    "auto".to_string()
+}
+
 fn default_accent_color() -> String {
     "#FF2D55".to_string()
 }
@@ -630,6 +634,10 @@ pub struct AppSettings {
     #[serde(default = "default_dark_mode")]
     pub dark_mode: bool,
 
+    // 界面主题模式："light" / "dark" / "auto"
+    #[serde(default = "default_theme_mode")]
+    pub theme_mode: String,
+
     // 界面主题色（十六进制，如 #0A84FF），全局强调色
     #[serde(default = "default_accent_color")]
     pub accent_color: String,
@@ -715,6 +723,7 @@ impl Default for AppSettings {
             auto_start: false,
             log_to_file: default_log_to_file(),
             dark_mode: true,
+            theme_mode: "auto".to_string(),
             accent_color: default_accent_color(),
             language: String::new(),
             auto_start_preset_name: None,

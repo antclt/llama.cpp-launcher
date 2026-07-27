@@ -39,6 +39,7 @@ pub struct LlamaLauncherApp {
     debug_mode: bool,                       // egui Inspector / 调试模式开关
     spacing_debugger: SpacingDebugger,      // UI 间距可视化工具
     title_bar_color_set: bool,              // 是否已设置过窗口标题栏颜色（仅一次）
+    last_system_dark: Option<bool>,
 }
 
 impl LlamaLauncherApp {
@@ -75,7 +76,36 @@ impl LlamaLauncherApp {
         // 全局 UI 放大 1.3 倍（从 1.5 降到 1.3，用户要求更紧凑美观）
         cc.egui_ctx.set_zoom_factor(1.3);
 
-        // 应用主题（深色模式默认开启）
+        let mut last_system_dark = None;
+        // 如果为跟随系统模式，启动时检测一次
+        if settings.theme_mode == "auto" {
+            #[cfg(target_os = "windows")] {
+                use std::os::windows::process::CommandExt;
+                if let Ok(output) = std::process::Command::new("reg")
+                    .args(["query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", "/v", "AppsUseLightTheme"])
+                    .creation_flags(0x0800_0000u32)
+                    .output()
+                {
+                    if output.status.success() {
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        for line in stdout.lines() {
+                            if line.contains("AppsUseLightTheme") {
+            settings.dark_mode = line.split_whitespace().last().map_or(false, |v| v.contains("0x0"));
+                                last_system_dark = Some(settings.dark_mode);
+                            }
+                        }
+                    }
+                }
+            }
+            if last_system_dark.is_none() {
+                settings.dark_mode = false;
+                last_system_dark = Some(false);
+            }
+        } else {
+            settings.dark_mode = settings.theme_mode == "dark";
+        }
+
+        // 应用主题
         let accent = crate::theme::parse_hex(&settings.accent_color);
         crate::theme::apply_theme(&cc.egui_ctx, settings.dark_mode, accent);
 
@@ -100,6 +130,7 @@ impl LlamaLauncherApp {
             debug_mode: false,
             spacing_debugger: SpacingDebugger::new(),
             title_bar_color_set: false,
+            last_system_dark,
         }
     }
 
@@ -377,6 +408,7 @@ impl LlamaLauncherApp {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if widgets::theme_toggle_button(ui, self.settings.dark_mode, accent) {
                         self.settings.dark_mode = !self.settings.dark_mode;
+                        self.settings.theme_mode = if self.settings.dark_mode { "dark" } else { "light" }.to_string();
                     }
                     self.render_web_client_button(ui);
                     self.render_rpc_controls(ui);
@@ -429,6 +461,13 @@ impl eframe::App for LlamaLauncherApp {
             "zh" => Language::Zh,
             _ => self.lang,
         };
+
+        // 跟随系统模式：使用启动时缓存的系统主题值，无需运行时检测
+        if self.settings.theme_mode == "auto" {
+            self.settings.dark_mode = self.last_system_dark.unwrap_or(false);
+        } else {
+            self.settings.dark_mode = self.settings.theme_mode == "dark";
+        }
 
         // 主题变更检测：深色模式或主题色变化时重新应用
         let sig = (self.settings.dark_mode, self.settings.accent_color.clone());
