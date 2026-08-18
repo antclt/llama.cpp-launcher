@@ -12,7 +12,7 @@ pub fn ui(
 ) {
     let accent = crate::theme::accent_color(&settings.accent_color);
 
-    // ── RPC 路径 ──
+    // ggml-rpc-server.exe 路径
     widgets::card(ui, i18n::t(i18n::Key::PanelRpcTitle, lang), accent, |ui| {
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::LabelRpcPath, lang));
@@ -87,12 +87,12 @@ pub fn ui(
             }
         });
 
-    // 线程数
-    ui.horizontal(|ui| {
-        ui.label(i18n::t(i18n::Key::LabelRpcThreads, lang));
-        ui.add(egui::DragValue::new(&mut settings.rpc_threads).range(1..=1024));
-        ui.small(i18n::t(i18n::Key::HintRpcThreads, lang));
-    });
+        // 线程数
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelRpcThreads, lang));
+            ui.add(egui::DragValue::new(&mut settings.rpc_threads).range(1..=1024));
+            ui.small(i18n::t(i18n::Key::HintRpcThreads, lang));
+        });
 
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::LabelRpcDevice, lang));
@@ -104,6 +104,11 @@ pub fn ui(
     // ── 缓存 ──
     widgets::card(ui, i18n::t(i18n::Key::SectionCache, lang), accent, |ui| {
         // ★ Toggle 新签名：开关在左，标签在右
-        widgets::toggle(ui, &mut settings.rpc_cache, i18n::t(i18n::Key::CheckboxRpcCache, lang), accent);
+        widgets::toggle(
+            ui,
+            &mut settings.rpc_cache,
+            i18n::t(i18n::Key::CheckboxRpcCache, lang),
+            accent,
+        );
     });
 }
