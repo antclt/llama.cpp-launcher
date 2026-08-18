@@ -83,28 +83,57 @@ pub fn card<R>(
 
 // ──── iOS Toggle（带标签，开关在左） ────
 
-/// iOS 风格开关 + 标签行。
-///
-/// 布局：[开关(track+knob)] [标签文字] —— 对齐 HTML 原型
-/// ```html
-/// <div class="toggle on"><div class="sw"></div><span>详细输出 (--verbose)</span></div>
-/// ```
-///
-/// on 状态使用固定的强调色（不随深色模式变暗）
-pub fn toggle(ui: &mut Ui, on: &mut bool, label: &str, accent: Color32) -> bool {
+/// iOS 风格开关 + 标签行。on 状态使用固定的强调色（不随深色模式变暗）。
+/// `toggle`：[开关] [标签]；`toggle_trailing`：[标签] …… [开关]（开关在选项末尾）
+
+/// 开关在选项末尾：标签在左，开关靠右（供 KV 缓存配置等整行选项使用）
+pub fn toggle_trailing(ui: &mut Ui, on: &mut bool, label: &str, accent: Color32) -> bool {
+    draw_toggle(ui, on, label, accent, true)
+}
+
+/// `trailing=false`：开关在左、标签在右；`trailing=true`：标签在左、开关靠右（选项末尾）
+fn draw_toggle(ui: &mut Ui, on: &mut bool, label: &str, accent: Color32, trailing: bool) -> bool {
     let height = 22.0_f32;
     let toggle_width = 40.0_f32;
     let spacing = 10.0;
 
-    // 用字符数估算标签宽度（避免调用不存在的 Fonts::width API）
-    let label_width = label.len() as f32 * 13.0; // 每个中文字约 13px
+    // 用 galley 实际测量标签宽度（替代旧"字符数×13px"估算，避免间距过大/重叠）
+    let label_width = ui.ctx().fonts_mut(|f| {
+        f.layout_no_wrap(
+            label.to_string(),
+            FontId::default(),
+            ui.visuals().text_color(),
+        )
+        .rect
+        .size()
+        .x
+    });
     let total_width = toggle_width + spacing + label_width;
     let (resp, painter) = ui.allocate_painter(Vec2::new(total_width, height), Sense::click());
     let rect = resp.rect;
     let radius = height / 2.0;
 
-    // ── 开关 track ──
-    let track_rect = Rect::from_min_size(rect.left_top(), Vec2::new(toggle_width, height));
+    if trailing {
+        // ── 标签文字（左侧）──
+        let label_pos = Pos2::new(rect.left(), rect.center().y);
+        painter.text(
+            label_pos,
+            Align2::LEFT_CENTER,
+            label,
+            FontId::default(),
+            ui.visuals().text_color(),
+        );
+    }
+
+    // ── 开关 track（trailing 时靠右，即选项末尾）──
+    let track_rect = if trailing {
+        Rect::from_min_max(
+            Pos2::new(rect.right() - toggle_width, rect.top()),
+            Pos2::new(rect.right(), rect.bottom()),
+        )
+    } else {
+        Rect::from_min_size(rect.left_top(), Vec2::new(toggle_width, height))
+    };
     let off_color = if ui.visuals().dark_mode {
         Color32::from_gray(90)
     } else {
@@ -122,17 +151,18 @@ pub fn toggle(ui: &mut Ui, on: &mut bool, label: &str, accent: Color32) -> bool 
     };
     painter.circle_filled(Pos2::new(cx, rect.center().y), knob_r, Color32::WHITE);
 
-    // ── 标签文字（右侧）──
-    let label_x = rect.left() + toggle_width + spacing;
-    let label_pos = Pos2::new(label_x, rect.center().y);
-    let label_color = ui.visuals().text_color();
-    painter.text(
-        label_pos,
-        Align2::LEFT_CENTER,
-        label,
-        FontId::default(),
-        label_color,
-    );
+    if !trailing {
+        // ── 标签文字（右侧）──
+        let label_x = rect.left() + toggle_width + spacing;
+        let label_pos = Pos2::new(label_x, rect.center().y);
+        painter.text(
+            label_pos,
+            Align2::LEFT_CENTER,
+            label,
+            FontId::default(),
+            ui.visuals().text_color(),
+        );
+    }
 
     if resp.clicked() {
         *on = !*on;
@@ -140,6 +170,11 @@ pub fn toggle(ui: &mut Ui, on: &mut bool, label: &str, accent: Color32) -> bool 
     } else {
         false
     }
+}
+
+/// 开关在左，标签在右（保持原有调用方式）
+pub fn toggle(ui: &mut Ui, on: &mut bool, label: &str, accent: Color32) -> bool {
+    draw_toggle(ui, on, label, accent, false)
 }
 
 // ──── 分段控件 ────
