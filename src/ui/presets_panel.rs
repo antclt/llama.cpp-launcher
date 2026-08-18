@@ -237,7 +237,8 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                         {
                             if is_auto {
                                 auto_start_preset = Some(preset.name.clone());
-                            } else if settings.auto_start_preset_name.as_ref() == Some(&preset.name) {
+                            } else if settings.auto_start_preset_name.as_ref() == Some(&preset.name)
+                            {
                                 settings.auto_start_preset_name = None;
                             }
                         }

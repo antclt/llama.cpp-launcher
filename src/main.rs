@@ -154,7 +154,9 @@ fn main() -> eframe::Result {
 }
 
 fn load_window_icon() -> Option<egui::IconData> {
-    let image = image::load_from_memory(include_bytes!("../assets/llama.ico")).ok()?.to_rgba8();
+    let image = image::load_from_memory(include_bytes!("../assets/llama.ico"))
+        .ok()?
+        .to_rgba8();
     Some(egui::IconData {
         width: image.width(),
         height: image.height(),

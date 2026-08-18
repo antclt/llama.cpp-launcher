@@ -7,9 +7,7 @@
 //!   - Toggle：开关在左、标签在右（对齐 HTML <div class="toggle"><.sw/><span>label</span></div>）
 //!   - 分段控件/按钮/输入框统一 6px 圆角矩形（非 pill 椭圆）
 
-use egui::{
-    Align2, Color32, FontId, Painter, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2,
-};
+use egui::{Align2, Color32, FontId, Painter, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2};
 
 // ──── 设计常量（对齐 HTML :root 变量，按用户反馈调方） ────
 
@@ -43,34 +41,44 @@ pub enum NavIcon {
 /// <h3><span class="bar"></span>Server 配置</h3>
 /// /* .bar{width:3px;height:14px;border-radius:2px;background:var(--accent);} */
 /// ```
-pub fn card<R>(ui: &mut Ui, title: &str, accent: Color32, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+pub fn card<R>(
+    ui: &mut Ui,
+    title: &str,
+    accent: Color32,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> R {
     let fill = ui.visuals().widgets.noninteractive.bg_fill;
     // ★ 关键修复：深色模式下显式调亮 stroke，让卡片边界在 #2C2C2E 上可见
     let stroke_color = if ui.visuals().dark_mode {
-        Color32::from_rgb(90, 90, 95)   // #5A5A5F — 在深色卡片上清晰可见
+        Color32::from_rgb(90, 90, 95) // #5A5A5F — 在深色卡片上清晰可见
     } else {
         Color32::from_rgb(190, 190, 200) // 在浅色卡片上可见
     };
     let frame = egui::Frame::default()
         .fill(fill)
-        .stroke(egui::Stroke { width: 1.0_f32, color: stroke_color })
+        .stroke(egui::Stroke {
+            width: 1.0_f32,
+            color: stroke_color,
+        })
         .corner_radius(R_CARD)
-        .inner_margin(egui::Margin::same(24_i8))  // HTML .card{padding:24px}
+        .inner_margin(egui::Margin::same(24_i8)) // HTML .card{padding:24px}
         .outer_margin(egui::Margin::symmetric(0, 12)); // 子框之间间距
-    frame.show(ui, |ui| {
-        ui.spacing_mut().item_spacing.y = 12.0;
-        ui.horizontal(|ui| {
-            let (resp, painter) = ui.allocate_painter(Vec2::new(3.0, 14.0), Sense::hover());
-            painter.rect_filled(resp.rect, 2.0, accent);
-            ui.add_space(8.0);
-            ui.label(title);
-        });
-        ui.separator();
-        ui.add_space(4.0);
-        let result = add_contents(ui);
-        ui.add_space(4.0);
-        result
-    }).inner
+    frame
+        .show(ui, |ui| {
+            ui.spacing_mut().item_spacing.y = 12.0;
+            ui.horizontal(|ui| {
+                let (resp, painter) = ui.allocate_painter(Vec2::new(3.0, 14.0), Sense::hover());
+                painter.rect_filled(resp.rect, 2.0, accent);
+                ui.add_space(8.0);
+                ui.label(title);
+            });
+            ui.separator();
+            ui.add_space(4.0);
+            let result = add_contents(ui);
+            ui.add_space(4.0);
+            result
+        })
+        .inner
 }
 
 // ──── iOS Toggle（带标签，开关在左） ────
@@ -280,7 +288,13 @@ pub fn nav_row(
     let text_pos = Pos2::new(icon_start_x + icon_size + 8.0, rect.center().y);
     let label_color = icon_color;
     // 稍小的字体让侧边栏更精致
-    painter.text(text_pos, Align2::LEFT_CENTER, label, FontId::proportional(13.0), label_color);
+    painter.text(
+        text_pos,
+        Align2::LEFT_CENTER,
+        label,
+        FontId::proportional(13.0),
+        label_color,
+    );
 
     resp
 }
@@ -328,7 +342,12 @@ pub fn theme_toggle_button(ui: &mut Ui, dark: bool, _accent: Color32) -> bool {
 /// 主题色选择器的单个色块。
 /// - 未选中：纯色圆形
 /// - 选中：外环 + 内部白色勾（对齐 HTML .color-swatch.active 样式）
-pub fn color_swatch(ui: &mut Ui, color: Color32, selected: bool, accent_for_check: bool) -> Response {
+pub fn color_swatch(
+    ui: &mut Ui,
+    color: Color32,
+    selected: bool,
+    accent_for_check: bool,
+) -> Response {
     let size = 30.0_f32;
     let (resp, painter) = ui.allocate_painter(Vec2::new(size, size), Sense::click());
     let center = resp.rect.center();
@@ -405,7 +424,7 @@ pub fn nav_icon_paint(painter: &Painter, rect: Rect, kind: NavIcon, color: Color
     let h = rect.height();
     let cx = rect.center().x;
     let _cy = rect.center().y; // Settings gear 以 cx 为基准对称绘制，cy 保留备用
-    // 对齐 HTML .nav-item .ico svg{stroke-width:1.8}，图标 18×18 在 24×24 viewBox 内
+                               // 对齐 HTML .nav-item .ico svg{stroke-width:1.8}，图标 18×18 在 24×24 viewBox 内
     let s = Stroke::new(1.8_f32, color);
 
     // 辅助函数：将 SVG 24×24 坐标系映射到实际 rect
@@ -419,18 +438,29 @@ pub fn nav_icon_paint(painter: &Painter, rect: Rect, kind: NavIcon, color: Color
             //         <line x1="7" y1="8" x2="7" y2="12"/><line x1="17" y1="8" x2="17" y2="12"/>
             // 显示器屏幕
             painter.rect_stroke(
-                Rect::from_min_max(
-                    Pos2::new(sx(2.0), sy(3.0)),
-                    Pos2::new(sx(22.0), sy(17.0)),
-                ),
-                2.0, s, egui::StrokeKind::Middle,
+                Rect::from_min_max(Pos2::new(sx(2.0), sy(3.0)), Pos2::new(sx(22.0), sy(17.0))),
+                2.0,
+                s,
+                egui::StrokeKind::Middle,
             );
             // 支架
-            painter.line_segment([Pos2::new(sx(8.0), sy(21.0)), Pos2::new(sx(16.0), sy(21.0))], s);
-            painter.line_segment([Pos2::new(sx(12.0), sy(17.0)), Pos2::new(sx(12.0), sy(21.0))], s);
+            painter.line_segment(
+                [Pos2::new(sx(8.0), sy(21.0)), Pos2::new(sx(16.0), sy(21.0))],
+                s,
+            );
+            painter.line_segment(
+                [Pos2::new(sx(12.0), sy(17.0)), Pos2::new(sx(12.0), sy(21.0))],
+                s,
+            );
             // 屏幕内容线
-            painter.line_segment([Pos2::new(sx(7.0), sy(8.0)), Pos2::new(sx(7.0), sy(12.0))], s);
-            painter.line_segment([Pos2::new(sx(17.0), sy(8.0)), Pos2::new(sx(17.0), sy(12.0))], s);
+            painter.line_segment(
+                [Pos2::new(sx(7.0), sy(8.0)), Pos2::new(sx(7.0), sy(12.0))],
+                s,
+            );
+            painter.line_segment(
+                [Pos2::new(sx(17.0), sy(8.0)), Pos2::new(sx(17.0), sy(12.0))],
+                s,
+            );
         }
         NavIcon::Rpc => {
             // ★ 保留不变：三点层级连接图（用户明确要求）
@@ -448,12 +478,12 @@ pub fn nav_icon_paint(painter: &Painter, rect: Rect, kind: NavIcon, color: Color
             // ★ HTML: 圆角六边形（3D 盒子 / AI 模型经典图标）
             // 原始尖角六边形顶点，每对相邻点之间插入圆角过渡点（内缩 ~5%）
             let hex_raw = [
-                Pos2::new(sx(12.0), sy(2.37)),   // 顶
-                Pos2::new(sx(20.0), sy(6.27)),   // 右上
-                Pos2::new(sx(20.0), sy(15.73)),  // 右下
-                Pos2::new(sx(12.0), sy(19.63)),  // 底
-                Pos2::new(sx(4.0), sy(15.73)),   // 左下
-                Pos2::new(sx(4.0), sy(6.27)),    // 左上
+                Pos2::new(sx(12.0), sy(2.37)),  // 顶
+                Pos2::new(sx(20.0), sy(6.27)),  // 右上
+                Pos2::new(sx(20.0), sy(15.73)), // 右下
+                Pos2::new(sx(12.0), sy(19.63)), // 底
+                Pos2::new(sx(4.0), sy(15.73)),  // 左下
+                Pos2::new(sx(4.0), sy(6.27)),   // 左上
             ];
             let n = hex_raw.len();
             let mut rounded_hex = Vec::with_capacity(n * 3); // 每个角拆成 3 点（入+弧出）
@@ -482,7 +512,7 @@ pub fn nav_icon_paint(painter: &Painter, rect: Rect, kind: NavIcon, color: Color
             // <path d="M4 21v-7m0-4V3m8 18v-9m0-4V3m8 18v-5m0-4V3"/>
             // <circle cx="4" cy="10" r="2"/><circle cx="12" cy="8" r="2"/><circle cx="20" cy="14" r="2"/>
             let sliders = [
-                (4.0_f32, 10.0, 21.0),  // (track_x, knob_y, track_bottom)
+                (4.0_f32, 10.0, 21.0), // (track_x, knob_y, track_bottom)
                 (12.0, 8.0, 19.0),
                 (20.0, 14.0, 17.0),
             ];
@@ -509,11 +539,23 @@ pub fn nav_icon_paint(painter: &Painter, rect: Rect, kind: NavIcon, color: Color
                 s,
             ));
             // 折角线
-            painter.line_segment([Pos2::new(sx(14.0), sy(2.0)), Pos2::new(sx(14.0), sy(8.0))], s);
-            painter.line_segment([Pos2::new(sx(14.0), sy(8.0)), Pos2::new(sx(20.0), sy(8.0))], s);
+            painter.line_segment(
+                [Pos2::new(sx(14.0), sy(2.0)), Pos2::new(sx(14.0), sy(8.0))],
+                s,
+            );
+            painter.line_segment(
+                [Pos2::new(sx(14.0), sy(8.0)), Pos2::new(sx(20.0), sy(8.0))],
+                s,
+            );
             // 文字行
-            painter.line_segment([Pos2::new(sx(8.0), sy(13.0)), Pos2::new(sx(16.0), sy(13.0))], s);
-            painter.line_segment([Pos2::new(sx(8.0), sy(17.0)), Pos2::new(sx(14.0), sy(17.0))], s);
+            painter.line_segment(
+                [Pos2::new(sx(8.0), sy(13.0)), Pos2::new(sx(16.0), sy(13.0))],
+                s,
+            );
+            painter.line_segment(
+                [Pos2::new(sx(8.0), sy(17.0)), Pos2::new(sx(14.0), sy(17.0))],
+                s,
+            );
         }
         NavIcon::Commands => {
             // ★ HTML: 播放三角形 <polygon points="5,3 19,12 5,21"/>
@@ -549,9 +591,9 @@ pub fn nav_icon_paint(painter: &Painter, rect: Rect, kind: NavIcon, color: Color
             // 对齐 HTML SF Symbols "gear" / Fluent "Settings" 图标风格
             let gear_cx = sx(12.0); // 齿轮中心（viewBox 12,12）
             let gear_cy = sy(12.0);
-            let outer_r = w * 0.42;   // 外圈半径（含齿）
-            let inner_r = w * 0.22;   // 内孔半径
-            let hub_r = w * 0.30;     // 齿根圆半径（齿与齿之间的凹处）
+            let outer_r = w * 0.42; // 外圈半径（含齿）
+            let inner_r = w * 0.22; // 内孔半径
+            let hub_r = w * 0.30; // 齿根圆半径（齿与齿之间的凹处）
             let teeth = 8;
 
             // 用 path 绘制齿轮外轮廓（带齿的闭合路径）

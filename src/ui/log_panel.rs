@@ -3,7 +3,12 @@ use crate::engine::server::{LogLevel, ServerManager};
 use crate::i18n;
 use crate::ui::widgets;
 
-pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, server: &mut ServerManager, lang: &i18n::Language) {
+pub fn ui(
+    ui: &mut egui::Ui,
+    settings: &mut AppSettings,
+    server: &mut ServerManager,
+    lang: &i18n::Language,
+) {
     let accent = crate::theme::accent_color(&settings.accent_color);
     widgets::card(ui, i18n::t(i18n::Key::PanelLogTitle, lang), accent, |ui| {
         let auto_scroll_before = settings.auto_scroll_logs;
@@ -59,7 +64,10 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, server: &mut ServerMana
                     if logs.is_empty() {
                         ui.add_space(8.0);
                         ui.horizontal_centered(|ui| {
-                            ui.colored_label(egui::Color32::GRAY, i18n::t(i18n::Key::HintNoLogs, lang));
+                            ui.colored_label(
+                                egui::Color32::GRAY,
+                                i18n::t(i18n::Key::HintNoLogs, lang),
+                            );
                         });
                     } else {
                         for entry in &logs {

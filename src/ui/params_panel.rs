@@ -15,152 +15,164 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
     let can_start = server_path_valid && !settings.model_path.as_os_str().is_empty();
 
     // ── 上下文与批次 ──
-    widgets::card(ui, i18n::t(i18n::Key::SectionContextBatch, lang), accent, |ui| {
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::LabelNCtx, lang));
-            ui.add(
-                egui::DragValue::new(&mut settings.context)
-                    .range(1..=1024)
-                    .speed(1),
-            );
-            ui.label("k");
-            ui.small(i18n::t(i18n::Key::HintKUnit, lang));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpNCtx, lang));
-        });
-        if ui
-            .button(i18n::t(i18n::Key::BtnSetMaxContextVram, lang))
-            .clicked() && can_start
-        {
-            match kv_cache::calc_max_context_facade(settings) {
-                Ok(val) => settings.context = val,
-                Err(e) => log::warn!("[params_panel] calc_max_context 失败: {}", e),
-            }
-        }
-
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::LabelBatchSize, lang));
-            ui.add(
-                egui::DragValue::new(&mut settings.batch_size)
-                    .range(1..=16)
-                    .speed(1),
-            );
-            ui.label("k");
-            ui.small(i18n::t(i18n::Key::HintKUnit, lang));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpBatchSize, lang));
-        });
-
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::LabelUBatchSize, lang));
-            ui.add(
-                egui::DragValue::new(&mut settings.ubatch_size)
-                    .range(0.5..=16.0)
-                    .speed(0.5),
-            );
-            ui.label("k");
-            ui.small(i18n::t(i18n::Key::HintKUnit, lang));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpUBatchSize, lang));
-        });
-
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::LabelSessionTimeout, lang));
-            ui.add(
-                egui::DragValue::new(&mut settings.session_timeout)
-                    .range(60..=3600)
-                    .speed(10),
-            );
-            ui.label(i18n::t(i18n::Key::HintSUnit, lang));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSessionTimeout, lang));
-        });
-
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::LabelKvCacheRatio, lang));
-            ui.add(
-                egui::DragValue::new(&mut settings.kv_cache_ratio)
-                    .range(0.0..=1.0)
-                    .speed(0.01),
-            );
-            ui.label(format!("{:.2}", settings.kv_cache_ratio));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpKvCacheRatio, lang));
-        });
-
-        ui.horizontal(|ui| {
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionContextBatch, lang),
+        accent,
+        |ui| {
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelNCtx, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.context)
+                        .range(1..=1024)
+                        .speed(1),
+                );
+                ui.label("k");
+                ui.small(i18n::t(i18n::Key::HintKUnit, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpNCtx, lang));
+            });
             if ui
-                .button(i18n::t(i18n::Key::BtnCalcKvCache, lang))
-                .clicked() && can_start
+                .button(i18n::t(i18n::Key::BtnSetMaxContextVram, lang))
+                .clicked()
+                && can_start
             {
-                settings.kv_cache_result = match kv_cache::calc_and_format(settings) {
-                    Ok(result) => Some(format!(
-                        "{} {}",
-                        i18n::t(i18n::Key::LabelKvCacheResult, lang),
-                        result
-                    )),
-                    Err(e) => Some(format!("⚠ {}", e)),
-                };
+                match kv_cache::calc_max_context_facade(settings) {
+                    Ok(val) => settings.context = val,
+                    Err(e) => log::warn!("[params_panel] calc_max_context 失败: {}", e),
+                }
             }
-            if let Some(ref result) = settings.kv_cache_result {
-                ui.small(egui::RichText::new(result).weak());
-            }
-        });
-    });
+
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelBatchSize, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.batch_size)
+                        .range(1..=16)
+                        .speed(1),
+                );
+                ui.label("k");
+                ui.small(i18n::t(i18n::Key::HintKUnit, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpBatchSize, lang));
+            });
+
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelUBatchSize, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.ubatch_size)
+                        .range(0.5..=16.0)
+                        .speed(0.5),
+                );
+                ui.label("k");
+                ui.small(i18n::t(i18n::Key::HintKUnit, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpUBatchSize, lang));
+            });
+
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelSessionTimeout, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.session_timeout)
+                        .range(60..=3600)
+                        .speed(10),
+                );
+                ui.label(i18n::t(i18n::Key::HintSUnit, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSessionTimeout, lang));
+            });
+
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelKvCacheRatio, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.kv_cache_ratio)
+                        .range(0.0..=1.0)
+                        .speed(0.01),
+                );
+                ui.label(format!("{:.2}", settings.kv_cache_ratio));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpKvCacheRatio, lang));
+            });
+
+            ui.horizontal(|ui| {
+                if ui
+                    .button(i18n::t(i18n::Key::BtnCalcKvCache, lang))
+                    .clicked()
+                    && can_start
+                {
+                    settings.kv_cache_result = match kv_cache::calc_and_format(settings) {
+                        Ok(result) => Some(format!(
+                            "{} {}",
+                            i18n::t(i18n::Key::LabelKvCacheResult, lang),
+                            result
+                        )),
+                        Err(e) => Some(format!("⚠ {}", e)),
+                    };
+                }
+                if let Some(ref result) = settings.kv_cache_result {
+                    ui.small(egui::RichText::new(result).weak());
+                }
+            });
+        },
+    );
 
     // ── 采样参数 ──
-    widgets::card(ui, i18n::t(i18n::Key::SectionSampling, lang), accent, |ui| {
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::LabelTemperature, lang));
-            ui.add(
-                egui::Slider::new(&mut settings.temperature, 0.0..=2.0)
-                    .smallest_positive(0.01)
-                    .custom_formatter(|v, _| format!("{:.2}", v)),
-            );
-            ui.label(format!("{:.2}", settings.temperature));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTemperature, lang));
-            // ★ Toggle 新签名：开关在左，标签在右
-        widgets::toggle(ui, &mut settings.ignore_temperature, "", accent);
-        });
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionSampling, lang),
+        accent,
+        |ui| {
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelTemperature, lang));
+                ui.add(
+                    egui::Slider::new(&mut settings.temperature, 0.0..=2.0)
+                        .smallest_positive(0.01)
+                        .custom_formatter(|v, _| format!("{:.2}", v)),
+                );
+                ui.label(format!("{:.2}", settings.temperature));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTemperature, lang));
+                // ★ Toggle 新签名：开关在左，标签在右
+                widgets::toggle(ui, &mut settings.ignore_temperature, "", accent);
+            });
 
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::LabelTopP, lang));
-            ui.add(
-                egui::Slider::new(&mut settings.top_p, 0.0..=1.0)
-                    .smallest_positive(0.01)
-                    .custom_formatter(|v, _| format!("{:.2}", v)),
-            );
-            ui.label(format!("{:.2}", settings.top_p));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTopP, lang));
-            widgets::toggle(ui, &mut settings.ignore_top_p, "", accent);
-        });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelTopP, lang));
+                ui.add(
+                    egui::Slider::new(&mut settings.top_p, 0.0..=1.0)
+                        .smallest_positive(0.01)
+                        .custom_formatter(|v, _| format!("{:.2}", v)),
+                );
+                ui.label(format!("{:.2}", settings.top_p));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTopP, lang));
+                widgets::toggle(ui, &mut settings.ignore_top_p, "", accent);
+            });
 
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::LabelTopK, lang));
-            ui.add(egui::DragValue::new(&mut settings.top_k).range(0..=1000));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTopK, lang));
-            widgets::toggle(ui, &mut settings.ignore_top_k, "", accent);
-        });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelTopK, lang));
+                ui.add(egui::DragValue::new(&mut settings.top_k).range(0..=1000));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTopK, lang));
+                widgets::toggle(ui, &mut settings.ignore_top_k, "", accent);
+            });
 
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::LabelRepeatPenalty, lang));
-            ui.add(
-                egui::Slider::new(&mut settings.repeat_penalty, 0.0..=2.0)
-                    .smallest_positive(0.01)
-                    .custom_formatter(|v, _| format!("{:.2}", v)),
-            );
-            ui.label(format!("{:.2}", settings.repeat_penalty));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpRepeatPenalty, lang));
-            widgets::toggle(ui, &mut settings.ignore_repeat_penalty, "", accent);
-        });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelRepeatPenalty, lang));
+                ui.add(
+                    egui::Slider::new(&mut settings.repeat_penalty, 0.0..=2.0)
+                        .smallest_positive(0.01)
+                        .custom_formatter(|v, _| format!("{:.2}", v)),
+                );
+                ui.label(format!("{:.2}", settings.repeat_penalty));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpRepeatPenalty, lang));
+                widgets::toggle(ui, &mut settings.ignore_repeat_penalty, "", accent);
+            });
 
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::LabelPresencePenalty, lang));
-            ui.add(
-                egui::Slider::new(&mut settings.presence_penalty, -2.0..=2.0)
-                    .smallest_positive(0.01)
-                    .custom_formatter(|v, _| format!("{:.2}", v)),
-            );
-            ui.label(format!("{:.2}", settings.presence_penalty));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpPresencePenalty, lang));
-            widgets::toggle(ui, &mut settings.ignore_presence_penalty, "", accent);
-        });
-    });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelPresencePenalty, lang));
+                ui.add(
+                    egui::Slider::new(&mut settings.presence_penalty, -2.0..=2.0)
+                        .smallest_positive(0.01)
+                        .custom_formatter(|v, _| format!("{:.2}", v)),
+                );
+                ui.label(format!("{:.2}", settings.presence_penalty));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpPresencePenalty, lang));
+                widgets::toggle(ui, &mut settings.ignore_presence_penalty, "", accent);
+            });
+        },
+    );
 
     // ── Flash Attention ──
     widgets::card(ui, i18n::t(i18n::Key::LabelFlashAttn, lang), accent, |ui| {
@@ -183,12 +195,19 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
     widgets::card(ui, i18n::t(i18n::Key::SectionKvCache, lang), accent, |ui| {
         ui.horizontal(|ui| {
             // ★ Toggle 新签名：开关在左，标签在右
-            widgets::toggle(ui, &mut settings.kv_offload, i18n::t(i18n::Key::CheckboxKvOffload, lang), accent);
+            widgets::toggle(
+                ui,
+                &mut settings.kv_offload,
+                i18n::t(i18n::Key::CheckboxKvOffload, lang),
+                accent,
+            );
         });
         ui.small(i18n::t(i18n::Key::HintKvOffload, lang));
 
         ui.label(i18n::t(i18n::Key::LabelCacheTypeK, lang));
-        let k_types = ["f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1"];
+        let k_types = [
+            "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1",
+        ];
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
             for k_type in &k_types {
@@ -203,7 +222,9 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         });
 
         ui.label(i18n::t(i18n::Key::LabelCacheTypeV, lang));
-        let v_types = ["f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1"];
+        let v_types = [
+            "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1",
+        ];
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
             for v_type in &v_types {
@@ -218,10 +239,26 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         });
 
         for (label_key, _help_key, flag) in [
-            (i18n::Key::CheckboxKvMlock, i18n::Key::HelpKvMlock, &mut settings.kv_mlock),
-            (i18n::Key::CheckboxKvMmap, i18n::Key::HelpKvMmap, &mut settings.kv_mmap),
-            (i18n::Key::CheckboxKvUnified, i18n::Key::HelpKvUnified, &mut settings.kv_unified),
-            (i18n::Key::CheckboxSwaFull, i18n::Key::HelpSwaFull, &mut settings.swa_full),
+            (
+                i18n::Key::CheckboxKvMlock,
+                i18n::Key::HelpKvMlock,
+                &mut settings.kv_mlock,
+            ),
+            (
+                i18n::Key::CheckboxKvMmap,
+                i18n::Key::HelpKvMmap,
+                &mut settings.kv_mmap,
+            ),
+            (
+                i18n::Key::CheckboxKvUnified,
+                i18n::Key::HelpKvUnified,
+                &mut settings.kv_unified,
+            ),
+            (
+                i18n::Key::CheckboxSwaFull,
+                i18n::Key::HelpSwaFull,
+                &mut settings.swa_full,
+            ),
         ] {
             // ★ Toggle 新签名：开关在左，标签在右
             widgets::toggle(ui, flag, i18n::t(label_key, lang), accent);
@@ -249,146 +286,175 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
     });
 
     // ── GPU 与设备分配 ──
-    widgets::card(ui, i18n::t(i18n::Key::SectionGpuDevice, lang), accent, |ui| {
-        let mut manual_gpu_layers = matches!(settings.gpu_layers_mode, GpuLayersMode::Manual(_));
-        let mut gpu_layers = match settings.gpu_layers_mode {
-            GpuLayersMode::Auto => 0usize,
-            GpuLayersMode::All => 256usize,
-            GpuLayersMode::Manual(n) => n,
-        };
-
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::LabelGpuDevice, lang));
-            let gm_labels = [
-                i18n::t(i18n::Key::GpuModeAuto, lang),
-                i18n::t(i18n::Key::GpuModeAll, lang),
-            ];
-            let mut gm_idx = match settings.gpu_layers_mode {
-                GpuLayersMode::Auto => 0,
-                GpuLayersMode::All => 1,
-                GpuLayersMode::Manual(_) => 0,
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionGpuDevice, lang),
+        accent,
+        |ui| {
+            let mut manual_gpu_layers =
+                matches!(settings.gpu_layers_mode, GpuLayersMode::Manual(_));
+            let mut gpu_layers = match settings.gpu_layers_mode {
+                GpuLayersMode::Auto => 0usize,
+                GpuLayersMode::All => 256usize,
+                GpuLayersMode::Manual(n) => n,
             };
-            widgets::segmented(ui, &gm_labels, &mut gm_idx, accent);
-            match gm_idx {
-                0 => settings.gpu_layers_mode = GpuLayersMode::Auto,
-                1 => settings.gpu_layers_mode = GpuLayersMode::All,
-                _ => {}
+
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelGpuDevice, lang));
+                let gm_labels = [
+                    i18n::t(i18n::Key::GpuModeAuto, lang),
+                    i18n::t(i18n::Key::GpuModeAll, lang),
+                ];
+                let mut gm_idx = match settings.gpu_layers_mode {
+                    GpuLayersMode::Auto => 0,
+                    GpuLayersMode::All => 1,
+                    GpuLayersMode::Manual(_) => 0,
+                };
+                widgets::segmented(ui, &gm_labels, &mut gm_idx, accent);
+                match gm_idx {
+                    0 => settings.gpu_layers_mode = GpuLayersMode::Auto,
+                    1 => settings.gpu_layers_mode = GpuLayersMode::All,
+                    _ => {}
+                }
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpGpuDevice, lang));
+            });
+
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::CheckboxManualGpuLayers, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpGpuDevice, lang));
+                // ★ Toggle 新签名
+                widgets::toggle(
+                    ui,
+                    &mut manual_gpu_layers,
+                    i18n::t(i18n::Key::CheckboxManualGpuLayers, lang),
+                    accent,
+                );
+            });
+            if manual_gpu_layers {
+                ui.indent("manual_gpu_layers_options", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelGpuDevice, lang));
+                        ui.add(egui::DragValue::new(&mut gpu_layers).range(0..=256));
+                        ui.small(i18n::t(i18n::Key::HintGpuDevice, lang));
+                    });
+                });
+                settings.gpu_layers_mode = GpuLayersMode::Manual(gpu_layers);
             }
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpGpuDevice, lang));
-        });
 
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::CheckboxManualGpuLayers, lang));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpGpuDevice, lang));
-            // ★ Toggle 新签名
-            widgets::toggle(ui, &mut manual_gpu_layers, i18n::t(i18n::Key::CheckboxManualGpuLayers, lang), accent);
-        });
-        if manual_gpu_layers {
-            ui.indent("manual_gpu_layers_options", |ui| {
-                ui.horizontal(|ui| {
-                    ui.label(i18n::t(i18n::Key::LabelGpuDevice, lang));
-                    ui.add(egui::DragValue::new(&mut gpu_layers).range(0..=256));
-                    ui.small(i18n::t(i18n::Key::HintGpuDevice, lang));
-                });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelSplitMode, lang));
+                let sm_vals = ["none", "layer", "tensor"];
+                let sm_labels = [
+                    i18n::t(i18n::Key::SplitModeNone, lang),
+                    i18n::t(i18n::Key::SplitModeLayer, lang),
+                    i18n::t(i18n::Key::SplitModeTensor, lang),
+                ];
+                let mut sm_idx = sm_vals
+                    .iter()
+                    .position(|v| *v == settings.split_mode)
+                    .unwrap_or(0);
+                widgets::segmented(ui, &sm_labels, &mut sm_idx, accent);
+                settings.split_mode = sm_vals[sm_idx].to_string();
+                ui.small(i18n::t(i18n::Key::HintSplitMode, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSplitMode, lang));
             });
-            settings.gpu_layers_mode = GpuLayersMode::Manual(gpu_layers);
-        }
 
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::LabelSplitMode, lang));
-            let sm_vals = ["none", "layer", "tensor"];
-            let sm_labels = [
-                i18n::t(i18n::Key::SplitModeNone, lang),
-                i18n::t(i18n::Key::SplitModeLayer, lang),
-                i18n::t(i18n::Key::SplitModeTensor, lang),
-            ];
-            let mut sm_idx = sm_vals
-                .iter()
-                .position(|v| *v == settings.split_mode)
-                .unwrap_or(0);
-            widgets::segmented(ui, &sm_labels, &mut sm_idx, accent);
-            settings.split_mode = sm_vals[sm_idx].to_string();
-            ui.small(i18n::t(i18n::Key::HintSplitMode, lang));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSplitMode, lang));
-        });
-
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::LabelTensorSplit, lang));
-            ui.text_edit_singleline(&mut settings.tensor_split);
-            ui.small(i18n::t(i18n::Key::HintTensorSplit, lang));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTensorSplit, lang));
-        });
-
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::CheckboxCpuMoe, lang));
-            ui.small(i18n::t(i18n::Key::HintCpuMoe, lang));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCpuMoe, lang));
-            // ★ Toggle 新签名
-            widgets::toggle(ui, &mut settings.cpu_moe, i18n::t(i18n::Key::CheckboxCpuMoe, lang), accent);
-        });
-        if settings.cpu_moe {
-            ui.indent("cpu_moe_options", |ui| {
-                ui.horizontal(|ui| {
-                    ui.label(i18n::t(i18n::Key::LabelNCpuMoe, lang));
-                    ui.add(egui::DragValue::new(&mut settings.n_cpu_moe).range(0..=256));
-                    ui.small(i18n::t(i18n::Key::HintNCpuMoe, lang));
-                });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelTensorSplit, lang));
+                ui.text_edit_singleline(&mut settings.tensor_split);
+                ui.small(i18n::t(i18n::Key::HintTensorSplit, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTensorSplit, lang));
             });
-        }
-    });
+
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::CheckboxCpuMoe, lang));
+                ui.small(i18n::t(i18n::Key::HintCpuMoe, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCpuMoe, lang));
+                // ★ Toggle 新签名
+                widgets::toggle(
+                    ui,
+                    &mut settings.cpu_moe,
+                    i18n::t(i18n::Key::CheckboxCpuMoe, lang),
+                    accent,
+                );
+            });
+            if settings.cpu_moe {
+                ui.indent("cpu_moe_options", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelNCpuMoe, lang));
+                        ui.add(egui::DragValue::new(&mut settings.n_cpu_moe).range(0..=256));
+                        ui.small(i18n::t(i18n::Key::HintNCpuMoe, lang));
+                    });
+                });
+            }
+        },
+    );
 
     // ── 推测解码 ──
-    widgets::card(ui, i18n::t(i18n::Key::SectionSpecDecoding, lang), accent, |ui| {
-        ui.label(i18n::t(i18n::Key::SpecTypeLabel, lang));
-        let spec_options = [
-            "none", "draft-simple", "draft-eagle3", "draft-mtp", "ngram-simple",
-            "ngram-map-k", "ngram-map-k4v", "ngram-mod", "ngram-cache", "dflash",
-        ];
-        ui.horizontal_wrapped(|ui| {
-            ui.spacing_mut().item_spacing.x = 6.0;
-            for opt in &spec_options[..] {
-                let selected = settings.spec_type == *opt;
-                if ui.selectable_label(selected, *opt).clicked() {
-                    settings.spec_type = opt.to_string();
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionSpecDecoding, lang),
+        accent,
+        |ui| {
+            ui.label(i18n::t(i18n::Key::SpecTypeLabel, lang));
+            let spec_options = [
+                "none",
+                "draft-simple",
+                "draft-eagle3",
+                "draft-mtp",
+                "ngram-simple",
+                "ngram-map-k",
+                "ngram-map-k4v",
+                "ngram-mod",
+                "ngram-cache",
+                "dflash",
+            ];
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing.x = 6.0;
+                for opt in &spec_options[..] {
+                    let selected = settings.spec_type == *opt;
+                    if ui.selectable_label(selected, *opt).clicked() {
+                        settings.spec_type = opt.to_string();
+                    }
                 }
-            }
-        });
-        ui.horizontal(|ui| {
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecType, lang));
-        });
+            });
+            ui.horizontal(|ui| {
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecType, lang));
+            });
 
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::SpecDraftNMaxLabel, lang));
-            ui.add(egui::DragValue::new(&mut settings.spec_draft_n_max).range(0..=64));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftNMax, lang));
-        });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::SpecDraftNMaxLabel, lang));
+                ui.add(egui::DragValue::new(&mut settings.spec_draft_n_max).range(0..=64));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftNMax, lang));
+            });
 
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::SpecDraftNMinLabel, lang));
-            ui.add(egui::DragValue::new(&mut settings.spec_draft_n_min).range(0..=32));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftNMin, lang));
-        });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::SpecDraftNMinLabel, lang));
+                ui.add(egui::DragValue::new(&mut settings.spec_draft_n_min).range(0..=32));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftNMin, lang));
+            });
 
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::SpecDraftPMinLabel, lang));
-            ui.add(
-                egui::Slider::new(&mut settings.spec_draft_p_min, 0.0..=1.0)
-                    .smallest_positive(0.01)
-                    .custom_formatter(|v, _| format!("{:.2}", v)),
-            );
-            ui.label(format!("{:.2}", settings.spec_draft_p_min));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftPMin, lang));
-        });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::SpecDraftPMinLabel, lang));
+                ui.add(
+                    egui::Slider::new(&mut settings.spec_draft_p_min, 0.0..=1.0)
+                        .smallest_positive(0.01)
+                        .custom_formatter(|v, _| format!("{:.2}", v)),
+                );
+                ui.label(format!("{:.2}", settings.spec_draft_p_min));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftPMin, lang));
+            });
 
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::SpecDraftPSplitLabel, lang));
-            ui.add(
-                egui::Slider::new(&mut settings.spec_draft_p_split, 0.0..=1.0)
-                    .smallest_positive(0.01)
-                    .custom_formatter(|v, _| format!("{:.2}", v)),
-            );
-            ui.label(format!("{:.2}", settings.spec_draft_p_split));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftPSplit, lang));
-        });
-    });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::SpecDraftPSplitLabel, lang));
+                ui.add(
+                    egui::Slider::new(&mut settings.spec_draft_p_split, 0.0..=1.0)
+                        .smallest_positive(0.01)
+                        .custom_formatter(|v, _| format!("{:.2}", v)),
+                );
+                ui.label(format!("{:.2}", settings.spec_draft_p_split));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftPSplit, lang));
+            });
+        },
+    );
 }
