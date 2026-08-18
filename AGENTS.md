@@ -2,12 +2,12 @@
 
 ## 项目概述
 
-llama.cpp 桌面启动器。Rust + eframe/egui 0.34 GUI，管理 llama-server/RPC、预设系统、Windows 开机自启和快捷方式。单 binary，无
+llama.cpp 桌面启动器。Rust + eframe/egui 0.33 GUI，管理 llama-server/RPC、预设系统、Windows 开机自启和快捷方式。单 binary，无
 Cargo workspace。
 
 ## 技术栈
 
-- Rust 2021, egui 0.34, eframe 0.34
+- Rust 2021, egui 0.33.3, eframe 0.33.3
 - serde + serde_json (配置/预设)
 - rfd (文件对话框), log + env_logger, shortcuts-rs
 - Windows优先: winit, winres, CREATE_NO_WINDOW
@@ -93,7 +93,7 @@ root/
 - 进程管理: std::process::Child + Arc<Mutex<>> + Drop自动停止。
 - 日志: BufReader → VecDeque<String>, 2000行上限。
 - i18n: 所有UI文本通过 i18n::t(Key, lang), 禁止硬编码中文/英文到 UI 代码中。
-- egui 0.34 API; Result<T, String> + map_err。
+- egui 0.33 API; Result<T, String> + map_err。
 
 ## ANTI-PATTERNS (THIS PROJECT)
 

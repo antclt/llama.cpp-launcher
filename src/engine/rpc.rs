@@ -97,7 +97,8 @@ impl RpcManager {
 
         // 设置读写执行权限 (rwxr-xr-x = 0o755)
         let perms = fs::Permissions::from_mode(0o755);
-        fs::set_permissions(path, perms)            .map_err(|e| format!("设置 ggml-rpc-server 权限失败：{}", e))?;
+        fs::set_permissions(path, perms)
+            .map_err(|e| format!("设置 ggml-rpc-server 权限失败：{}", e))?;
 
         Ok(())
     }
