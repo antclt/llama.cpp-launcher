@@ -19,6 +19,26 @@ pub struct GgufInfo {
     pub file_size: u64,
 }
 
+/// 解析 GGUF 元数据中的 block_count（层数）
+///
+/// 硬覆盖：当架构为 qwen38 时，其 GGUF 中缺失 `qwen38.block_count` 字段，
+/// 直接使用常量值 16，避免读取失败。其余架构逐字保留原读取逻辑。
+fn resolve_block_count(
+    arch: &str,
+    kv: &std::collections::BTreeMap<String, serde_json::Value>,
+) -> Result<usize, String> {
+    if arch == "qwen38" {
+        log::info!("[read_gguf_info] general.architecture=qwen38，block_count 使用常量值 16");
+        return Ok(16);
+    }
+
+    let block_key = format!("{}.block_count", arch);
+    kv.get(&block_key)
+        .and_then(|v| v.as_u64())
+        .ok_or_else(|| format!("无法从 GGUF 文件中读取块数 ({})", block_key))
+        .map(|v| v as usize)
+}
+
 /// 从 GGUF 文件中读取模型信息
 pub fn read_gguf_info(file_path: &Path) -> Result<GgufInfo, String> {
     // 获取文件 size
@@ -48,11 +68,7 @@ pub fn read_gguf_info(file_path: &Path) -> Result<GgufInfo, String> {
         .ok_or_else(|| "无法从 GGUF 文件中读取架构信息".to_string())?;
 
     // 读取 block_count (层数)
-    let block_key = format!("{}.block_count", arch);
-    let block_count =
-        kv.get(&block_key)
-            .and_then(|v| v.as_u64())
-            .ok_or_else(|| format!("无法从 GGUF 文件中读取块数 ({})", block_key))? as usize;
+    let block_count = resolve_block_count(arch, kv)?;
 
     // 读取 KV head count (fallback: attention.head_count_kv → Qwen, attention.head_count)
     let kv_head_key = format!("{}.attention.key_head_count", arch);
@@ -360,5 +376,33 @@ mod tests {
         let text = "No GPU devices found";
         let total = sum_all_free_mib(text);
         assert_eq!(total, None);
+    }
+
+    #[test]
+    fn test_resolve_block_count_qwen38_hardcoded() {
+        // qwen38 架构硬覆盖为 16，即使 metadata 中存在其他值也不读取
+        let mut kv = std::collections::BTreeMap::new();
+        kv.insert("qwen38.block_count".to_string(), serde_json::json!(99));
+        let result = resolve_block_count("qwen38", &kv);
+        assert_eq!(result, Ok(16));
+    }
+
+    #[test]
+    fn test_resolve_block_count_from_metadata() {
+        // 普通架构从 metadata 读取 block_count
+        let mut kv = std::collections::BTreeMap::new();
+        kv.insert("llama.block_count".to_string(), serde_json::json!(42));
+        let result = resolve_block_count("llama", &kv);
+        assert_eq!(result, Ok(42));
+    }
+
+    #[test]
+    fn test_resolve_block_count_missing_key() {
+        // 普通架构缺少 block_count 字段时报错，错误消息含键名
+        let kv = std::collections::BTreeMap::new();
+        let block_key = "llama.block_count".to_string();
+        let err = resolve_block_count("llama", &kv).unwrap_err();
+        assert!(err.contains("块数"));
+        assert!(err.contains(&block_key));
     }
 }
