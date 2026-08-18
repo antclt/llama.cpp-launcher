@@ -193,13 +193,12 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
 
     // ── KV 缓存配置 ──
     widgets::card(ui, i18n::t(i18n::Key::SectionKvCache, lang), accent, |ui| {
-        // ★ 开关在选项末尾：标签在左，开关靠右
-        widgets::toggle_trailing(
-            ui,
-            &mut settings.kv_offload,
-            i18n::t(i18n::Key::CheckboxKvOffload, lang),
-            accent,
-        );
+        // KV 缓存开关统一样式（与「手动指定 GPU 层数」一致）：标签 + ❓提示框 + 开关
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::CheckboxKvOffload, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpKvOffload, lang));
+            widgets::toggle(ui, &mut settings.kv_offload, "", accent);
+        });
 
         ui.label(i18n::t(i18n::Key::LabelCacheTypeK, lang));
         let k_types = [
@@ -240,30 +239,29 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             }
         });
 
-        for (label_key, _help_key, flag) in [
-            (
-                i18n::Key::CheckboxKvMlock,
-                i18n::Key::HelpKvMlock,
-                &mut settings.kv_mlock,
-            ),
-            (
-                i18n::Key::CheckboxKvMmap,
-                i18n::Key::HelpKvMmap,
-                &mut settings.kv_mmap,
-            ),
-            (
-                i18n::Key::CheckboxKvUnified,
-                i18n::Key::HelpKvUnified,
-                &mut settings.kv_unified,
-            ),
-            (
-                i18n::Key::CheckboxSwaFull,
-                i18n::Key::HelpSwaFull,
-                &mut settings.swa_full,
-            ),
-        ] {
-            widgets::toggle_trailing(ui, flag, i18n::t(label_key, lang), accent);
-        }
+        // KV 缓存开关统一样式（与「手动指定 GPU 层数」一致）：标签 + ❓提示框 + 开关
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::CheckboxKvMlock, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpKvMlock, lang));
+            widgets::toggle(ui, &mut settings.kv_mlock, "", accent);
+        });
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::CheckboxKvMmap, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpKvMmap, lang));
+            widgets::toggle(ui, &mut settings.kv_mmap, "", accent);
+        });
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::CheckboxKvUnified, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpKvUnified, lang));
+            widgets::toggle(ui, &mut settings.kv_unified, "", accent);
+        });
+
+        // 完整滑动窗口 (--swa-full)，与「手动指定 GPU 层数」一致：标签 + ❓提示框 + 开关
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::CheckboxSwaFull, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSwaFull, lang));
+            widgets::toggle(ui, &mut settings.swa_full, "", accent);
+        });
         // 上下文检查点
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::LabelCtxCheckpoints, lang));
