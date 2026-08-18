@@ -324,13 +324,8 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::CheckboxManualGpuLayers, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpGpuDevice, lang));
-                // ★ Toggle 新签名
-                widgets::toggle(
-                    ui,
-                    &mut manual_gpu_layers,
-                    i18n::t(i18n::Key::CheckboxManualGpuLayers, lang),
-                    accent,
-                );
+                // ★ Toggle 新签名（行首已有标签，开关后不再重复文字）
+                widgets::toggle(ui, &mut manual_gpu_layers, "", accent);
             });
             if manual_gpu_layers {
                 ui.indent("manual_gpu_layers_options", |ui| {
@@ -372,13 +367,8 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ui.label(i18n::t(i18n::Key::CheckboxCpuMoe, lang));
                 ui.small(i18n::t(i18n::Key::HintCpuMoe, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCpuMoe, lang));
-                // ★ Toggle 新签名
-                widgets::toggle(
-                    ui,
-                    &mut settings.cpu_moe,
-                    i18n::t(i18n::Key::CheckboxCpuMoe, lang),
-                    accent,
-                );
+                // ★ Toggle 新签名（行首已有标签，开关后不再重复文字）
+                widgets::toggle(ui, &mut settings.cpu_moe, "", accent);
             });
             if settings.cpu_moe {
                 ui.indent("cpu_moe_options", |ui| {
