@@ -12,7 +12,7 @@ pub fn ui(
     ui.heading(i18n::t(i18n::Key::PanelRpcTitle, lang));
     ui.separator();
 
-    // rpc-server.exe 路径
+    // ggml-rpc-server.exe 路径
     ui.horizontal(|ui| {
         ui.label(i18n::t(i18n::Key::LabelRpcPath, lang));
         let mut rpc_path_str = settings.rpc_server_path.to_string_lossy().to_string();

@@ -2,12 +2,12 @@
 
 ## OVERVIEW
 
-llama-server 和 rpc-server 的进程管理、状态机、日志聚合。具体参数和 UI 交互见根 AGENTS.md / ui/AGENTS.md。
+llama-server 和 ggml-rpc-server 的进程管理、状态机、日志聚合。具体参数和 UI 交互见根 AGENTS.md / ui/AGENTS.md。
 
 ## STRUCTURE
 
 - server.rs: ServerManager, ServerState；llama-server 生命周期 + launch_command 捕获
-- rpc.rs: RpcManager, RpcState；rpc-server 生命周期
+- rpc.rs: RpcManager, RpcState；ggml-rpc-server 生命周期
 - mod.rs: LogEntry, LogType(Server/Rpc)；日志聚合与枚举定义
 
 ## WHERE TO LOOK
