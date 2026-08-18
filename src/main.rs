@@ -127,6 +127,11 @@ fn main() -> eframe::Result {
     let viewport = egui::ViewportBuilder::default()
         .with_inner_size(default_size)
         .with_title("llama.cpp launcher");
+    let viewport = if let Some(icon) = load_window_icon() {
+        viewport.with_icon(icon)
+    } else {
+        viewport
+    };
 
     let options = eframe::NativeOptions {
         viewport,
@@ -146,6 +151,15 @@ fn main() -> eframe::Result {
             Ok(Box::new(LlamaLauncherApp::new(&cc, start_minimized)))
         }),
     )
+}
+
+fn load_window_icon() -> Option<egui::IconData> {
+    let image = image::load_from_memory(include_bytes!("../assets/llama.ico")).ok()?.to_rgba8();
+    Some(egui::IconData {
+        width: image.width(),
+        height: image.height(),
+        rgba: image.into_raw(),
+    })
 }
 
 /// 加载内置字体（编译时嵌入，适配 egui 0.34）

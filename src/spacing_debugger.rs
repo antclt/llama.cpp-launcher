@@ -42,7 +42,7 @@ impl SpacingDebugger {
             painter.rect_stroke(
                 hovered,
                 0.0,
-                Stroke::new(2.0, Color32::YELLOW),
+                Stroke::new(2.0_f32, Color32::YELLOW),
                 StrokeKind::Inside,
             );
 
@@ -111,7 +111,7 @@ impl SpacingDebugger {
 
             if gap > 0.0 {
                 // 绘制间距标尺线
-                painter.line_segment([line_start, line_end], Stroke::new(2.0, Color32::RED));
+                painter.line_segment([line_start, line_end], Stroke::new(2.0_f32, Color32::RED));
                 // 绘制间距数值
                 painter.text(
                     label_pos + vec2(5.0, 0.0),

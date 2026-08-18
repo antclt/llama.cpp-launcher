@@ -1,43 +1,45 @@
 use crate::engine::rpc::RpcManager;
 use crate::engine::server::ServerManager;
 use crate::i18n;
+use crate::ui::widgets;
 
-pub fn ui(ui: &mut egui::Ui, server: &ServerManager, rpc: &RpcManager, lang: &i18n::Language) {
-    ui.heading(i18n::t(i18n::Key::SectionLaunchCommands, lang));
-    ui.separator();
-
-    // Server 启动命令
-    ui.label(i18n::t(i18n::Key::LabelServerCommand, lang));
-    if let Some(ref cmd) = server.launch_command() {
-        // 使用水平滚动区域，避免过长命令被截断
-        egui::ScrollArea::horizontal().show(ui, |ui| {
-            ui.monospace(cmd);
-        });
-        if ui
-            .button(i18n::t(i18n::Key::BtnCopyToClipboard, lang))
-            .clicked()
-        {
-            ui.ctx().copy_text(cmd.to_string());
+pub fn ui(
+    ui: &mut egui::Ui,
+    server: &ServerManager,
+    rpc: &RpcManager,
+    lang: &i18n::Language,
+    accent: egui::Color32,
+) {
+    widgets::card(ui, i18n::t(i18n::Key::SectionLaunchCommands, lang), accent, |ui| {
+        ui.label(i18n::t(i18n::Key::LabelServerCommand, lang));
+        if let Some(ref cmd) = server.launch_command() {
+            egui::ScrollArea::horizontal().show(ui, |ui| {
+                ui.monospace(cmd);
+            });
+            if ui
+                .button(i18n::t(i18n::Key::BtnCopyToClipboard, lang))
+                .clicked()
+            {
+                ui.ctx().copy_text(cmd.to_string());
+            }
+        } else {
+            ui.colored_label(egui::Color32::GRAY, i18n::t(i18n::Key::HintNoCommand, lang));
         }
-    } else {
-        ui.colored_label(egui::Color32::GRAY, i18n::t(i18n::Key::HintNoCommand, lang));
-    }
-    ui.separator();
+        ui.separator();
 
-    // RPC 启动命令
-    ui.label(i18n::t(i18n::Key::LabelRpcCommand, lang));
-    if let Some(ref cmd) = rpc.launch_command() {
-        // 使用水平滚动区域，避免过长命令被截断
-        egui::ScrollArea::horizontal().show(ui, |ui| {
-            ui.monospace(cmd);
-        });
-        if ui
-            .button(i18n::t(i18n::Key::BtnCopyToClipboard, lang))
-            .clicked()
-        {
-            ui.ctx().copy_text(cmd.to_string());
+        ui.label(i18n::t(i18n::Key::LabelRpcCommand, lang));
+        if let Some(ref cmd) = rpc.launch_command() {
+            egui::ScrollArea::horizontal().show(ui, |ui| {
+                ui.monospace(cmd);
+            });
+            if ui
+                .button(i18n::t(i18n::Key::BtnCopyToClipboard, lang))
+                .clicked()
+            {
+                ui.ctx().copy_text(cmd.to_string());
+            }
+        } else {
+            ui.colored_label(egui::Color32::GRAY, i18n::t(i18n::Key::HintNoCommand, lang));
         }
-    } else {
-        ui.colored_label(egui::Color32::GRAY, i18n::t(i18n::Key::HintNoCommand, lang));
-    }
+    });
 }
