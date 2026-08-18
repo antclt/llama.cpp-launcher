@@ -20,7 +20,12 @@ pub fn ui(
             {
                 server.clear_logs();
             }
-            widgets::toggle(ui, &mut settings.auto_scroll_logs, "", accent);
+            widgets::toggle(
+                ui,
+                &mut settings.auto_scroll_logs,
+                i18n::t(i18n::Key::CheckboxAutoScroll, lang),
+                accent,
+            );
         });
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::LabelMaxLogLines, lang));
