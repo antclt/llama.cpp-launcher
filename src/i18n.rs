@@ -440,8 +440,8 @@ impl Key {
             // RPC 面板
             (Key::PanelRpcTitle, &Language::Zh) => "RPC 客户端配置",
             (Key::PanelRpcTitle, &Language::En) => "RPC Client Config",
-    (Key::LabelRpcPath, &Language::Zh) => "ggml-rpc-server 路径:",
-    (Key::LabelRpcPath, &Language::En) => "ggml-rpc-server path:",
+            (Key::LabelRpcPath, &Language::Zh) => "rpc-server 路径:",
+            (Key::LabelRpcPath, &Language::En) => "rpc-server path:",
             (Key::LabelRpcThreads, &Language::Zh) => "CPU 线程数 (--threads):",
             (Key::LabelRpcThreads, &Language::En) => "CPU Threads (--threads):",
             (Key::HintRpcThreads, &Language::Zh) => "默认: 8",
