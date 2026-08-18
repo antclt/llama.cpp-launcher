@@ -440,8 +440,8 @@ impl Key {
             // RPC 面板
             (Key::PanelRpcTitle, &Language::Zh) => "RPC 客户端配置",
             (Key::PanelRpcTitle, &Language::En) => "RPC Client Config",
-            (Key::LabelRpcPath, &Language::Zh) => "rpc-server 路径:",
-            (Key::LabelRpcPath, &Language::En) => "rpc-server path:",
+    (Key::LabelRpcPath, &Language::Zh) => "ggml-rpc-server 路径:",
+    (Key::LabelRpcPath, &Language::En) => "ggml-rpc-server path:",
             (Key::LabelRpcThreads, &Language::Zh) => "CPU 线程数 (--threads):",
             (Key::LabelRpcThreads, &Language::En) => "CPU Threads (--threads):",
             (Key::HintRpcThreads, &Language::Zh) => "默认: 8",
@@ -452,8 +452,8 @@ impl Key {
             (Key::HintRpcDevice, &Language::En) => "Comma separated, e.g. 0,1",
             (Key::CheckboxRpcCache, &Language::Zh) => "启用本地文件缓存 (--cache)",
             (Key::CheckboxRpcCache, &Language::En) => "Enable local file cache (--cache)",
-            (Key::DialogSelectRpc, &Language::Zh) => "选择 rpc-server 可执行文件",
-            (Key::DialogSelectRpc, &Language::En) => "Select rpc-server executable",
+    (Key::DialogSelectRpc, &Language::Zh) => "选择 ggml-rpc-server 可执行文件",
+    (Key::DialogSelectRpc, &Language::En) => "Select ggml-rpc-server executable",
             (Key::BtnAutoAuthorize, &Language::Zh) => "自动授权",
             (Key::BtnAutoAuthorize, &Language::En) => "Auto Authorize",
 
@@ -658,10 +658,10 @@ impl Key {
             (Key::ErrServerModelMissing, &Language::En) => {
                 "Please configure Server path and model path first"
             }
-            (Key::ErrRpcPathMissing, &Language::Zh) => "请先配置 rpc-server 路径",
-            (Key::ErrRpcPathMissing, &Language::En) => "Please configure rpc-server path first",
-            (Key::ErrRpcFileNotFound, &Language::Zh) => "rpc-server 文件不存在",
-            (Key::ErrRpcFileNotFound, &Language::En) => "rpc-server file not found",
+    (Key::ErrRpcPathMissing, &Language::Zh) => "请先配置 ggml-rpc-server 路径",
+    (Key::ErrRpcPathMissing, &Language::En) => "Please configure ggml-rpc-server path first",
+    (Key::ErrRpcFileNotFound, &Language::Zh) => "ggml-rpc-server 文件不存在",
+    (Key::ErrRpcFileNotFound, &Language::En) => "ggml-rpc-server file not found",
             (Key::ErrStartFailed, &Language::Zh) => "启动失败",
             (Key::ErrStartFailed, &Language::En) => "Start failed",
             (Key::ErrPortConflict, &Language::Zh) => "Server 端口和 RPC 端口不能相同",

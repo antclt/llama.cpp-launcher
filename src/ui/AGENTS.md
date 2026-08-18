@@ -8,7 +8,7 @@ config/AGENTS.md。
 ## STRUCTURE
 
 - server_panel: llama-server 路径/端口/槽位、启停/重启、状态、RPC 模式开关
-- rpc_panel: rpc-server 路径/端口/threads/device/cache、启停、状态
+- rpc_panel: ggml-rpc-server 路径/端口/threads/device/cache、启停、状态
 - model_panel: GGUF 目录浏览、列表、彩色标签解析、mmproj/DFlash 切换
 - params_panel: n_ctx/n_predict/temperature/top_p/top_k/repeat_penalty/kv_offload/cache_type/GPU
 - log_panel: ServerLog + RpcLog 实时聚合、清空按钮

@@ -832,7 +832,7 @@ impl SettingsManager {
     /// 自动检测 rpc-server 路径
     /// 搜索：exe 同级目录 → 含 "llama" 名称的子目录（通常与 llama-server 同目录）
     pub fn auto_detect_rpc_path(&self) -> Option<PathBuf> {
-        self.find_exe_recursive(&self.config_dir, "rpc-server", "llama")
+        self.find_exe_recursive(&self.config_dir, "ggml-rpc-server", "llama")
     }
 }
 
@@ -845,11 +845,11 @@ pub fn is_server_binary_name(name: &str) -> bool {
     }
 }
 
-/// 判断文件名是否为 rpc-server 可执行文件（跨平台）
+/// 判断文件名是否为 rpc-server（ggml-rpc-server）可执行文件（跨平台）
 pub fn is_rpc_binary_name(name: &str) -> bool {
     if cfg!(target_os = "windows") {
-        name == "rpc-server.exe"
+        name == "ggml-rpc-server.exe" || name == "rpc-server.exe"
     } else {
-        name == "rpc-server"
+        name == "ggml-rpc-server" || name == "rpc-server"
     }
 }
