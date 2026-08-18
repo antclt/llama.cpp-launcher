@@ -107,6 +107,24 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     ui.small(egui::RichText::new(result).weak());
                 }
             });
+
+            // ── Flash Attention（上下文与批次 子项）──
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelFlashAttn, lang));
+                let fa_vals = ["on", "off", "auto"];
+                let fa_labels = [
+                    i18n::t(i18n::Key::FaModeOn, lang),
+                    i18n::t(i18n::Key::FaModeOff, lang),
+                    i18n::t(i18n::Key::FaModeAuto, lang),
+                ];
+                let mut fa_idx = fa_vals
+                    .iter()
+                    .position(|v| *v == settings.flash_attn)
+                    .unwrap_or(2);
+                widgets::segmented(ui, &fa_labels, &mut fa_idx, accent);
+                settings.flash_attn = fa_vals[fa_idx].to_string();
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpFlashAttn, lang));
+            });
         },
     );
 
@@ -174,51 +192,34 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         },
     );
 
-    // ── Flash Attention ──
-    widgets::card(ui, i18n::t(i18n::Key::LabelFlashAttn, lang), accent, |ui| {
-        let fa_vals = ["on", "off", "auto"];
-        let fa_labels = [
-            i18n::t(i18n::Key::FaModeOn, lang),
-            i18n::t(i18n::Key::FaModeOff, lang),
-            i18n::t(i18n::Key::FaModeAuto, lang),
-        ];
-        let mut fa_idx = fa_vals
-            .iter()
-            .position(|v| *v == settings.flash_attn)
-            .unwrap_or(2);
-        widgets::segmented(ui, &fa_labels, &mut fa_idx, accent);
-        settings.flash_attn = fa_vals[fa_idx].to_string();
-        helper::help_button_inline(ui, i18n::t(i18n::Key::HelpFlashAttn, lang));
-    });
-
     // ── KV 缓存配置 ──
     widgets::card(ui, i18n::t(i18n::Key::SectionKvCache, lang), accent, |ui| {
-        ui.horizontal(|ui| {
-            // ★ Toggle 新签名：开关在左，标签在右
-            widgets::toggle(
-                ui,
-                &mut settings.kv_offload,
-                i18n::t(i18n::Key::CheckboxKvOffload, lang),
-                accent,
-            );
-        });
-        ui.small(i18n::t(i18n::Key::HintKvOffload, lang));
+        // ★ 开关在选项末尾：标签在左，开关靠右
+        widgets::toggle_trailing(
+            ui,
+            &mut settings.kv_offload,
+            i18n::t(i18n::Key::CheckboxKvOffload, lang),
+            accent,
+        );
 
         ui.label(i18n::t(i18n::Key::LabelCacheTypeK, lang));
         let k_types = [
             "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1",
         ];
+
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
+
+            ui.horizontal(|ui| {
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCacheTypeK, lang));
+            });
+
             for k_type in &k_types {
                 let selected = settings.cache_type_k == *k_type;
                 if ui.selectable_label(selected, *k_type).clicked() {
                     settings.cache_type_k = k_type.to_string();
                 }
             }
-        });
-        ui.horizontal(|ui| {
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCacheTypeK, lang));
         });
 
         ui.label(i18n::t(i18n::Key::LabelCacheTypeV, lang));
@@ -227,15 +228,16 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         ];
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
+
+            ui.horizontal(|ui| {
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCacheTypeV, lang));
+            });
             for v_type in &v_types {
                 let selected = settings.cache_type_v == *v_type;
                 if ui.selectable_label(selected, *v_type).clicked() {
                     settings.cache_type_v = v_type.to_string();
                 }
             }
-        });
-        ui.horizontal(|ui| {
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCacheTypeV, lang));
         });
 
         for (label_key, _help_key, flag) in [
@@ -260,8 +262,8 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 &mut settings.swa_full,
             ),
         ] {
-            // ★ Toggle 新签名：开关在左，标签在右
-            widgets::toggle(ui, flag, i18n::t(label_key, lang), accent);
+            // ★ 开关在选项末尾：标签在左，开关靠右
+            widgets::toggle_trailing(ui, flag, i18n::t(label_key, lang), accent);
         }
 
         ui.horizontal(|ui| {
@@ -397,6 +399,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         accent,
         |ui| {
             ui.label(i18n::t(i18n::Key::SpecTypeLabel, lang));
+
             let spec_options = [
                 "none",
                 "draft-simple",
@@ -409,17 +412,20 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 "ngram-cache",
                 "dflash",
             ];
+
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 6.0;
+
+                ui.horizontal(|ui| {
+                    helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecType, lang));
+                });
+
                 for opt in &spec_options[..] {
                     let selected = settings.spec_type == *opt;
                     if ui.selectable_label(selected, *opt).clicked() {
                         settings.spec_type = opt.to_string();
                     }
                 }
-            });
-            ui.horizontal(|ui| {
-                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecType, lang));
             });
 
             ui.horizontal(|ui| {
