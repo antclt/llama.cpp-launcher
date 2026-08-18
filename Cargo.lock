@@ -1391,9 +1391,9 @@ dependencies = [
 
 [[package]]
 name = "gguf-rs"
-version = "0.1.7"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0bbe9be2d180b4a182b887da9aaa0c07801082ea315a335c0854c1b038b8f77"
+checksum = "4fe63187bdd8b46ac3d07e987e663e1a3225e1f64d01125752e0d8f4574743b9"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -1881,7 +1881,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 
 [[package]]
 name = "llama_cpp_launcher"
-version = "0.1.14"
+version = "0.1.15"
 dependencies = [
  "chrono",
  "dirs",
