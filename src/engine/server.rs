@@ -86,13 +86,13 @@ impl ServerManager {
         inner.logs.iter().cloned().collect()
     }
 
-    // 判断 Server 是否已输出 "server is listening on"（表示真正就绪）
+    // 判断 Server 是否已输出 "llama_server: listening on"（表示真正就绪）
     pub fn is_listening(&self) -> bool {
         let inner = self.inner.lock().unwrap();
         inner
             .logs
             .iter()
-            .any(|e| e.text.contains("server is listening on"))
+            .any(|e| e.text.contains("llama_server: listening on"))
     }
 
     pub fn clear_logs(&mut self) {
