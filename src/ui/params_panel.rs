@@ -41,26 +41,26 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     Err(e) => log::warn!("[params_panel] calc_max_context 失败: {}", e),
                 }
             }
-
+            // 批次大小 (--batch-size) (k)
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelBatchSize, lang));
                 ui.add(
                     egui::DragValue::new(&mut settings.batch_size)
                         .range(1..=16)
                         .speed(1),
-                );
+                ); // 1k ~ 16k
                 ui.label("k");
                 ui.small(i18n::t(i18n::Key::HintKUnit, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpBatchSize, lang));
             });
-
+            // 物理批次大小 (--ubatch-size) (k)
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelUBatchSize, lang));
                 ui.add(
                     egui::DragValue::new(&mut settings.ubatch_size)
                         .range(0.5..=16.0)
                         .speed(0.5),
-                );
+                ); // 0.5k ~ 16k, 步进 0.5
                 ui.label("k");
                 ui.small(i18n::t(i18n::Key::HintKUnit, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpUBatchSize, lang));
@@ -72,7 +72,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     egui::DragValue::new(&mut settings.session_timeout)
                         .range(60..=3600)
                         .speed(10),
-                );
+                ); // 60~3600秒，步进10
                 ui.label(i18n::t(i18n::Key::HintSUnit, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSessionTimeout, lang));
             });
@@ -143,10 +143,9 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 );
                 ui.label(format!("{:.2}", settings.temperature));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTemperature, lang));
-                // ★ Toggle 新签名：开关在左，标签在右
                 widgets::toggle(ui, &mut settings.ignore_temperature, "", accent);
             });
-
+            // top_p
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelTopP, lang));
                 ui.add(
@@ -158,14 +157,14 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTopP, lang));
                 widgets::toggle(ui, &mut settings.ignore_top_p, "", accent);
             });
-
+            // top_k
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelTopK, lang));
                 ui.add(egui::DragValue::new(&mut settings.top_k).range(0..=1000));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTopK, lang));
                 widgets::toggle(ui, &mut settings.ignore_top_k, "", accent);
             });
-
+            // 重复惩罚
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelRepeatPenalty, lang));
                 ui.add(
@@ -177,7 +176,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpRepeatPenalty, lang));
                 widgets::toggle(ui, &mut settings.ignore_repeat_penalty, "", accent);
             });
-
+            // 存在惩罚
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelPresencePenalty, lang));
                 ui.add(
@@ -222,6 +221,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             }
         });
 
+        // V 缓存类型
         ui.label(i18n::t(i18n::Key::LabelCacheTypeV, lang));
         let v_types = [
             "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1",
@@ -262,10 +262,9 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 &mut settings.swa_full,
             ),
         ] {
-            // ★ 开关在选项末尾：标签在左，开关靠右
             widgets::toggle_trailing(ui, flag, i18n::t(label_key, lang), accent);
         }
-
+        // 上下文检查点
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::LabelCtxCheckpoints, lang));
             ui.add(
@@ -275,7 +274,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             );
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCtxCheckpoints, lang));
         });
-
+        // 最小检查点步长
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::LabelCheckpointMinStep, lang));
             ui.add(
@@ -320,7 +319,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 }
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpGpuDevice, lang));
             });
-
+            // 手动指定 GPU 层数
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::CheckboxManualGpuLayers, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpGpuDevice, lang));
@@ -337,7 +336,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 });
                 settings.gpu_layers_mode = GpuLayersMode::Manual(gpu_layers);
             }
-
+            // 拆分模式
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelSplitMode, lang));
                 let sm_vals = ["none", "layer", "tensor"];
@@ -355,14 +354,14 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ui.small(i18n::t(i18n::Key::HintSplitMode, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSplitMode, lang));
             });
-
+            // 张量拆分比例
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelTensorSplit, lang));
                 ui.text_edit_singleline(&mut settings.tensor_split);
                 ui.small(i18n::t(i18n::Key::HintTensorSplit, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTensorSplit, lang));
             });
-
+            // CPU MoE（与 RPC 模式一致的缩进样式）
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::CheckboxCpuMoe, lang));
                 ui.small(i18n::t(i18n::Key::HintCpuMoe, lang));
@@ -417,19 +416,19 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     }
                 }
             });
-
+            // 最大推测数量 --spec-draft-n-max（DragValue）
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::SpecDraftNMaxLabel, lang));
                 ui.add(egui::DragValue::new(&mut settings.spec_draft_n_max).range(0..=64));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftNMax, lang));
             });
-
+            // 最小推测数量 --spec-draft-n-min（DragValue）
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::SpecDraftNMinLabel, lang));
                 ui.add(egui::DragValue::new(&mut settings.spec_draft_n_min).range(0..=32));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftNMin, lang));
             });
-
+            // 信任度 --spec-draft-p-min（Slider）
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::SpecDraftPMinLabel, lang));
                 ui.add(
@@ -440,7 +439,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ui.label(format!("{:.2}", settings.spec_draft_p_min));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftPMin, lang));
             });
-
+            // 分裂概率 --spec-draft-p-split（Slider）
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::SpecDraftPSplitLabel, lang));
                 ui.add(
