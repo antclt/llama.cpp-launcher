@@ -143,7 +143,7 @@ pub fn ui(
     // 并行槽位
     ui.horizontal(|ui| {
         ui.label(i18n::t(i18n::Key::LabelParallelSlots, lang));
-        ui.add(egui::DragValue::new(&mut settings.parallel_slots).range(1..=32));
+        ui.add(egui::DragValue::new(&mut settings.parallel_slots).range(1..=1024));
     });
 
     // 模型别名

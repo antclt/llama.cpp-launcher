@@ -92,7 +92,7 @@ pub fn ui(
     // 线程数
     ui.horizontal(|ui| {
         ui.label(i18n::t(i18n::Key::LabelRpcThreads, lang));
-        ui.add(egui::DragValue::new(&mut settings.rpc_threads).range(1..=128));
+        ui.add(egui::DragValue::new(&mut settings.rpc_threads).range(1..=1024));
         ui.small(i18n::t(i18n::Key::HintRpcThreads, lang));
     });
 
