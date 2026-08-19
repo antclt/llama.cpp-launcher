@@ -151,6 +151,34 @@ pub enum Key {
     GpuModeAuto,
     GpuModeAll,
 
+    // 思考控制（Reasoning / Thinking）
+    SectionReasoning,
+    LabelReasoningMode,
+    ReasoningModeAuto,
+    ReasoningModeOn,
+    ReasoningModeOff,
+    LabelReasoningEffort,
+    LabelReasoningFormat,
+    LabelReasoningPreserve,
+    ReasoningPreserveDefault,
+    ReasoningPreserveOn,
+    ReasoningPreserveOff,
+    LabelReasoningBudget,
+    HintReasoningBudget,
+    LabelReasoningBudgetMessage,
+
+    // 聊天模板
+    SectionChatTemplate,
+    CheckboxJinja,
+    LabelChatTemplateFile,
+    DialogSelectTemplate,
+    FilterTemplate,
+    BtnClear,
+
+    // 加载模式
+    LabelLoadMode,
+    LoadModeAuto,
+
     // 推测解码（Speculative Decoding）区域
     SectionSpecDecoding,
     // 卡片分组标题
@@ -266,6 +294,15 @@ pub enum Key {
     HelpSwaFull,
     HelpCtxCheckpoints,
     HelpCheckpointMinStep,
+    HelpReasoningMode,
+    HelpReasoningEffort,
+    HelpReasoningFormat,
+    HelpReasoningPreserve,
+    HelpReasoningBudget,
+    HelpReasoningBudgetMessage,
+    HelpJinja,
+    HelpChatTemplateFile,
+    HelpLoadMode,
 }
 
 impl Key {
@@ -534,6 +571,56 @@ impl Key {
             (Key::GpuModeAll, &Language::Zh) => "全部",
             (Key::GpuModeAll, &Language::En) => "All",
 
+            // 思考控制（Reasoning / Thinking）
+            (Key::SectionReasoning, &Language::Zh) => "思考控制",
+            (Key::SectionReasoning, &Language::En) => "Reasoning",
+            (Key::LabelReasoningMode, &Language::Zh) => "思考模式 (--reasoning):",
+            (Key::LabelReasoningMode, &Language::En) => "Reasoning Mode (--reasoning):",
+            (Key::ReasoningModeAuto, &Language::Zh) => "自动",
+            (Key::ReasoningModeAuto, &Language::En) => "Auto",
+            (Key::ReasoningModeOn, &Language::Zh) => "开",
+            (Key::ReasoningModeOn, &Language::En) => "On",
+            (Key::ReasoningModeOff, &Language::Zh) => "关",
+            (Key::ReasoningModeOff, &Language::En) => "Off",
+            (Key::LabelReasoningEffort, &Language::Zh) => "思考深度 (--reasoning-effort):",
+            (Key::LabelReasoningEffort, &Language::En) => "Reasoning Effort (--reasoning-effort):",
+            (Key::LabelReasoningFormat, &Language::Zh) => "思考输出格式 (--reasoning-format):",
+            (Key::LabelReasoningFormat, &Language::En) => "Reasoning Format (--reasoning-format):",
+            (Key::LabelReasoningPreserve, &Language::Zh) => "保留思维轨迹 (--reasoning-preserve):",
+            (Key::LabelReasoningPreserve, &Language::En) => "Preserve Reasoning Trace:",
+            (Key::ReasoningPreserveDefault, &Language::Zh) => "模板默认",
+            (Key::ReasoningPreserveDefault, &Language::En) => "Template Default",
+            (Key::ReasoningPreserveOn, &Language::Zh) => "保留",
+            (Key::ReasoningPreserveOn, &Language::En) => "Preserve",
+            (Key::ReasoningPreserveOff, &Language::Zh) => "不保留",
+            (Key::ReasoningPreserveOff, &Language::En) => "Strip",
+            (Key::LabelReasoningBudget, &Language::Zh) => "思考预算 (--reasoning-budget):",
+            (Key::LabelReasoningBudget, &Language::En) => "Reasoning Budget (--reasoning-budget):",
+            (Key::HintReasoningBudget, &Language::Zh) => "(-1 = 不限制)",
+            (Key::HintReasoningBudget, &Language::En) => "(-1 = unlimited)",
+            (Key::LabelReasoningBudgetMessage, &Language::Zh) => "预算耗尽提示 (--reasoning-budget-message):",
+            (Key::LabelReasoningBudgetMessage, &Language::En) => "Budget Exhausted Message:",
+
+            // 聊天模板
+            (Key::SectionChatTemplate, &Language::Zh) => "聊天模板",
+            (Key::SectionChatTemplate, &Language::En) => "Chat Template",
+            (Key::CheckboxJinja, &Language::Zh) => "Jinja 模板引擎 (--jinja)",
+            (Key::CheckboxJinja, &Language::En) => "Jinja Template Engine (--jinja)",
+            (Key::LabelChatTemplateFile, &Language::Zh) => "模板文件 (--chat-template-file):",
+            (Key::LabelChatTemplateFile, &Language::En) => "Template File (--chat-template-file):",
+            (Key::DialogSelectTemplate, &Language::Zh) => "选择聊天模板文件",
+            (Key::DialogSelectTemplate, &Language::En) => "Select chat template file",
+            (Key::FilterTemplate, &Language::Zh) => "模板文件",
+            (Key::FilterTemplate, &Language::En) => "Template files",
+            (Key::BtnClear, &Language::Zh) => "清除",
+            (Key::BtnClear, &Language::En) => "Clear",
+
+            // 加载模式
+            (Key::LabelLoadMode, &Language::Zh) => "加载模式 (--load-mode):",
+            (Key::LabelLoadMode, &Language::En) => "Load Mode (--load-mode):",
+            (Key::LoadModeAuto, &Language::Zh) => "自动",
+            (Key::LoadModeAuto, &Language::En) => "Auto",
+
             // 推测解码（Speculative Decoding）
             (Key::SectionSpecDecoding, &Language::Zh) => "推测解码",
             (Key::SectionSpecDecoding, &Language::En) => "Speculative Decoding",
@@ -743,6 +830,24 @@ impl Key {
             (Key::HelpCtxCheckpoints, &Language::En) => "Number of context checkpoints for KV cache management",
             (Key::HelpCheckpointMinStep, &Language::Zh) => "最小检查点步长，控制检查点间隔",
             (Key::HelpCheckpointMinStep, &Language::En) => "Minimum checkpoint step, controls checkpoint interval",
+            (Key::HelpReasoningMode, &Language::Zh) => "思考/思维链总开关。开=强制启用思考，关=快速模式（不思考），自动=由模板自行决定（默认）",
+            (Key::HelpReasoningMode, &Language::En) => "Master switch for reasoning/thinking. On=force enable, Off=fast mode (no thinking), Auto=detect from template (default)",
+            (Key::HelpReasoningEffort, &Language::Zh) => "思考深度档位，透传给聊天模板（需模型支持，如 Qwen3.8）。default=保持模板默认，不注入指令",
+            (Key::HelpReasoningEffort, &Language::En) => "Reasoning effort level passed to the chat template (requires model support, e.g. Qwen3.8). default=keep template default, no injected instructions",
+            (Key::HelpReasoningFormat, &Language::Zh) => "思考内容的返回格式。deepseek=提取到 reasoning_content 字段（推荐），none=保留在正文中，deepseek-legacy=两者兼有",
+            (Key::HelpReasoningFormat, &Language::En) => "How thoughts are returned. deepseek=extract into reasoning_content field (recommended), none=keep in content, deepseek-legacy=both",
+            (Key::HelpReasoningPreserve, &Language::Zh) => "多轮对话中保留完整思维轨迹。保留可维持前缀 KV 缓存命中、避免失忆；不保留可节省上下文",
+            (Key::HelpReasoningPreserve, &Language::En) => "Preserve reasoning traces across the full history. Preserve keeps prefix KV cache hits and avoids amnesia; Strip saves context tokens",
+            (Key::HelpReasoningBudget, &Language::Zh) => "限制单次回复的思考 token 数。-1=不限制（默认），0=立即停止思考，N>0=思考预算上限",
+            (Key::HelpReasoningBudget, &Language::En) => "Token budget for thinking. -1=unlimited (default), 0=end thinking immediately, N>0=budget cap",
+            (Key::HelpReasoningBudgetMessage, &Language::Zh) => "思考预算耗尽时注入的提示语，留空使用默认行为",
+            (Key::HelpReasoningBudgetMessage, &Language::En) => "Message injected when the reasoning budget is exhausted; leave empty for default behavior",
+            (Key::HelpJinja, &Language::Zh) => "使用 Jinja 引擎渲染聊天模板（新版 llama.cpp 默认开启）。工具调用与思考控制参数需要它",
+            (Key::HelpJinja, &Language::En) => "Render chat templates with the Jinja engine (default on in recent llama.cpp). Required for tool calling and reasoning controls",
+            (Key::HelpChatTemplateFile, &Language::Zh) => "外部 Jinja 模板文件（如 chat_template.jinja），覆盖模型内置模板。留空使用模型自带模板",
+            (Key::HelpChatTemplateFile, &Language::En) => "External Jinja template file (e.g. chat_template.jinja) overriding the model's built-in template. Leave empty to use the built-in one",
+            (Key::HelpLoadMode, &Language::Zh) => "新版模型加载方式（替代 --mmap/--mlock）。自动=不拼接该参数并沿用下方旧版开关；其余模式将不再拼接 --mmap/--mlock",
+            (Key::HelpLoadMode, &Language::En) => "New model loading mode (replaces --mmap/--mlock). Auto=don't pass and keep the legacy toggles below; other modes suppress legacy --mmap/--mlock",
         }
     }
 }

@@ -3,6 +3,7 @@ use crate::i18n;
 use crate::kv_cache;
 use crate::ui::helper;
 use crate::ui::widgets;
+use std::path::PathBuf;
 
 pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) {
     let accent = crate::theme::accent_color(&settings.accent_color);
@@ -162,6 +163,124 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         });
     });
 
+    // ── 思考控制（Reasoning）──
+    widgets::card(ui, i18n::t(i18n::Key::SectionReasoning, lang), accent, |ui| {
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelReasoningMode, lang));
+            let rm_vals = ["auto", "on", "off"];
+            let rm_labels = [
+                i18n::t(i18n::Key::ReasoningModeAuto, lang),
+                i18n::t(i18n::Key::ReasoningModeOn, lang),
+                i18n::t(i18n::Key::ReasoningModeOff, lang),
+            ];
+            let mut rm_idx = rm_vals
+                .iter()
+                .position(|v| *v == settings.reasoning_mode)
+                .unwrap_or(0);
+            widgets::segmented(ui, &rm_labels, &mut rm_idx, accent);
+            settings.reasoning_mode = rm_vals[rm_idx].to_string();
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningMode, lang));
+        });
+
+        ui.label(i18n::t(i18n::Key::LabelReasoningEffort, lang));
+        let efforts = ["default", "minimal", "low", "medium", "high", "xhigh", "max"];
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing.x = 6.0;
+            for e in &efforts {
+                let selected = settings.reasoning_effort == *e;
+                if ui.selectable_label(selected, *e).clicked() {
+                    settings.reasoning_effort = e.to_string();
+                }
+            }
+        });
+        ui.horizontal(|ui| {
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningEffort, lang));
+        });
+
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelReasoningFormat, lang));
+            let rf_vals = ["auto", "none", "deepseek", "deepseek-legacy"];
+            let mut rf_idx = rf_vals
+                .iter()
+                .position(|v| *v == settings.reasoning_format)
+                .unwrap_or(0);
+            widgets::segmented(ui, &rf_vals, &mut rf_idx, accent);
+            settings.reasoning_format = rf_vals[rf_idx].to_string();
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningFormat, lang));
+        });
+
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelReasoningPreserve, lang));
+            let rp_vals = ["", "on", "off"];
+            let rp_labels = [
+                i18n::t(i18n::Key::ReasoningPreserveDefault, lang),
+                i18n::t(i18n::Key::ReasoningPreserveOn, lang),
+                i18n::t(i18n::Key::ReasoningPreserveOff, lang),
+            ];
+            let mut rp_idx = match settings.reasoning_preserve.as_str() {
+                "on" => 1,
+                "off" => 2,
+                _ => 0,
+            };
+            widgets::segmented(ui, &rp_labels, &mut rp_idx, accent);
+            settings.reasoning_preserve = rp_vals[rp_idx].to_string();
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningPreserve, lang));
+        });
+
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelReasoningBudget, lang));
+            ui.add(
+                egui::DragValue::new(&mut settings.reasoning_budget)
+                    .range(-1..=65536)
+                    .speed(128),
+            );
+            ui.small(i18n::t(i18n::Key::HintReasoningBudget, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningBudget, lang));
+        });
+
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelReasoningBudgetMessage, lang));
+            ui.text_edit_singleline(&mut settings.reasoning_budget_message);
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningBudgetMessage, lang));
+        });
+    });
+
+    // ── 聊天模板 ──
+    widgets::card(ui, i18n::t(i18n::Key::SectionChatTemplate, lang), accent, |ui| {
+        widgets::toggle(
+            ui,
+            &mut settings.jinja_enabled,
+            i18n::t(i18n::Key::CheckboxJinja, lang),
+            accent,
+        );
+        helper::help_button_inline(ui, i18n::t(i18n::Key::HelpJinja, lang));
+
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelChatTemplateFile, lang));
+            let mut path_str = settings.chat_template_file.to_string_lossy().to_string();
+            let resp = ui.text_edit_singleline(&mut path_str);
+            if resp.changed() {
+                settings.chat_template_file = PathBuf::from(&path_str);
+            }
+            if ui.button(i18n::t(i18n::Key::BtnBrowse, lang)).clicked() {
+                if let Some(path) = rfd::FileDialog::new()
+                    .set_title(i18n::t(i18n::Key::DialogSelectTemplate, lang))
+                    .add_filter(
+                        i18n::t(i18n::Key::FilterTemplate, lang),
+                        &["jinja", "jinja2", "txt", "json"],
+                    )
+                    .pick_file()
+                {
+                    settings.chat_template_file = path;
+                }
+            }
+            if ui.button(i18n::t(i18n::Key::BtnClear, lang)).clicked() {
+                settings.chat_template_file = PathBuf::new();
+            }
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpChatTemplateFile, lang));
+        });
+    });
+
     // ── Flash Attention ──
     widgets::card(ui, i18n::t(i18n::Key::LabelFlashAttn, lang), accent, |ui| {
         let fa_vals = ["on", "off", "auto"];
@@ -181,6 +300,26 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
 
     // ── KV 缓存配置 ──
     widgets::card(ui, i18n::t(i18n::Key::SectionKvCache, lang), accent, |ui| {
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelLoadMode, lang));
+            let lm_vals = ["auto", "none", "mmap", "mlock", "mmap+mlock", "dio"];
+            let lm_labels = [
+                i18n::t(i18n::Key::LoadModeAuto, lang),
+                lm_vals[1],
+                lm_vals[2],
+                lm_vals[3],
+                lm_vals[4],
+                lm_vals[5],
+            ];
+            let mut lm_idx = lm_vals
+                .iter()
+                .position(|v| *v == settings.load_mode)
+                .unwrap_or(0);
+            widgets::segmented(ui, &lm_labels, &mut lm_idx, accent);
+            settings.load_mode = lm_vals[lm_idx].to_string();
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpLoadMode, lang));
+        });
+
         ui.horizontal(|ui| {
             // ★ Toggle 新签名：开关在左，标签在右
             widgets::toggle(ui, &mut settings.kv_offload, i18n::t(i18n::Key::CheckboxKvOffload, lang), accent);
@@ -278,7 +417,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         });
 
         ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::CheckboxManualGpuLayers, lang));
+            // 修复：原先 ui.label 与 toggle 各渲染一次标签，导致“手动指定 GPU 层数”重复显示
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpGpuDevice, lang));
             // ★ Toggle 新签名
             widgets::toggle(ui, &mut manual_gpu_layers, i18n::t(i18n::Key::CheckboxManualGpuLayers, lang), accent);
@@ -320,7 +459,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         });
 
         ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::CheckboxCpuMoe, lang));
+            // 修复：原先 ui.label 与 toggle 各渲染一次标签，导致“CPU MoE”重复显示
             ui.small(i18n::t(i18n::Key::HintCpuMoe, lang));
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCpuMoe, lang));
             // ★ Toggle 新签名

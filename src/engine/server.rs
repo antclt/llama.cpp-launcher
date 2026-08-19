@@ -299,6 +299,45 @@ impl ServerManager {
             cmd.arg("--flash-attn").arg(&settings.flash_attn);
         }
 
+        // 思考控制（Reasoning / Thinking）
+        // auto = 按模板自动（llama-server 默认值，不拼接）
+        if settings.reasoning_mode != "auto" && !settings.reasoning_mode.is_empty() {
+            cmd.arg("--reasoning").arg(&settings.reasoning_mode);
+        }
+        if !settings.reasoning_effort.is_empty() && settings.reasoning_effort != "default" {
+            cmd.arg("--reasoning-effort").arg(&settings.reasoning_effort);
+        }
+        if !settings.reasoning_format.is_empty() && settings.reasoning_format != "auto" {
+            cmd.arg("--reasoning-format").arg(&settings.reasoning_format);
+        }
+        match settings.reasoning_preserve.as_str() {
+            "on" => {
+                cmd.arg("--reasoning-preserve");
+            }
+            "off" => {
+                cmd.arg("--no-reasoning-preserve");
+            }
+            _ => {} // "" = 模板默认，不拼接
+        }
+        if settings.reasoning_budget >= 0 {
+            cmd.arg("--reasoning-budget")
+                .arg(settings.reasoning_budget.to_string());
+        }
+        if !settings.reasoning_budget_message.is_empty() {
+            cmd.arg("--reasoning-budget-message")
+                .arg(&settings.reasoning_budget_message);
+        }
+
+        // 聊天模板
+        if settings.jinja_enabled {
+            cmd.arg("--jinja");
+        } else {
+            cmd.arg("--no-jinja");
+        }
+        if !settings.chat_template_file.as_os_str().is_empty() {
+            cmd.arg("--chat-template-file").arg(&settings.chat_template_file);
+        }
+
         // 多模态投影
         if !settings.mmproj_path.as_os_str().is_empty() {
             cmd.arg("--mmproj").arg(&settings.mmproj_path);
@@ -346,13 +385,20 @@ impl ServerManager {
         if !settings.cache_type_v.is_empty() {
             cmd.arg("--cache-type-v").arg(&settings.cache_type_v);
         }
-        if settings.kv_mlock {
-            cmd.arg("--mlock");
-        }
-        if settings.kv_mmap {
-            cmd.arg("--mmap");
+        // 模型加载模式（新版 --load-mode 替代 --mmap/--mlock）
+        // 指定非 auto 模式时不再拼接已废弃的 --mmap/--mlock，避免冲突；
+        // auto 时保持旧版行为（按 kv_mmap/kv_mlock 开关拼接）
+        if !settings.load_mode.is_empty() && settings.load_mode != "auto" {
+            cmd.arg("--load-mode").arg(&settings.load_mode);
         } else {
-            cmd.arg("--no-mmap");
+            if settings.kv_mlock {
+                cmd.arg("--mlock");
+            }
+            if settings.kv_mmap {
+                cmd.arg("--mmap");
+            } else {
+                cmd.arg("--no-mmap");
+            }
         }
         if settings.kv_unified {
             cmd.arg("--kv-unified");

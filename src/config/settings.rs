@@ -84,6 +84,31 @@ fn default_flash_attn() -> String {
     "auto".to_string()
 }
 
+// 思考控制（Reasoning / Thinking）默认值
+fn default_reasoning_mode() -> String {
+    "auto".to_string() // --reasoning auto/on/off，auto = 按模板自动
+}
+
+fn default_reasoning_effort() -> String {
+    "default".to_string() // --reasoning-effort，"default" = 保持模板默认（不拼接）
+}
+
+fn default_reasoning_format() -> String {
+    "auto".to_string() // --reasoning-format auto/none/deepseek/deepseek-legacy
+}
+
+fn default_reasoning_budget() -> i64 {
+    -1 // --reasoning-budget，-1 = 不限制（不拼接）
+}
+
+fn default_jinja_enabled() -> bool {
+    true // --jinja / --no-jinja
+}
+
+fn default_load_mode() -> String {
+    "auto".to_string() // --load-mode，"auto" = 不拼接并沿用旧版 --mmap/--mlock
+}
+
 fn default_web_ui_enabled() -> bool {
     true
 }
@@ -269,6 +294,30 @@ pub struct Preset {
     #[serde(default = "default_flash_attn")]
     pub flash_attn: String,
 
+    // 思考控制（Reasoning / Thinking）配置
+    #[serde(default = "default_reasoning_mode")]
+    pub reasoning_mode: String, // --reasoning (auto/on/off)
+    #[serde(default = "default_reasoning_effort")]
+    pub reasoning_effort: String, // --reasoning-effort ("default" 时不拼接)
+    #[serde(default = "default_reasoning_format")]
+    pub reasoning_format: String, // --reasoning-format (auto/none/deepseek/deepseek-legacy)
+    #[serde(default)]
+    pub reasoning_preserve: String, // "" / "on" / "off" → 不传 / --reasoning-preserve / --no-reasoning-preserve
+    #[serde(default = "default_reasoning_budget")]
+    pub reasoning_budget: i64, // --reasoning-budget (-1 不拼接)
+    #[serde(default)]
+    pub reasoning_budget_message: String, // --reasoning-budget-message (空不拼接)
+
+    // 聊天模板
+    #[serde(default = "default_jinja_enabled")]
+    pub jinja_enabled: bool, // --jinja / --no-jinja
+    #[serde(default)]
+    pub chat_template_file: PathBuf, // --chat-template-file (空不拼接)
+
+    // 加载模式（新版 --load-mode；"auto" 时沿用旧版 --mmap/--mlock 行为）
+    #[serde(default = "default_load_mode")]
+    pub load_mode: String, // --load-mode
+
     // 推测解码（Speculative Decoding）配置
     #[serde(default = "default_spec_type")]
     pub spec_type: String, // --spec-type
@@ -346,6 +395,15 @@ impl Default for Preset {
             ignore_repeat_penalty: true,
             ignore_presence_penalty: true,
             flash_attn: default_flash_attn(),
+            reasoning_mode: default_reasoning_mode(),
+            reasoning_effort: default_reasoning_effort(),
+            reasoning_format: default_reasoning_format(),
+            reasoning_preserve: String::new(),
+            reasoning_budget: default_reasoning_budget(),
+            reasoning_budget_message: String::new(),
+            jinja_enabled: default_jinja_enabled(),
+            chat_template_file: PathBuf::new(),
+            load_mode: default_load_mode(),
             spec_type: default_spec_type(),
             spec_draft_n_max: default_spec_draft_n_max(),
             spec_draft_n_min: 0,
@@ -399,6 +457,15 @@ impl Preset {
             ignore_repeat_penalty: settings.ignore_repeat_penalty,
             ignore_presence_penalty: settings.ignore_presence_penalty,
             flash_attn: settings.flash_attn.clone(),
+            reasoning_mode: settings.reasoning_mode.clone(),
+            reasoning_effort: settings.reasoning_effort.clone(),
+            reasoning_format: settings.reasoning_format.clone(),
+            reasoning_preserve: settings.reasoning_preserve.clone(),
+            reasoning_budget: settings.reasoning_budget,
+            reasoning_budget_message: settings.reasoning_budget_message.clone(),
+            jinja_enabled: settings.jinja_enabled,
+            chat_template_file: settings.chat_template_file.clone(),
+            load_mode: settings.load_mode.clone(),
             spec_type: settings.spec_type.clone(),
             spec_draft_n_max: settings.spec_draft_n_max,
             spec_draft_n_min: settings.spec_draft_n_min,
@@ -448,6 +515,18 @@ impl Preset {
         settings.ignore_repeat_penalty = self.ignore_repeat_penalty;
         settings.ignore_presence_penalty = self.ignore_presence_penalty;
         settings.flash_attn = self.flash_attn;
+        // 思考控制（Reasoning / Thinking）配置
+        settings.reasoning_mode = self.reasoning_mode;
+        settings.reasoning_effort = self.reasoning_effort;
+        settings.reasoning_format = self.reasoning_format;
+        settings.reasoning_preserve = self.reasoning_preserve;
+        settings.reasoning_budget = self.reasoning_budget;
+        settings.reasoning_budget_message = self.reasoning_budget_message;
+        // 聊天模板
+        settings.jinja_enabled = self.jinja_enabled;
+        settings.chat_template_file = self.chat_template_file;
+        // 加载模式
+        settings.load_mode = self.load_mode;
         // 推测解码（Speculative Decoding）配置
         settings.spec_type = self.spec_type;
         settings.spec_draft_n_max = self.spec_draft_n_max;
@@ -531,6 +610,30 @@ pub struct AppSettings {
     pub ignore_presence_penalty: bool,
     #[serde(default = "default_flash_attn")]
     pub flash_attn: String,
+
+    // 思考控制（Reasoning / Thinking）配置
+    #[serde(default = "default_reasoning_mode")]
+    pub reasoning_mode: String, // --reasoning (auto/on/off)
+    #[serde(default = "default_reasoning_effort")]
+    pub reasoning_effort: String, // --reasoning-effort ("default" 时不拼接)
+    #[serde(default = "default_reasoning_format")]
+    pub reasoning_format: String, // --reasoning-format (auto/none/deepseek/deepseek-legacy)
+    #[serde(default)]
+    pub reasoning_preserve: String, // "" / "on" / "off" → 不传 / --reasoning-preserve / --no-reasoning-preserve
+    #[serde(default = "default_reasoning_budget")]
+    pub reasoning_budget: i64, // --reasoning-budget (-1 不拼接)
+    #[serde(default)]
+    pub reasoning_budget_message: String, // --reasoning-budget-message (空不拼接)
+
+    // 聊天模板
+    #[serde(default = "default_jinja_enabled")]
+    pub jinja_enabled: bool, // --jinja / --no-jinja
+    #[serde(default)]
+    pub chat_template_file: PathBuf, // --chat-template-file (空不拼接)
+
+    // 加载模式（新版 --load-mode；"auto" 时沿用旧版 --mmap/--mlock 行为）
+    #[serde(default = "default_load_mode")]
+    pub load_mode: String, // --load-mode
 
     // 推测解码（Speculative Decoding）配置
     #[serde(default = "default_spec_type")]
@@ -681,6 +784,15 @@ impl Default for AppSettings {
             ignore_repeat_penalty: true,
             ignore_presence_penalty: true,
             flash_attn: default_flash_attn(),
+            reasoning_mode: default_reasoning_mode(),
+            reasoning_effort: default_reasoning_effort(),
+            reasoning_format: default_reasoning_format(),
+            reasoning_preserve: String::new(),
+            reasoning_budget: default_reasoning_budget(),
+            reasoning_budget_message: String::new(),
+            jinja_enabled: default_jinja_enabled(),
+            chat_template_file: PathBuf::new(),
+            load_mode: default_load_mode(),
             spec_type: default_spec_type(),
             spec_draft_n_max: default_spec_draft_n_max(),
             spec_draft_n_min: 0,
