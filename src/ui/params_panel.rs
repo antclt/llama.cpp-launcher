@@ -143,7 +143,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 );
                 ui.label(format!("{:.2}", settings.temperature));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTemperature, lang));
-                widgets::toggle(ui, &mut settings.ignore_temperature, "", accent);
+                widgets::toggle(ui, &mut settings.enable_temperature, "", accent);
             });
             // top_p
             ui.horizontal(|ui| {
@@ -155,14 +155,14 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 );
                 ui.label(format!("{:.2}", settings.top_p));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTopP, lang));
-                widgets::toggle(ui, &mut settings.ignore_top_p, "", accent);
+                widgets::toggle(ui, &mut settings.enable_top_p, "", accent);
             });
             // top_k
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelTopK, lang));
                 ui.add(egui::DragValue::new(&mut settings.top_k).range(0..=1000));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTopK, lang));
-                widgets::toggle(ui, &mut settings.ignore_top_k, "", accent);
+                widgets::toggle(ui, &mut settings.enable_top_k, "", accent);
             });
             // 重复惩罚
             ui.horizontal(|ui| {
@@ -174,7 +174,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 );
                 ui.label(format!("{:.2}", settings.repeat_penalty));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpRepeatPenalty, lang));
-                widgets::toggle(ui, &mut settings.ignore_repeat_penalty, "", accent);
+                widgets::toggle(ui, &mut settings.enable_repeat_penalty, "", accent);
             });
             // 存在惩罚
             ui.horizontal(|ui| {
@@ -186,7 +186,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 );
                 ui.label(format!("{:.2}", settings.presence_penalty));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpPresencePenalty, lang));
-                widgets::toggle(ui, &mut settings.ignore_presence_penalty, "", accent);
+                widgets::toggle(ui, &mut settings.enable_presence_penalty, "", accent);
             });
         },
     );

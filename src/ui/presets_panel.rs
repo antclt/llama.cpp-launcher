@@ -14,11 +14,11 @@ struct ParamsExport {
     top_k: i32,
     repeat_penalty: f32,
     presence_penalty: f32,
-    ignore_temperature: bool,
-    ignore_top_p: bool,
-    ignore_top_k: bool,
-    ignore_repeat_penalty: bool,
-    ignore_presence_penalty: bool,
+    enable_temperature: bool,
+    enable_top_p: bool,
+    enable_top_k: bool,
+    enable_repeat_penalty: bool,
+    enable_presence_penalty: bool,
     flash_attn: String,
 
     spec_type: String,
@@ -53,11 +53,11 @@ impl ParamsExport {
             top_k: s.top_k,
             repeat_penalty: s.repeat_penalty,
             presence_penalty: s.presence_penalty,
-            ignore_temperature: s.ignore_temperature,
-            ignore_top_p: s.ignore_top_p,
-            ignore_top_k: s.ignore_top_k,
-            ignore_repeat_penalty: s.ignore_repeat_penalty,
-            ignore_presence_penalty: s.ignore_presence_penalty,
+            enable_temperature: s.enable_temperature,
+            enable_top_p: s.enable_top_p,
+            enable_top_k: s.enable_top_k,
+            enable_repeat_penalty: s.enable_repeat_penalty,
+            enable_presence_penalty: s.enable_presence_penalty,
             flash_attn: s.flash_attn.clone(),
 
             spec_type: s.spec_type.clone(),
@@ -91,11 +91,11 @@ impl ParamsExport {
         s.top_k = self.top_k;
         s.repeat_penalty = self.repeat_penalty;
         s.presence_penalty = self.presence_penalty;
-        s.ignore_temperature = self.ignore_temperature;
-        s.ignore_top_p = self.ignore_top_p;
-        s.ignore_top_k = self.ignore_top_k;
-        s.ignore_repeat_penalty = self.ignore_repeat_penalty;
-        s.ignore_presence_penalty = self.ignore_presence_penalty;
+        s.enable_temperature = self.enable_temperature;
+        s.enable_top_p = self.enable_top_p;
+        s.enable_top_k = self.enable_top_k;
+        s.enable_repeat_penalty = self.enable_repeat_penalty;
+        s.enable_presence_penalty = self.enable_presence_penalty;
         s.flash_attn = self.flash_attn;
 
         s.spec_type = self.spec_type;
