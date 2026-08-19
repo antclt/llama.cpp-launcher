@@ -291,8 +291,8 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         },
     );
 
+    // 未选择模型文件夹时，下方区域留空（不显示提示文本）
     if settings.model_dir.as_os_str().is_empty() {
-        ui.colored_label(egui::Color32::GRAY, i18n::t(i18n::Key::NoModelDir, lang));
         return;
     }
 
