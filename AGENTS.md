@@ -22,7 +22,7 @@ root/
 ├── src/app.rs              # LlamaLauncherApp: UI路由/菜单/状态/开机自启
 ├── src/config/             # AppSettings/Preset/GpuLayersMode/默认值与读写
 ├── src/engine/             # llama-server / rpc-server 进程管理与日志聚合
-├── src/ui/                 # 7 个 egui 面板 (server/rpc/model/params/log/presets/cmds)
+├── src/ui/                 # 8 个 egui 面板 (server/rpc/model/params/log/rpc_log/presets/cmds)
 └── src/i18n.rs             # i18n::t(Key, lang)，zh/en key→文案映射
 ```
 
@@ -57,6 +57,7 @@ root/
 | is_param_size, is_quantization, is_training_method, is_context_length | fn          | ui/model_panel.rs  | 标签分类判定辅助函数                                      |
 | render_file_list                                                      | fn          | ui/model_panel.rs  | 按 FileMode(Main/Mmproj/Dflash) 过滤并渲染文件列表        |
 | auto_detect_model_dir                                                 | fn          | ui/model_panel.rs  | 自动检测 model/models 目录（不区分大小写）                    |
+| log_panel::rpc_ui                                                     | fn          | ui/log_panel.rs    | RPC 运行日志面板入口                                  |
 
 ## 模型标签系统（9 色方案）
 
@@ -91,7 +92,7 @@ root/
 
 - 单binary, Windows优先。
 - 进程管理: std::process::Child + Arc<Mutex<>> + Drop自动停止。
-- 日志: BufReader → VecDeque<String>, 2000行上限。
+- 日志: BufReader → VecDeque<LogEntry>(server/rpc 各自独立), 10_000行上限。
 - i18n: 所有UI文本通过 i18n::t(Key, lang), 禁止硬编码中文/英文到 UI 代码中。
 - egui 0.33 API; Result<T, String> + map_err。
 
