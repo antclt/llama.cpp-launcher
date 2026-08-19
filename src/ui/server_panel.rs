@@ -1,7 +1,9 @@
 use crate::config::settings::{AppSettings, SettingsManager};
 use crate::engine::server::ServerManager;
 use crate::i18n;
+use crate::ui::helper;
 use crate::ui::widgets;
+use std::path::PathBuf;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
@@ -190,6 +192,93 @@ pub fn ui(
                 i18n::t(i18n::Key::CheckboxEnableWebClient, lang),
                 accent,
             );
+        },
+    );
+
+    // ── API 安全 / 部署 ──
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionApiSecurity, lang),
+        accent,
+        |ui| {
+            // API Key
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelApiKey, lang));
+                ui.text_edit_singleline(&mut settings.api_key);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpApiKey, lang));
+            });
+            // API Prefix
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelApiPrefix, lang));
+                ui.text_edit_singleline(&mut settings.api_prefix);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpApiPrefix, lang));
+            });
+            // CORS Origins
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelCorsOrigins, lang));
+                ui.text_edit_singleline(&mut settings.cors_origins);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCorsOrigins, lang));
+            });
+            // SSL 证书 / 私钥
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelSslCertFile, lang));
+                let mut cert_str = settings.ssl_cert_file.to_string_lossy().to_string();
+                let resp = ui.text_edit_singleline(&mut cert_str);
+                if resp.changed() {
+                    settings.ssl_cert_file = PathBuf::from(&cert_str);
+                }
+                if ui.button(i18n::t(i18n::Key::BtnBrowseCert, lang)).clicked() {
+                    if let Some(path) = rfd::FileDialog::new()
+                        .set_title(i18n::t(i18n::Key::LabelSslCertFile, lang))
+                        .add_filter("PEM", &["pem", "crt", "cer"])
+                        .pick_file()
+                    {
+                        settings.ssl_cert_file = path;
+                    }
+                }
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSsl, lang));
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelSslKeyFile, lang));
+                let mut key_str = settings.ssl_key_file.to_string_lossy().to_string();
+                let resp = ui.text_edit_singleline(&mut key_str);
+                if resp.changed() {
+                    settings.ssl_key_file = PathBuf::from(&key_str);
+                }
+                if ui.button(i18n::t(i18n::Key::BtnBrowseCert, lang)).clicked() {
+                    if let Some(path) = rfd::FileDialog::new()
+                        .set_title(i18n::t(i18n::Key::LabelSslKeyFile, lang))
+                        .add_filter("PEM", &["pem", "key"])
+                        .pick_file()
+                    {
+                        settings.ssl_key_file = path;
+                    }
+                }
+            });
+            // 端口复用
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::CheckboxReusePort, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReusePort, lang));
+                widgets::toggle(ui, &mut settings.reuse_port, "", accent);
+            });
+            // NUMA 模式
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelNuma, lang));
+                let numa_vals = ["", "distribute", "isolate", "numactl"];
+                let numa_labels = [
+                    i18n::t(i18n::Key::LoadModeAuto, lang),
+                    numa_vals[1],
+                    numa_vals[2],
+                    numa_vals[3],
+                ];
+                let mut numa_idx = numa_vals
+                    .iter()
+                    .position(|v| *v == settings.numa)
+                    .unwrap_or(0);
+                widgets::segmented(ui, &numa_labels, &mut numa_idx, accent);
+                settings.numa = numa_vals[numa_idx].to_string();
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpNuma, lang));
+            });
         },
     );
 }

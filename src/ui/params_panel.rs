@@ -129,6 +129,51 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         },
     );
 
+    // ── 线程与生成长度 ──
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionThreads, lang),
+        accent,
+        |ui| {
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelThreads, lang));
+                ui.add(egui::DragValue::new(&mut settings.threads).range(-1..=256));
+                ui.small(i18n::t(i18n::Key::HintThreadsDefault, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpThreads, lang));
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelThreadsBatch, lang));
+                ui.add(egui::DragValue::new(&mut settings.threads_batch).range(-1..=256));
+                ui.small(i18n::t(i18n::Key::HintThreadsBatchDefault, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpThreadsBatch, lang));
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelNPredict, lang));
+                ui.add(egui::DragValue::new(&mut settings.n_predict).range(-1..=65536).speed(128));
+                ui.small(i18n::t(i18n::Key::HintNPredictLimit, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpNPredict, lang));
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelKeep, lang));
+                ui.add(egui::DragValue::new(&mut settings.keep).range(0..=8192).speed(16));
+                ui.small(i18n::t(i18n::Key::HintKeepNone, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpKeep, lang));
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelSeed, lang));
+                ui.add(egui::DragValue::new(&mut settings.seed).range(-1..=i32::MAX as i64).speed(1));
+                ui.small(i18n::t(i18n::Key::HintSeedRandom, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSeed, lang));
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelMainGpu, lang));
+                ui.add(egui::DragValue::new(&mut settings.main_gpu).range(0..=16));
+                ui.small(i18n::t(i18n::Key::HintMainGpuFirst, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMainGpu, lang));
+            });
+        },
+    );
+
     // ── 采样参数 ──
     widgets::card(
         ui,
@@ -188,6 +233,167 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ui.label(format!("{:.2}", settings.presence_penalty));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpPresencePenalty, lang));
                 widgets::toggle(ui, &mut settings.enable_presence_penalty, "", accent);
+            });
+        },
+    );
+
+    // ── 采样器扩展 ──
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionSamplers, lang),
+        accent,
+        |ui| {
+            // Min-P
+            ui.horizontal(|ui| {
+                widgets::toggle(ui, &mut settings.enable_min_p, i18n::t(i18n::Key::CheckboxMinP, lang), accent);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMinP, lang));
+            });
+            if settings.enable_min_p {
+                ui.indent("min_p_opt", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelMinP, lang));
+                        ui.add(
+                            egui::Slider::new(&mut settings.min_p, 0.0..=1.0)
+                                .smallest_positive(0.01)
+                                .custom_formatter(|v, _| format!("{:.3}", v)),
+                        );
+                        ui.label(format!("{:.3}", settings.min_p));
+                    });
+                });
+            }
+            // Top-N-Sigma
+            ui.horizontal(|ui| {
+                widgets::toggle(ui, &mut settings.enable_top_n_sigma, i18n::t(i18n::Key::CheckboxTopNSigma, lang), accent);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTopNSigma, lang));
+            });
+            if settings.enable_top_n_sigma {
+                ui.indent("top_n_sigma_opt", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelTopNSigma, lang));
+                        ui.add(
+                            egui::Slider::new(&mut settings.top_n_sigma, 0.0..=3.0)
+                                .smallest_positive(0.01)
+                                .custom_formatter(|v, _| format!("{:.2}", v)),
+                        );
+                        ui.label(format!("{:.2}", settings.top_n_sigma));
+                    });
+                });
+            }
+            // XTC
+            ui.horizontal(|ui| {
+                widgets::toggle(ui, &mut settings.enable_xtc, i18n::t(i18n::Key::CheckboxXtc, lang), accent);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpXtc, lang));
+            });
+            if settings.enable_xtc {
+                ui.indent("xtc_opt", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelXtcProbability, lang));
+                        ui.add(
+                            egui::Slider::new(&mut settings.xtc_probability, 0.0..=1.0)
+                                .smallest_positive(0.01)
+                                .custom_formatter(|v, _| format!("{:.2}", v)),
+                        );
+                        ui.label(format!("{:.2}", settings.xtc_probability));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelXtcThreshold, lang));
+                        ui.add(
+                            egui::Slider::new(&mut settings.xtc_threshold, 0.0..=1.0)
+                                .smallest_positive(0.01)
+                                .custom_formatter(|v, _| format!("{:.2}", v)),
+                        );
+                        ui.label(format!("{:.2}", settings.xtc_threshold));
+                    });
+                });
+            }
+            // Typical-P
+            ui.horizontal(|ui| {
+                widgets::toggle(ui, &mut settings.enable_typical_p, i18n::t(i18n::Key::CheckboxTypicalP, lang), accent);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTypicalP, lang));
+            });
+            if settings.enable_typical_p {
+                ui.indent("typical_p_opt", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelTypicalP, lang));
+                        ui.add(
+                            egui::Slider::new(&mut settings.typical_p, 0.0..=1.0)
+                                .smallest_positive(0.01)
+                                .custom_formatter(|v, _| format!("{:.2}", v)),
+                        );
+                        ui.label(format!("{:.2}", settings.typical_p));
+                    });
+                });
+            }
+            // Mirostat
+            ui.horizontal(|ui| {
+                widgets::toggle(ui, &mut settings.enable_mirostat, i18n::t(i18n::Key::CheckboxMirostat, lang), accent);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMirostat, lang));
+            });
+            if settings.enable_mirostat {
+                ui.indent("mirostat_opt", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelMirostat, lang));
+                        let m_vals = [0, 1, 2];
+                        let m_labels = ["0 = 关", "1", "2"];
+                        let mut m_idx = m_vals
+                            .iter()
+                            .position(|v| *v == settings.mirostat)
+                            .unwrap_or(0);
+                        widgets::segmented(ui, &m_labels, &mut m_idx, accent);
+                        settings.mirostat = m_vals[m_idx];
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelMirostatLr, lang));
+                        ui.add(
+                            egui::DragValue::new(&mut settings.mirostat_lr)
+                                .range(0.0..=1.0)
+                                .speed(0.01),
+                        );
+                        ui.label(format!("{:.2}", settings.mirostat_lr));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelMirostatEnt, lang));
+                        ui.add(
+                            egui::DragValue::new(&mut settings.mirostat_ent)
+                                .range(0.0..=20.0)
+                                .speed(0.1),
+                        );
+                        ui.label(format!("{:.2}", settings.mirostat_ent));
+                    });
+                });
+            }
+            // 动态温度
+            ui.horizontal(|ui| {
+                widgets::toggle(ui, &mut settings.enable_dynatemp, i18n::t(i18n::Key::CheckboxDynatemp, lang), accent);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpDynatemp, lang));
+            });
+            if settings.enable_dynatemp {
+                ui.indent("dynatemp_opt", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelDynatempRange, lang));
+                        ui.add(
+                            egui::DragValue::new(&mut settings.dynatemp_range)
+                                .range(0.0..=1.0)
+                                .speed(0.05),
+                        );
+                        ui.label(format!("{:.2}", settings.dynatemp_range));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelDynatempExp, lang));
+                        ui.add(
+                            egui::DragValue::new(&mut settings.dynatemp_exp)
+                                .range(0.0..=2.0)
+                                .speed(0.05),
+                        );
+                        ui.label(format!("{:.2}", settings.dynatemp_exp));
+                    });
+                });
+            }
+            // 采样器序列
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelSamplerSeq, lang));
+                ui.text_edit_singleline(&mut settings.sampler_seq);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSamplerSeq, lang));
             });
         },
     );
@@ -320,6 +526,27 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         },
     );
 
+    // ── 结构化输出 ──
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionStructuredOutput, lang),
+        accent,
+        |ui| {
+            // JSON Schema
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelJsonSchema, lang));
+                ui.text_edit_singleline(&mut settings.json_schema);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpJsonSchema, lang));
+            });
+            // Grammar
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelGrammar, lang));
+                ui.text_edit_singleline(&mut settings.grammar);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpGrammar, lang));
+            });
+        },
+    );
+
     // ── KV 缓存配置 ──
     widgets::card(ui, i18n::t(i18n::Key::SectionKvCache, lang), accent, |ui| {
         // 模型加载模式（新版 --load-mode；auto 时沿用下方旧版 --mmap/--mlock 开关）
@@ -341,6 +568,28 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             widgets::segmented(ui, &lm_labels, &mut lm_idx, accent);
             settings.load_mode = lm_vals[lm_idx].to_string();
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpLoadMode, lang));
+        });
+
+        // 长上下文 / 提示缓存（标签 + ❓提示框 + 开关）
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::CheckboxCachePrompt, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCachePrompt, lang));
+            widgets::toggle(ui, &mut settings.cache_prompt, "", accent);
+        });
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelCacheReuse, lang));
+            ui.add(
+                egui::DragValue::new(&mut settings.cache_reuse)
+                    .range(0..=65536)
+                    .speed(64),
+            );
+            ui.small(i18n::t(i18n::Key::HintCacheReuseDisabled, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCacheReuse, lang));
+        });
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::CheckboxContextShift, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpContextShift, lang));
+            widgets::toggle(ui, &mut settings.context_shift, "", accent);
         });
 
         // KV 缓存开关统一样式（与「手动指定 GPU 层数」一致）：标签 + ❓提示框 + 开关

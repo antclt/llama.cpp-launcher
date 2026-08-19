@@ -294,6 +294,45 @@ impl ServerManager {
                 .arg(settings.presence_penalty.to_string());
         }
 
+        // 采样器扩展（llama.cpp b10488+ 新采样器）
+        if settings.enable_min_p && settings.min_p > 0.0 {
+            cmd.arg("--min-p").arg(settings.min_p.to_string());
+        }
+        if settings.enable_top_n_sigma && settings.top_n_sigma > 0.0 {
+            cmd.arg("--top-n-sigma").arg(settings.top_n_sigma.to_string());
+        }
+        if settings.enable_xtc && settings.xtc_probability > 0.0 {
+            cmd.arg("--xtc-probability")
+                .arg(settings.xtc_probability.to_string());
+            if settings.xtc_threshold < 1.0 {
+                cmd.arg("--xtc-threshold")
+                    .arg(settings.xtc_threshold.to_string());
+            }
+        }
+        if settings.enable_typical_p && settings.typical_p < 1.0 {
+            cmd.arg("--typical-p").arg(settings.typical_p.to_string());
+        }
+        if settings.enable_mirostat && settings.mirostat != 0 {
+            cmd.arg("--mirostat").arg(settings.mirostat.to_string());
+            if settings.mirostat_lr != 0.10 {
+                cmd.arg("--mirostat-lr").arg(settings.mirostat_lr.to_string());
+            }
+            if settings.mirostat_ent != 5.00 {
+                cmd.arg("--mirostat-ent").arg(settings.mirostat_ent.to_string());
+            }
+        }
+        if settings.enable_dynatemp && settings.dynatemp_range > 0.0 {
+            cmd.arg("--dynatemp-range")
+                .arg(settings.dynatemp_range.to_string());
+            if settings.dynatemp_exp != 1.0 {
+                cmd.arg("--dynatemp-exp")
+                    .arg(settings.dynatemp_exp.to_string());
+            }
+        }
+        if !settings.sampler_seq.is_empty() {
+            cmd.arg("--sampler-seq").arg(&settings.sampler_seq);
+        }
+
         // Flash Attention
         if !settings.flash_attn.is_empty() {
             cmd.arg("--flash-attn").arg(&settings.flash_attn);
@@ -433,6 +472,50 @@ impl ServerManager {
             cmd.arg("--n-cpu-moe").arg(settings.n_cpu_moe.to_string());
         }
 
+        // CPU 线程数（llama.cpp b10488+；-1 = 不拼接沿用默认）
+        if settings.threads >= 0 {
+            cmd.arg("--threads").arg(settings.threads.to_string());
+        }
+        if settings.threads_batch >= 0 {
+            cmd.arg("--threads-batch")
+                .arg(settings.threads_batch.to_string());
+        }
+        // 生成长度上限（-1 = 不拼接 = 无限生成）
+        if settings.n_predict >= 0 {
+            cmd.arg("--n-predict").arg(settings.n_predict.to_string());
+        }
+        // 保留前缀 token 数
+        if settings.keep > 0 {
+            cmd.arg("--keep").arg(settings.keep.to_string());
+        }
+        // 随机种子（-1 = 不拼接 = 随机）
+        if settings.seed >= 0 {
+            cmd.arg("--seed").arg(settings.seed.to_string());
+        }
+        // 主 GPU（多卡时指定）
+        if settings.main_gpu != 0 {
+            cmd.arg("--main-gpu").arg(settings.main_gpu.to_string());
+        }
+        // 长上下文 / 提示缓存
+        if settings.cache_prompt {
+            cmd.arg("--cache-prompt");
+        } else {
+            cmd.arg("--no-cache-prompt");
+        }
+        if settings.cache_reuse > 0 {
+            cmd.arg("--cache-reuse").arg(settings.cache_reuse.to_string());
+        }
+        if settings.context_shift {
+            cmd.arg("--context-shift");
+        }
+        // 结构化输出（JSON Schema / Grammar）
+        if !settings.json_schema.is_empty() {
+            cmd.arg("--json-schema").arg(&settings.json_schema);
+        }
+        if !settings.grammar.is_empty() {
+            cmd.arg("--grammar").arg(&settings.grammar);
+        }
+
         if settings.verbose {
             cmd.arg("--verbose");
         }
@@ -459,6 +542,29 @@ impl ServerManager {
             cmd.arg("--ui");
         } else {
             cmd.arg("--no-ui");
+        }
+
+        // API 安全 / 部署（空值不拼接）
+        if !settings.api_key.is_empty() {
+            cmd.arg("--api-key").arg(&settings.api_key);
+        }
+        if !settings.api_prefix.is_empty() {
+            cmd.arg("--api-prefix").arg(&settings.api_prefix);
+        }
+        if !settings.cors_origins.is_empty() {
+            cmd.arg("--cors-origins").arg(&settings.cors_origins);
+        }
+        if !settings.ssl_cert_file.as_os_str().is_empty() {
+            cmd.arg("--ssl-cert-file").arg(&settings.ssl_cert_file);
+        }
+        if !settings.ssl_key_file.as_os_str().is_empty() {
+            cmd.arg("--ssl-key-file").arg(&settings.ssl_key_file);
+        }
+        if settings.reuse_port {
+            cmd.arg("--reuse-port");
+        }
+        if !settings.numa.is_empty() {
+            cmd.arg("--numa").arg(&settings.numa);
         }
 
         // 记录启动命令
