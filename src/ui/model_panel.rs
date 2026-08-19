@@ -189,6 +189,7 @@ fn render_file_list(
     on_select: &mut impl FnMut(std::path::PathBuf),
     lang: &i18n::Language,
     mode: FileMode,
+    accent: egui::Color32,
 ) {
     let mut entries = collect_model_files(dir, mode);
     entries.sort_by(|a, b| a.to_string_lossy().cmp(&b.to_string_lossy()));
@@ -213,7 +214,16 @@ fn render_file_list(
     egui::ScrollArea::horizontal()
         .id_salt(scroll_id)
         .show(ui, |ui| {
-            ui.spacing_mut().item_spacing.y = 4.0;
+            // 禁用系统自动行距，全部用显式间距控制分组关系：
+            //   上一模型 ──GROUP_GAP──▶ 文件夹标题 ──HEADER_GAP──▶ 下属模型 ──ITEM_GAP──▶ …
+            const GROUP_GAP: f32 = 16.0; // 文件夹分组之间的间距（模型 ↔ 文件夹标题）
+            const HEADER_GAP: f32 = 6.0; // 文件夹标题与其下属首个模型之间的间距
+            const ITEM_GAP: f32 = 8.0; // 同文件夹内模型之间的间距
+            const HEADER_LINE_LEN: f32 = 24.0; // 文件夹标题后的短分隔线长度
+            ui.spacing_mut().item_spacing.y = 0.0;
+            let mut last_parent_dir: Option<std::path::PathBuf> = None;
+            let mut first_item = true;
+            let mut pending_space = 0.0_f32;
             for entry in entries {
                 let file_path = entry.clone();
                 let filename = file_path
@@ -221,6 +231,56 @@ fn render_file_list(
                     .map(|name| name.to_string_lossy().to_string())
                     .unwrap_or_default();
                 let selected = selected_path == file_path;
+
+                // 若模型位于子文件夹且为新的文件夹，先输出文件夹标题（主题色提亮文字 +
+                // 短横线分区）
+                let parent_dir = file_path
+                    .parent()
+                    .filter(|p| *p != dir)
+                    .map(ToOwned::to_owned);
+                let parent_changed = parent_dir.as_ref() != last_parent_dir.as_ref();
+                if let Some(ref pdir) = parent_dir {
+                    if parent_changed {
+                        last_parent_dir = Some(pdir.clone());
+                        if !first_item && pending_space > 0.0 {
+                            ui.add_space(GROUP_GAP); // 标题前：与上一个模型拉开分组间距
+                        }
+                        // 文件夹标题：比主题色提亮一档（加白 25%），柔和不刺眼；
+                        // 文字后跟一条短横线作分组连接符
+                        let header_color = crate::theme::lighten_accent(accent, 0.25);
+                        ui.horizontal(|ui| {
+                            ui.label(
+                                egui::RichText::new(
+                                    pdir.file_name()
+                                        .map(|n| n.to_string_lossy().to_string())
+                                        .unwrap_or_default(),
+                                )
+                                .color(header_color),
+                            );
+                            // 短分隔线：与主题色同色、较淡，垂直居中于标题文字
+                            let (rect, _) = ui.allocate_exact_size(
+                                egui::vec2(HEADER_LINE_LEN, 2.0),
+                                egui::Sense::hover(),
+                            );
+                            let y = rect.center().y;
+                            ui.painter().line_segment(
+                                [
+                                    egui::Pos2::new(rect.left(), y),
+                                    egui::Pos2::new(rect.right(), y),
+                                ],
+                                egui::Stroke::new(1.0_f32, header_color.gamma_multiply(0.6_f32)),
+                            );
+                        });
+                        pending_space = HEADER_GAP; // 标题后：与下属首个模型贴近
+                    }
+                } else {
+                    last_parent_dir = None;
+                }
+
+                // 模型行前间距
+                if pending_space > 0.0 {
+                    ui.add_space(pending_space);
+                }
 
                 ui.horizontal(|ui| {
                     if ui.add(egui::RadioButton::new(selected, "")).clicked() {
@@ -246,6 +306,8 @@ fn render_file_list(
                             .color(ui.visuals().weak_text_color()),
                     );
                 });
+                first_item = false;
+                pending_space = ITEM_GAP; // 模型后：与下一个模型/标题分隔
             }
         });
 }
@@ -308,6 +370,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             },
             lang,
             FileMode::Main,
+            accent,
         );
     });
 
@@ -327,6 +390,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             },
             lang,
             FileMode::Mmproj,
+            accent,
         );
     });
 
@@ -346,6 +410,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             },
             lang,
             FileMode::Dflash,
+            accent,
         );
     });
 }

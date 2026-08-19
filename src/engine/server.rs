@@ -299,7 +299,8 @@ impl ServerManager {
             cmd.arg("--min-p").arg(settings.min_p.to_string());
         }
         if settings.enable_top_n_sigma && settings.top_n_sigma > 0.0 {
-            cmd.arg("--top-n-sigma").arg(settings.top_n_sigma.to_string());
+            cmd.arg("--top-n-sigma")
+                .arg(settings.top_n_sigma.to_string());
         }
         if settings.enable_xtc && settings.xtc_probability > 0.0 {
             cmd.arg("--xtc-probability")
@@ -315,10 +316,12 @@ impl ServerManager {
         if settings.enable_mirostat && settings.mirostat != 0 {
             cmd.arg("--mirostat").arg(settings.mirostat.to_string());
             if settings.mirostat_lr != 0.10 {
-                cmd.arg("--mirostat-lr").arg(settings.mirostat_lr.to_string());
+                cmd.arg("--mirostat-lr")
+                    .arg(settings.mirostat_lr.to_string());
             }
             if settings.mirostat_ent != 5.00 {
-                cmd.arg("--mirostat-ent").arg(settings.mirostat_ent.to_string());
+                cmd.arg("--mirostat-ent")
+                    .arg(settings.mirostat_ent.to_string());
             }
         }
         if settings.enable_dynatemp && settings.dynatemp_range > 0.0 {
@@ -344,10 +347,12 @@ impl ServerManager {
             cmd.arg("--reasoning").arg(&settings.reasoning_mode);
         }
         if !settings.reasoning_effort.is_empty() && settings.reasoning_effort != "default" {
-            cmd.arg("--reasoning-effort").arg(&settings.reasoning_effort);
+            cmd.arg("--reasoning-effort")
+                .arg(&settings.reasoning_effort);
         }
         if !settings.reasoning_format.is_empty() && settings.reasoning_format != "auto" {
-            cmd.arg("--reasoning-format").arg(&settings.reasoning_format);
+            cmd.arg("--reasoning-format")
+                .arg(&settings.reasoning_format);
         }
         match settings.reasoning_preserve.as_str() {
             "on" => {
@@ -374,7 +379,8 @@ impl ServerManager {
             cmd.arg("--no-jinja");
         }
         if !settings.chat_template_file.as_os_str().is_empty() {
-            cmd.arg("--chat-template-file").arg(&settings.chat_template_file);
+            cmd.arg("--chat-template-file")
+                .arg(&settings.chat_template_file);
         }
 
         // 多模态投影
@@ -503,7 +509,8 @@ impl ServerManager {
             cmd.arg("--no-cache-prompt");
         }
         if settings.cache_reuse > 0 {
-            cmd.arg("--cache-reuse").arg(settings.cache_reuse.to_string());
+            cmd.arg("--cache-reuse")
+                .arg(settings.cache_reuse.to_string());
         }
         if settings.context_shift {
             cmd.arg("--context-shift");

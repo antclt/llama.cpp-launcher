@@ -3,9 +3,9 @@ use crate::engine::server::ServerManager;
 use crate::i18n;
 use crate::ui::helper;
 use crate::ui::widgets;
-use std::path::PathBuf;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
+use std::path::PathBuf;
 
 pub fn ui(
     ui: &mut egui::Ui,

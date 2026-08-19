@@ -130,49 +130,56 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
     );
 
     // ── 线程与生成长度 ──
-    widgets::card(
-        ui,
-        i18n::t(i18n::Key::SectionThreads, lang),
-        accent,
-        |ui| {
-            ui.horizontal(|ui| {
-                ui.label(i18n::t(i18n::Key::LabelThreads, lang));
-                ui.add(egui::DragValue::new(&mut settings.threads).range(-1..=256));
-                ui.small(i18n::t(i18n::Key::HintThreadsDefault, lang));
-                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpThreads, lang));
-            });
-            ui.horizontal(|ui| {
-                ui.label(i18n::t(i18n::Key::LabelThreadsBatch, lang));
-                ui.add(egui::DragValue::new(&mut settings.threads_batch).range(-1..=256));
-                ui.small(i18n::t(i18n::Key::HintThreadsBatchDefault, lang));
-                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpThreadsBatch, lang));
-            });
-            ui.horizontal(|ui| {
-                ui.label(i18n::t(i18n::Key::LabelNPredict, lang));
-                ui.add(egui::DragValue::new(&mut settings.n_predict).range(-1..=65536).speed(128));
-                ui.small(i18n::t(i18n::Key::HintNPredictLimit, lang));
-                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpNPredict, lang));
-            });
-            ui.horizontal(|ui| {
-                ui.label(i18n::t(i18n::Key::LabelKeep, lang));
-                ui.add(egui::DragValue::new(&mut settings.keep).range(0..=8192).speed(16));
-                ui.small(i18n::t(i18n::Key::HintKeepNone, lang));
-                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpKeep, lang));
-            });
-            ui.horizontal(|ui| {
-                ui.label(i18n::t(i18n::Key::LabelSeed, lang));
-                ui.add(egui::DragValue::new(&mut settings.seed).range(-1..=i32::MAX as i64).speed(1));
-                ui.small(i18n::t(i18n::Key::HintSeedRandom, lang));
-                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSeed, lang));
-            });
-            ui.horizontal(|ui| {
-                ui.label(i18n::t(i18n::Key::LabelMainGpu, lang));
-                ui.add(egui::DragValue::new(&mut settings.main_gpu).range(0..=16));
-                ui.small(i18n::t(i18n::Key::HintMainGpuFirst, lang));
-                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMainGpu, lang));
-            });
-        },
-    );
+    widgets::card(ui, i18n::t(i18n::Key::SectionThreads, lang), accent, |ui| {
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelThreads, lang));
+            ui.add(egui::DragValue::new(&mut settings.threads).range(-1..=256));
+            ui.small(i18n::t(i18n::Key::HintThreadsDefault, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpThreads, lang));
+        });
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelThreadsBatch, lang));
+            ui.add(egui::DragValue::new(&mut settings.threads_batch).range(-1..=256));
+            ui.small(i18n::t(i18n::Key::HintThreadsBatchDefault, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpThreadsBatch, lang));
+        });
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelNPredict, lang));
+            ui.add(
+                egui::DragValue::new(&mut settings.n_predict)
+                    .range(-1..=65536)
+                    .speed(128),
+            );
+            ui.small(i18n::t(i18n::Key::HintNPredictLimit, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpNPredict, lang));
+        });
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelKeep, lang));
+            ui.add(
+                egui::DragValue::new(&mut settings.keep)
+                    .range(0..=8192)
+                    .speed(16),
+            );
+            ui.small(i18n::t(i18n::Key::HintKeepNone, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpKeep, lang));
+        });
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelSeed, lang));
+            ui.add(
+                egui::DragValue::new(&mut settings.seed)
+                    .range(-1..=i32::MAX as i64)
+                    .speed(1),
+            );
+            ui.small(i18n::t(i18n::Key::HintSeedRandom, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSeed, lang));
+        });
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelMainGpu, lang));
+            ui.add(egui::DragValue::new(&mut settings.main_gpu).range(0..=16));
+            ui.small(i18n::t(i18n::Key::HintMainGpuFirst, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMainGpu, lang));
+        });
+    });
 
     // ── 采样参数 ──
     widgets::card(
@@ -245,7 +252,12 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         |ui| {
             // Min-P
             ui.horizontal(|ui| {
-                widgets::toggle(ui, &mut settings.enable_min_p, i18n::t(i18n::Key::CheckboxMinP, lang), accent);
+                widgets::toggle(
+                    ui,
+                    &mut settings.enable_min_p,
+                    i18n::t(i18n::Key::CheckboxMinP, lang),
+                    accent,
+                );
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMinP, lang));
             });
             if settings.enable_min_p {
@@ -263,7 +275,12 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             }
             // Top-N-Sigma
             ui.horizontal(|ui| {
-                widgets::toggle(ui, &mut settings.enable_top_n_sigma, i18n::t(i18n::Key::CheckboxTopNSigma, lang), accent);
+                widgets::toggle(
+                    ui,
+                    &mut settings.enable_top_n_sigma,
+                    i18n::t(i18n::Key::CheckboxTopNSigma, lang),
+                    accent,
+                );
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTopNSigma, lang));
             });
             if settings.enable_top_n_sigma {
@@ -281,7 +298,12 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             }
             // XTC
             ui.horizontal(|ui| {
-                widgets::toggle(ui, &mut settings.enable_xtc, i18n::t(i18n::Key::CheckboxXtc, lang), accent);
+                widgets::toggle(
+                    ui,
+                    &mut settings.enable_xtc,
+                    i18n::t(i18n::Key::CheckboxXtc, lang),
+                    accent,
+                );
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpXtc, lang));
             });
             if settings.enable_xtc {
@@ -308,7 +330,12 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             }
             // Typical-P
             ui.horizontal(|ui| {
-                widgets::toggle(ui, &mut settings.enable_typical_p, i18n::t(i18n::Key::CheckboxTypicalP, lang), accent);
+                widgets::toggle(
+                    ui,
+                    &mut settings.enable_typical_p,
+                    i18n::t(i18n::Key::CheckboxTypicalP, lang),
+                    accent,
+                );
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTypicalP, lang));
             });
             if settings.enable_typical_p {
@@ -326,7 +353,12 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             }
             // Mirostat
             ui.horizontal(|ui| {
-                widgets::toggle(ui, &mut settings.enable_mirostat, i18n::t(i18n::Key::CheckboxMirostat, lang), accent);
+                widgets::toggle(
+                    ui,
+                    &mut settings.enable_mirostat,
+                    i18n::t(i18n::Key::CheckboxMirostat, lang),
+                    accent,
+                );
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMirostat, lang));
             });
             if settings.enable_mirostat {
@@ -364,7 +396,12 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             }
             // 动态温度
             ui.horizontal(|ui| {
-                widgets::toggle(ui, &mut settings.enable_dynatemp, i18n::t(i18n::Key::CheckboxDynatemp, lang), accent);
+                widgets::toggle(
+                    ui,
+                    &mut settings.enable_dynatemp,
+                    i18n::t(i18n::Key::CheckboxDynatemp, lang),
+                    accent,
+                );
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpDynatemp, lang));
             });
             if settings.enable_dynatemp {
@@ -423,7 +460,9 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             });
             // 思考深度
             ui.label(i18n::t(i18n::Key::LabelReasoningEffort, lang));
-            let efforts = ["default", "minimal", "low", "medium", "high", "xhigh", "max"];
+            let efforts = [
+                "default", "minimal", "low", "medium", "high", "xhigh", "max",
+            ];
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 6.0;
                 for e in &efforts {
@@ -481,7 +520,10 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelReasoningBudgetMessage, lang));
                 ui.text_edit_singleline(&mut settings.reasoning_budget_message);
-                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningBudgetMessage, lang));
+                helper::help_button_inline(
+                    ui,
+                    i18n::t(i18n::Key::HelpReasoningBudgetMessage, lang),
+                );
             });
         },
     );
