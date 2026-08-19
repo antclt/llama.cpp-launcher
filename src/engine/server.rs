@@ -6,7 +6,7 @@ use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-const MAX_LOG_LINES: usize = 10_000; // 日志环形缓冲区最大行数
+pub(crate) const MAX_LOG_LINES: usize = 10_000; // 日志环形缓冲区最大行数
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -105,7 +105,7 @@ impl ServerManager {
     }
 
     /// 基于时间戳+位置的单字母标识符检测日志等级
-    fn detect_log_level(line: &str) -> Option<LogLevel> {
+    pub(crate) fn detect_log_level(line: &str) -> Option<LogLevel> {
         let line = line.trim_start();
 
         // 必须以数字开头（类似时间戳）
