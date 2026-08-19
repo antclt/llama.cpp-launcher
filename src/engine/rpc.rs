@@ -1,5 +1,7 @@
 use crate::config::settings::AppSettings;
+use crate::engine::server::{LogEntry, LogLevel, ServerManager};
 use crate::i18n;
+use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
 use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
@@ -29,6 +31,7 @@ pub enum RpcConnection {
 /// RPC 服务器内部状态
 struct RpcInner {
     child: Option<Child>,
+    logs: VecDeque<LogEntry>,
 }
 
 pub struct RpcManager {
@@ -44,7 +47,10 @@ impl RpcManager {
         Self {
             state: RpcState::Idle,
             connection: RpcConnection::Disconnected,
-            inner: Arc::new(Mutex::new(RpcInner { child: None })),
+            inner: Arc::new(Mutex::new(RpcInner {
+                child: None,
+                logs: VecDeque::new(),
+            })),
             launch_command: None,
             _threads: Vec::new(),
         }
@@ -61,6 +67,17 @@ impl RpcManager {
     /// 获取 RPC 启动命令
     pub fn launch_command(&self) -> Option<String> {
         self.launch_command.clone()
+    }
+
+    /// RPC 日志缓冲对外接口（与 ServerManager::logs 一致：内部 VecDeque，对外返回 clone 的 Vec）
+    pub fn logs(&self) -> Vec<LogEntry> {
+        let inner = self.inner.lock().unwrap();
+        inner.logs.iter().cloned().collect()
+    }
+
+    /// 清空 RPC 日志（与 ServerManager::clear_logs 语义一致，不含 progress——RPC 无此状态）
+    pub fn clear_logs(&mut self) {
+        self.inner.lock().unwrap().logs.clear();
     }
 
     pub fn status_text(&self, lang: &i18n::Language) -> String {
@@ -135,6 +152,9 @@ impl RpcManager {
         self.state = RpcState::Starting;
         self._threads.clear();
 
+        // 每次启动前清空旧日志（与 ServerManager::start 行为一致，避免重启后新旧混杂）
+        self.inner.lock().unwrap().logs.clear();
+
         let mut cmd = Command::new(&rpc_path);
         cmd.arg("--host")
             .arg(&settings.rpc_host)
@@ -170,11 +190,11 @@ impl RpcManager {
 
         match cmd.spawn() {
             Ok(child) => {
-                self.launch_command = Some(cmd_line);
                 {
                     let mut inner = self.inner.lock().unwrap();
                     inner.child = Some(child);
                 }
+                self.launch_command = Some(cmd_line);
 
                 // 启动成功后更新连接状态
                 self.connection = RpcConnection::Connected;
@@ -193,7 +213,65 @@ impl RpcManager {
                         let reader = BufReader::new(stdout);
                         for line in reader.lines() {
                             match line {
-                                Ok(_) => {}
+                                Ok(l) => {
+                                    // 等级判定与 server 日志一致（时间戳规则不命中则回退关键字）
+                                    let level =
+                                        ServerManager::detect_log_level(&l).unwrap_or_else(|| {
+                                            if l.contains("WARN") || l.contains("warn") {
+                                                LogLevel::Warn
+                                            } else if l.contains("ERROR") || l.contains("error") {
+                                                LogLevel::Error
+                                            } else {
+                                                LogLevel::Info
+                                            }
+                                        });
+                                    let mut inner = inner_clone.lock().unwrap();
+                                    // 超过上限时丢弃最旧的一行（与 server 日志一致）
+                                    if inner.logs.len() >= crate::engine::server::MAX_LOG_LINES {
+                                        inner.logs.pop_front();
+                                    }
+                                    inner.logs.push_back(LogEntry { text: l, level });
+                                }
+                                Err(_) => break,
+                            }
+                        }
+                    }
+                });
+
+                let inner_clone2 = Arc::clone(&self.inner);
+                let stderr_thread = thread::spawn(move || {
+                    // 与 stdout_thread 完全相同结构，仅 child.stderr.take() / stderr 变量名
+                    let stderr = {
+                        let mut inner = inner_clone2.lock().unwrap();
+                        if let Some(ref mut child) = inner.child {
+                            child.stderr.take()
+                        } else {
+                            None
+                        }
+                    };
+                    if let Some(stderr) = stderr {
+                        let reader = BufReader::new(stderr);
+                        for line in reader.lines() {
+                            match line {
+                                Ok(l) => {
+                                    // 等级判定与 server 日志一致（时间戳规则不命中则回退关键字）
+                                    let level =
+                                        ServerManager::detect_log_level(&l).unwrap_or_else(|| {
+                                            if l.contains("WARN") || l.contains("warn") {
+                                                LogLevel::Warn
+                                            } else if l.contains("ERROR") || l.contains("error") {
+                                                LogLevel::Error
+                                            } else {
+                                                LogLevel::Info
+                                            }
+                                        });
+                                    let mut inner = inner_clone2.lock().unwrap();
+                                    // 超过上限时丢弃最旧的一行（与 server 日志一致）
+                                    if inner.logs.len() >= crate::engine::server::MAX_LOG_LINES {
+                                        inner.logs.pop_front();
+                                    }
+                                    inner.logs.push_back(LogEntry { text: l, level });
+                                }
                                 Err(_) => break,
                             }
                         }
@@ -201,6 +279,7 @@ impl RpcManager {
                 });
 
                 self._threads.push(stdout_thread);
+                self._threads.push(stderr_thread);
             }
             Err(e) => {
                 self.state = RpcState::Error(format!(

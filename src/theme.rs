@@ -11,24 +11,24 @@ pub fn fluent3_light_preset() -> ThemeConfig {
         dark_mode: false,
 
         // ── 文本颜色 ──
-        override_text_color: Some([29, 29, 31, 255]),           // #1D1D1F 深黑（浅色模式主文本）
-        override_weak_text_color: Some([110, 110, 115, 255]),    // #6E6E73 次要文本
-        override_hyperlink_color: Some([0, 122, 255, 255]),      // #007AFF
+        override_text_color: Some([29, 29, 31, 255]), // #1D1D1F 深黑（浅色模式主文本）
+        override_weak_text_color: Some([110, 110, 115, 255]), // #6E6E73 次要文本
+        override_hyperlink_color: Some([0, 122, 255, 255]), // #007AFF
 
         // ── 背景色（层次：surface > sidebar > app） ──
-        override_faint_bg_color: Some([245, 245, 247, 255]),    // #F5F5F7 (app bg)
-        override_extreme_bg_color: Some([255, 255, 255, 255]),   // white
-        override_code_bg_color: Some([245, 245, 247, 255]),      // #F5F5F7
+        override_faint_bg_color: Some([245, 245, 247, 255]), // #F5F5F7 (app bg)
+        override_extreme_bg_color: Some([255, 255, 255, 255]), // white
+        override_code_bg_color: Some([245, 245, 247, 255]),  // #F5F5F7
 
         // ── 窗口 ──
-        override_window_fill: Some([245, 245, 247, 255]),         // #F5F5F7 — 主内容区背景
+        override_window_fill: Some([245, 245, 247, 255]), // #F5F5F7 — 主内容区背景
         override_window_stroke_color: Some([227, 227, 232, 255]), // #E3E3E8
         override_window_stroke_width: Some(1.0),
-        override_window_corner_radius: Some(6),                    // ★ 6px 更方正
+        override_window_corner_radius: Some(6), // ★ 6px 更方正
         override_window_shadow_size: Some(8),
 
         // ── 面板（侧边栏用，与卡片同色）──
-        override_panel_fill: Some([255, 255, 255, 255]),            // #FFFFFF — 同 card surface
+        override_panel_fill: Some([255, 255, 255, 255]), // #FFFFFF — 同 card surface
 
         // ── 弹窗阴影 ──
         override_popup_shadow_size: Some(12),
@@ -39,15 +39,15 @@ pub fn fluent3_light_preset() -> ThemeConfig {
         override_selection_stroke_width: Some(1.0),
 
         // ── 语义色（警告 / 错误）──
-        override_warn_fg_color: Some([255, 185, 0, 255]),    // #FFB900
-        override_error_fg_color: Some([209, 52, 56, 255]),   // #D13438
+        override_warn_fg_color: Some([255, 185, 0, 255]), // #FFB900
+        override_error_fg_color: Some([209, 52, 56, 255]), // #D13438
 
         // ── 非交互控件（卡片/标签/分隔线）──
-        override_widget_noninteractive_bg_fill: Some([255, 255, 255, 255]),     // white (card surface)
+        override_widget_noninteractive_bg_fill: Some([255, 255, 255, 255]), // white (card surface)
         override_widget_noninteractive_weak_bg_fill: Some([245, 245, 247, 255]),
         override_widget_noninteractive_bg_stroke_color: Some([227, 227, 232, 255]), // #E3E3E8
         override_widget_noninteractive_bg_stroke_width: Some(1.0),
-        override_widget_noninteractive_corner_radius: Some(6),                  // ★ 6px
+        override_widget_noninteractive_corner_radius: Some(6), // ★ 6px
         override_widget_noninteractive_fg_stroke_color: Some([29, 29, 31, 255]),
         override_widget_noninteractive_fg_stroke_width: Some(1.0),
         override_widget_noninteractive_expansion: Some(0.0),
@@ -55,17 +55,17 @@ pub fn fluent3_light_preset() -> ThemeConfig {
         // ── 非活动控件（默认按钮/输入框）──
         // 注意：滑块轨道(rail)也用此色绘制，必须与卡片背景(noninteractive.bg_fill=white)有反差，
         // 否则白轨压白底完全隐形。按钮/输入框有描边定义轮廓，不受影响。
-        override_widget_inactive_bg_fill: Some([240, 240, 242, 255]),   // #F0F0F2 — 浅灰，在白色卡片上可见
+        override_widget_inactive_bg_fill: Some([240, 240, 242, 255]), // #F0F0F2 — 浅灰，在白色卡片上可见
         override_widget_inactive_weak_bg_fill: Some([245, 245, 247, 255]),
         override_widget_inactive_bg_stroke_color: Some([210, 210, 215, 255]), // #D2D2D7 border-strong
         override_widget_inactive_bg_stroke_width: Some(1.0),
-        override_widget_inactive_corner_radius: Some(6),                        // ★ 6px 圆角矩形
+        override_widget_inactive_corner_radius: Some(6), // ★ 6px 圆角矩形
         override_widget_inactive_fg_stroke_color: Some([29, 29, 31, 255]),
         override_widget_inactive_fg_stroke_width: Some(1.0),
         override_widget_inactive_expansion: Some(0.0),
 
         // ── 悬停控件 ──
-        override_widget_hovered_bg_fill: Some([240, 240, 242, 255]),  // #F0F0F2
+        override_widget_hovered_bg_fill: Some([240, 240, 242, 255]), // #F0F0F2
         override_widget_hovered_weak_bg_fill: Some([245, 245, 247, 255]),
         override_widget_hovered_bg_stroke_color: Some([0, 122, 255, 255]),
         override_widget_hovered_bg_stroke_width: Some(1.0),
@@ -116,47 +116,47 @@ pub fn fluent3_dark_preset() -> ThemeConfig {
     t.dark_mode = true;
 
     // ── 文本颜色 ──
-    t.override_text_color = Some([245, 245, 247, 255]);            // #F5F5F7
-    t.override_weak_text_color = Some([174, 174, 178, 255]);       // #AEAEB2
+    t.override_text_color = Some([245, 245, 247, 255]); // #F5F5F7
+    t.override_weak_text_color = Some([174, 174, 178, 255]); // #AEAEB2
 
     // ── 背景层次（主内容区 > 侧边栏 > 卡片表面）──
-    t.override_faint_bg_color = Some([28, 28, 30, 255]);           // #1C1C1E — 主内容区最深
-    t.override_extreme_bg_color = Some([16, 16, 18, 255]);          // 近纯黑
-    t.override_code_bg_color = Some([28, 28, 30, 255]);             // #1C1C1E
+    t.override_faint_bg_color = Some([28, 28, 30, 255]); // #1C1C1E — 主内容区最深
+    t.override_extreme_bg_color = Some([16, 16, 18, 255]); // 近纯黑
+    t.override_code_bg_color = Some([28, 28, 30, 255]); // #1C1C1E
 
     // ── 窗口填充 = 主内容区背景（比侧边栏更深）──
-    t.override_window_fill = Some([28, 28, 30, 255]);              // #1C1C1E
-    t.override_window_stroke_color = Some([56, 56, 58, 255]);      // #38383A — 细分隔线
-    t.override_window_corner_radius = Some(6);                       // ★ 6px
+    t.override_window_fill = Some([28, 28, 30, 255]); // #1C1C1E
+    t.override_window_stroke_color = Some([56, 56, 58, 255]); // #38383A — 细分隔线
+    t.override_window_corner_radius = Some(6); // ★ 6px
     t.override_window_shadow_size = Some(16);
 
     // ── 面板 = 侧边栏背景（与卡片同色，用户要求 sidebar ≡ card surface）──
-    t.override_panel_fill = Some([44, 44, 46, 255]);              // #2C2C2E — 同 noninteractive.bg_fill
+    t.override_panel_fill = Some([44, 44, 46, 255]); // #2C2C2E — 同 noninteractive.bg_fill
 
     // ── 弹窗阴影 ──
     t.override_popup_shadow_size = Some(20);
 
     // ── 语义色 ──
-    t.override_warn_fg_color = Some([255, 214, 10, 255]);          // #FFD60A
-    t.override_error_fg_color = Some([255, 69, 58, 255]);          // #FF453A
+    t.override_warn_fg_color = Some([255, 214, 10, 255]); // #FFD60A
+    t.override_error_fg_color = Some([255, 69, 58, 255]); // #FF453A
 
     // ── 非交互控件（卡片 surface = #2C2C2E）──
-    t.override_widget_noninteractive_bg_fill = Some([44, 44, 46, 255]);       // #2C2C2E
+    t.override_widget_noninteractive_bg_fill = Some([44, 44, 46, 255]); // #2C2C2E
     t.override_widget_noninteractive_weak_bg_fill = Some([28, 28, 30, 255]);
     t.override_widget_noninteractive_bg_stroke_color = Some([56, 56, 58, 255]); // #38383A
     t.override_widget_noninteractive_fg_stroke_color = Some([174, 174, 178, 255]);
-    t.override_widget_noninteractive_corner_radius = Some(6);                  // ★ 6px
+    t.override_widget_noninteractive_corner_radius = Some(6); // ★ 6px
 
     // ── 非活动控件（输入框/按钮默认态）──
     // 滑块轨道用此色，必须与卡片背景(#2C2C2E)有反差，否则轨道隐形。
-    t.override_widget_inactive_bg_fill = Some([58, 58, 60, 255]);             // #3A3A3C — 比卡片稍亮，滑块轨可见
+    t.override_widget_inactive_bg_fill = Some([58, 58, 60, 255]); // #3A3A3C — 比卡片稍亮，滑块轨可见
     t.override_widget_inactive_weak_bg_fill = Some([54, 54, 60, 255]);
-    t.override_widget_inactive_bg_stroke_color = Some([72, 72, 74, 255]);       // #48484A border-strong
-    t.override_widget_inactive_corner_radius = Some(6);                         // ★ 6px 圆角矩形
+    t.override_widget_inactive_bg_stroke_color = Some([72, 72, 74, 255]); // #48484A border-strong
+    t.override_widget_inactive_corner_radius = Some(6); // ★ 6px 圆角矩形
     t.override_widget_inactive_fg_stroke_color = Some([205, 207, 215, 255]);
 
     // ── 悬停控件 ──
-    t.override_widget_hovered_bg_fill = Some([58, 58, 60, 255]);              // #3A3A3C
+    t.override_widget_hovered_bg_fill = Some([58, 58, 60, 255]); // #3A3A3C
     t.override_widget_hovered_weak_bg_fill = Some([50, 50, 56, 255]);
     t.override_widget_hovered_bg_stroke_color = Some([90, 90, 100, 255]);
     t.override_widget_hovered_fg_stroke_color = Some([245, 245, 247, 255]);

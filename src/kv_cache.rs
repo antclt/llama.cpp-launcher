@@ -21,14 +21,24 @@ pub struct GgufInfo {
 
 /// 解析 GGUF 元数据中的 block_count（层数）
 ///
-/// 硬覆盖：当架构为 qwen38 时，其 GGUF 中缺失 `qwen38.block_count` 字段，
-/// 直接使用常量值 16，避免读取失败。其余架构逐字保留原读取逻辑。
+/// 硬覆盖：当 `general.base_model.0.name` 为 Qwen3.8 27B / Qwen3.6 27B 时，
+/// 其 GGUF 中缺失对应的 block_count 字段，直接使用常量值 16，避免读取失败。
+/// 其余情况逐字保留原读取逻辑。
 fn resolve_block_count(
     arch: &str,
     kv: &std::collections::BTreeMap<String, serde_json::Value>,
 ) -> Result<usize, String> {
-    if arch == "qwen38" {
-        log::info!("[read_gguf_info] general.architecture=qwen38，block_count 使用常量值 16");
+    // 触发条件：general.base_model.0.name 命中 Qwen3.8 27B / Qwen3.6 27B
+    let base_model = kv
+        .get("general.base_model.0.name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    if base_model == "Qwen3.8 27B" || base_model == "Qwen3.6 27B" {
+        log::info!(
+            "[read_gguf_info] general.base_model.0.name={}，block_count 使用常量值 16",
+            base_model
+        );
         return Ok(16);
     }
 
@@ -380,10 +390,27 @@ mod tests {
 
     #[test]
     fn test_resolve_block_count_qwen38_hardcoded() {
-        // qwen38 架构硬覆盖为 16，即使 metadata 中存在其他值也不读取
+        // general.base_model.0.name 命中 Qwen3.8 27B 时硬覆盖为 16，
+        // 即使 metadata 中存在其他 block_count 值也不读取
         let mut kv = std::collections::BTreeMap::new();
         kv.insert("qwen38.block_count".to_string(), serde_json::json!(99));
+        kv.insert(
+            "general.base_model.0.name".to_string(),
+            serde_json::json!("Qwen3.8 27B"),
+        );
         let result = resolve_block_count("qwen38", &kv);
+        assert_eq!(result, Ok(16));
+    }
+
+    #[test]
+    fn test_resolve_block_count_qwen36_hardcoded() {
+        // general.base_model.0.name 命中 Qwen3.6 27B 时硬覆盖为 16
+        let mut kv = std::collections::BTreeMap::new();
+        kv.insert(
+            "general.base_model.0.name".to_string(),
+            serde_json::json!("Qwen3.6 27B"),
+        );
+        let result = resolve_block_count("qwen36", &kv);
         assert_eq!(result, Ok(16));
     }
 

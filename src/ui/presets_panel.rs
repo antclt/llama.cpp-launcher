@@ -14,11 +14,11 @@ struct ParamsExport {
     top_k: i32,
     repeat_penalty: f32,
     presence_penalty: f32,
-    ignore_temperature: bool,
-    ignore_top_p: bool,
-    ignore_top_k: bool,
-    ignore_repeat_penalty: bool,
-    ignore_presence_penalty: bool,
+    enable_temperature: bool,
+    enable_top_p: bool,
+    enable_top_k: bool,
+    enable_repeat_penalty: bool,
+    enable_presence_penalty: bool,
     flash_attn: String,
 
     spec_type: String,
@@ -53,11 +53,11 @@ impl ParamsExport {
             top_k: s.top_k,
             repeat_penalty: s.repeat_penalty,
             presence_penalty: s.presence_penalty,
-            ignore_temperature: s.ignore_temperature,
-            ignore_top_p: s.ignore_top_p,
-            ignore_top_k: s.ignore_top_k,
-            ignore_repeat_penalty: s.ignore_repeat_penalty,
-            ignore_presence_penalty: s.ignore_presence_penalty,
+            enable_temperature: s.enable_temperature,
+            enable_top_p: s.enable_top_p,
+            enable_top_k: s.enable_top_k,
+            enable_repeat_penalty: s.enable_repeat_penalty,
+            enable_presence_penalty: s.enable_presence_penalty,
             flash_attn: s.flash_attn.clone(),
 
             spec_type: s.spec_type.clone(),
@@ -91,11 +91,11 @@ impl ParamsExport {
         s.top_k = self.top_k;
         s.repeat_penalty = self.repeat_penalty;
         s.presence_penalty = self.presence_penalty;
-        s.ignore_temperature = self.ignore_temperature;
-        s.ignore_top_p = self.ignore_top_p;
-        s.ignore_top_k = self.ignore_top_k;
-        s.ignore_repeat_penalty = self.ignore_repeat_penalty;
-        s.ignore_presence_penalty = self.ignore_presence_penalty;
+        s.enable_temperature = self.enable_temperature;
+        s.enable_top_p = self.enable_top_p;
+        s.enable_top_k = self.enable_top_k;
+        s.enable_repeat_penalty = self.enable_repeat_penalty;
+        s.enable_presence_penalty = self.enable_presence_penalty;
         s.flash_attn = self.flash_attn;
 
         s.spec_type = self.spec_type;
@@ -199,127 +199,143 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         ui.separator();
 
         if settings.presets.is_empty() {
-            ui.centered_and_justified(|ui| {
-                ui.label(i18n::t(i18n::Key::HintNoPresets, lang));
-            });
+            // 固定 200px 高的居中区域：避免 centered_and_justified 撑满整个
+            // ScrollArea 内容区（content == inner 临界触发外层滚动条），
+            // 同时保留提示文字垂直居中的视觉。
+            ui.allocate_ui_with_layout(
+                egui::vec2(ui.available_width(), 545.0),
+                egui::Layout::centered_and_justified(egui::Direction::TopDown),
+                |ui| {
+                    ui.label(i18n::t(i18n::Key::HintNoPresets, lang));
+                },
+            );
         } else {
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                let mut load_index: Option<usize> = None;
-                let mut delete_index: Option<usize> = None;
-                let mut auto_start_preset: Option<String> = None;
+            // 与日志面板相同的余量处理：列表超高时 ScrollArea 高度最多到
+            // 剩余空间-18px，避免 card 总高精确顶满外层 ScrollArea 的 inner
+            // 边界（临界触发外层滚动条，与内层滚动条叠加）；列表矮时
+            // auto_shrink 默认收缩，布局不受影响。
+            let max_h = (ui.available_height() - 18.0).max(64.0);
+            egui::ScrollArea::vertical()
+                .max_height(max_h)
+                .show(ui, |ui| {
+                    let mut load_index: Option<usize> = None;
+                    let mut delete_index: Option<usize> = None;
+                    let mut auto_start_preset: Option<String> = None;
 
-                for (i, preset) in settings.presets.iter().enumerate() {
-                    ui.horizontal(|ui| {
-                        if ui
-                            .selectable_label(false, format!("📦 {}", preset.name))
-                            .clicked()
-                        {
-                            load_index = Some(i);
-                        }
-
-                        if ui
-                            .small_button(i18n::t(i18n::Key::BtnApplyPreset, lang))
-                            .clicked()
-                        {
-                            load_index = Some(i);
-                        }
-
-                        let mut is_auto = settings
-                            .auto_start_preset_name
-                            .as_ref()
-                            .is_some_and(|name| *name == preset.name);
-                        if ui
-                            .checkbox(
-                                &mut is_auto,
-                                i18n::t(i18n::Key::CheckboxAutoStartPreset, lang),
-                            )
-                            .changed()
-                        {
-                            if is_auto {
-                                auto_start_preset = Some(preset.name.clone());
-                            } else if settings.auto_start_preset_name.as_ref() == Some(&preset.name) {
-                                settings.auto_start_preset_name = None;
+                    for (i, preset) in settings.presets.iter().enumerate() {
+                        ui.horizontal(|ui| {
+                            if ui
+                                .selectable_label(false, format!("📦 {}", preset.name))
+                                .clicked()
+                            {
+                                load_index = Some(i);
                             }
-                        }
 
-                        if ui
-                            .small_button(i18n::t(i18n::Key::BtnRenamePreset, lang))
-                            .clicked()
-                        {
-                            settings.rename_preset_index = Some(i);
-                            settings.rename_preset_new_name = preset.name.clone();
-                        }
+                            if ui
+                                .small_button(i18n::t(i18n::Key::BtnApplyPreset, lang))
+                                .clicked()
+                            {
+                                load_index = Some(i);
+                            }
 
-                        if ui
-                            .small_button(i18n::t(i18n::Key::BtnDeletePreset, lang))
-                            .clicked()
-                        {
-                            delete_index = Some(i);
-                        }
-                    });
-                    ui.separator();
-                }
+                            let mut is_auto = settings
+                                .auto_start_preset_name
+                                .as_ref()
+                                .is_some_and(|name| *name == preset.name);
+                            if ui
+                                .checkbox(
+                                    &mut is_auto,
+                                    i18n::t(i18n::Key::CheckboxAutoStartPreset, lang),
+                                )
+                                .changed()
+                            {
+                                if is_auto {
+                                    auto_start_preset = Some(preset.name.clone());
+                                } else if settings.auto_start_preset_name.as_ref()
+                                    == Some(&preset.name)
+                                {
+                                    settings.auto_start_preset_name = None;
+                                }
+                            }
 
-                if let Some(name) = auto_start_preset {
-                    settings.auto_start_preset_name = Some(name);
-                }
+                            if ui
+                                .small_button(i18n::t(i18n::Key::BtnRenamePreset, lang))
+                                .clicked()
+                            {
+                                settings.rename_preset_index = Some(i);
+                                settings.rename_preset_new_name = preset.name.clone();
+                            }
 
-                if let Some(idx) = load_index {
-                    if idx < settings.presets.len() {
-                        let preset = settings.presets[idx].clone();
-                        preset.apply_to(settings);
+                            if ui
+                                .small_button(i18n::t(i18n::Key::BtnDeletePreset, lang))
+                                .clicked()
+                            {
+                                delete_index = Some(i);
+                            }
+                        });
+                        ui.separator();
                     }
-                }
 
-                should_start_server = load_index
-                    .map(|idx| {
-                        idx < settings.presets.len()
-                            && settings.auto_start_preset_name.as_ref()
-                                == Some(&settings.presets[idx].name)
-                    })
-                    .unwrap_or(false);
+                    if let Some(name) = auto_start_preset {
+                        settings.auto_start_preset_name = Some(name);
+                    }
 
-                if let Some(idx) = delete_index {
-                    if idx < settings.presets.len() {
-                        settings.presets.remove(idx);
-                        if let Some(rename_idx) = settings.rename_preset_index {
-                            if rename_idx >= settings.presets.len() {
-                                settings.rename_preset_index = None;
-                                settings.rename_preset_new_name.clear();
-                            }
+                    if let Some(idx) = load_index {
+                        if idx < settings.presets.len() {
+                            let preset = settings.presets[idx].clone();
+                            preset.apply_to(settings);
                         }
                     }
-                }
 
-                if let Some(idx) = settings.rename_preset_index {
-                    if idx < settings.presets.len() {
-                        egui::Window::new(i18n::t(i18n::Key::BtnRenamePreset, lang))
-                            .collapsible(false)
-                            .resizable(false)
-                            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-                            .fixed_size([150.0, 0.0])
-                            .show(ui.ctx(), |ui| {
-                                ui.label(i18n::t(i18n::Key::LabelPresetName, lang));
-                                ui.text_edit_singleline(&mut settings.rename_preset_new_name);
-                                ui.horizontal(|ui| {
-                                    if ui.button("确认").clicked() {
-                                        let trimmed =
-                                            settings.rename_preset_new_name.trim().to_string();
-                                        if !trimmed.is_empty() {
-                                            settings.presets[idx].name = trimmed;
+                    should_start_server = load_index
+                        .map(|idx| {
+                            idx < settings.presets.len()
+                                && settings.auto_start_preset_name.as_ref()
+                                    == Some(&settings.presets[idx].name)
+                        })
+                        .unwrap_or(false);
+
+                    if let Some(idx) = delete_index {
+                        if idx < settings.presets.len() {
+                            settings.presets.remove(idx);
+                            if let Some(rename_idx) = settings.rename_preset_index {
+                                if rename_idx >= settings.presets.len() {
+                                    settings.rename_preset_index = None;
+                                    settings.rename_preset_new_name.clear();
+                                }
+                            }
+                        }
+                    }
+
+                    if let Some(idx) = settings.rename_preset_index {
+                        if idx < settings.presets.len() {
+                            egui::Window::new(i18n::t(i18n::Key::BtnRenamePreset, lang))
+                                .collapsible(false)
+                                .resizable(false)
+                                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                                .fixed_size([150.0, 0.0])
+                                .show(ui.ctx(), |ui| {
+                                    ui.label(i18n::t(i18n::Key::LabelPresetName, lang));
+                                    ui.text_edit_singleline(&mut settings.rename_preset_new_name);
+                                    ui.horizontal(|ui| {
+                                        if ui.button("确认").clicked() {
+                                            let trimmed =
+                                                settings.rename_preset_new_name.trim().to_string();
+                                            if !trimmed.is_empty() {
+                                                settings.presets[idx].name = trimmed;
+                                            }
+                                            settings.rename_preset_index = None;
+                                            settings.rename_preset_new_name.clear();
                                         }
-                                        settings.rename_preset_index = None;
-                                        settings.rename_preset_new_name.clear();
-                                    }
-                                    if ui.button("取消").clicked() {
-                                        settings.rename_preset_index = None;
-                                        settings.rename_preset_new_name.clear();
-                                    }
+                                        if ui.button("取消").clicked() {
+                                            settings.rename_preset_index = None;
+                                            settings.rename_preset_new_name.clear();
+                                        }
+                                    });
                                 });
-                            });
+                        }
                     }
-                }
-            });
+                });
         }
     });
 

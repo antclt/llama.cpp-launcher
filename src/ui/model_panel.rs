@@ -1,4 +1,4 @@
-﻿use crate::config::settings::AppSettings;
+use crate::config::settings::AppSettings;
 use crate::i18n;
 use crate::ui::widgets;
 
@@ -124,7 +124,9 @@ fn is_context_length(s: &str) -> bool {
 
 fn is_mmproj_file(filename: &str) -> bool {
     let lower = filename.to_lowercase();
-    lower.contains("mmproj") || lower.contains("clip") || (lower.contains("proj") && lower.contains("vision"))
+    lower.contains("mmproj")
+        || lower.contains("clip")
+        || (lower.contains("proj") && lower.contains("vision"))
 }
 
 fn is_dflash_file(filename: &str) -> bool {
@@ -135,10 +137,14 @@ fn is_dflash_file(filename: &str) -> bool {
 /// 并跳过符号链接目录，避免循环引用导致界面卡住。
 fn collect_model_files(dir: &std::path::Path, mode: FileMode) -> Vec<std::path::PathBuf> {
     let mut files = Vec::new();
-    let Ok(entries) = std::fs::read_dir(dir) else { return files };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return files;
+    };
     for entry in entries.flatten() {
         let path = entry.path();
-        let Ok(file_type) = entry.file_type() else { continue };
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
         if file_type.is_symlink() {
             continue;
         }
@@ -149,7 +155,11 @@ fn collect_model_files(dir: &std::path::Path, mode: FileMode) -> Vec<std::path::
         if !file_type.is_file() {
             continue;
         }
-        let name = entry.file_name().to_string_lossy().to_string().to_lowercase();
+        let name = entry
+            .file_name()
+            .to_string_lossy()
+            .to_string()
+            .to_lowercase();
         if !name.ends_with(".gguf") {
             continue;
         }
@@ -200,77 +210,89 @@ fn render_file_list(
         FileMode::Mmproj => "model_scroll_mmproj",
         FileMode::Dflash => "model_scroll_dflash",
     };
-    egui::ScrollArea::horizontal().id_salt(scroll_id).show(ui, |ui| {
-        ui.spacing_mut().item_spacing.y = 4.0;
-        for entry in entries {
-            let file_path = entry.clone();
-            let filename = file_path
-                .file_name()
-                .map(|name| name.to_string_lossy().to_string())
-                .unwrap_or_default();
-            let selected = selected_path == file_path;
+    egui::ScrollArea::horizontal()
+        .id_salt(scroll_id)
+        .show(ui, |ui| {
+            ui.spacing_mut().item_spacing.y = 4.0;
+            for entry in entries {
+                let file_path = entry.clone();
+                let filename = file_path
+                    .file_name()
+                    .map(|name| name.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                let selected = selected_path == file_path;
 
-            ui.horizontal(|ui| {
-                if ui.add(egui::RadioButton::new(selected, "")).clicked() {
-                    on_select(file_path.clone());
-                }
-                let tags = parse_tags(&filename);
-                for (text, color) in &tags {
-                    ui.add(
-                        egui::Button::new(egui::RichText::new(text).color(widgets::contrast_text(*color)))
+                ui.horizontal(|ui| {
+                    if ui.add(egui::RadioButton::new(selected, "")).clicked() {
+                        on_select(file_path.clone());
+                    }
+                    let tags = parse_tags(&filename);
+                    for (text, color) in &tags {
+                        ui.add(
+                            egui::Button::new(
+                                egui::RichText::new(text).color(widgets::contrast_text(*color)),
+                            )
                             .fill(*color)
                             .corner_radius(4.0),
+                        );
+                    }
+                    ui.separator();
+                    let relative = file_path
+                        .strip_prefix(dir)
+                        .unwrap_or(&file_path)
+                        .to_string_lossy();
+                    ui.label(
+                        egui::RichText::new(relative.as_ref())
+                            .color(ui.visuals().weak_text_color()),
                     );
-                }
-                ui.separator();
-                let relative = file_path
-                    .strip_prefix(dir)
-                    .unwrap_or(&file_path)
-                    .to_string_lossy();
-                ui.label(egui::RichText::new(relative.as_ref()).color(ui.visuals().weak_text_color()));
-    });
-        }
-    });
+                });
+            }
+        });
 }
 
 pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) {
     let accent = crate::theme::accent_color(&settings.accent_color);
 
     // ── 模型文件夹 ──
-    widgets::card(ui, i18n::t(i18n::Key::PanelModelTitle, lang), accent, |ui| {
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::LabelModelDir, lang));
-            let mut dir_str = settings.model_dir.to_string_lossy().to_string();
-            let response = ui.text_edit_singleline(&mut dir_str);
-            if response.changed() {
-                settings.model_dir = std::path::PathBuf::from(&dir_str);
-            }
-        });
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::PanelModelTitle, lang),
+        accent,
+        |ui| {
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelModelDir, lang));
+                let mut dir_str = settings.model_dir.to_string_lossy().to_string();
+                let response = ui.text_edit_singleline(&mut dir_str);
+                if response.changed() {
+                    settings.model_dir = std::path::PathBuf::from(&dir_str);
+                }
+            });
 
-        ui.horizontal(|ui| {
-            if ui
-                .button(i18n::t(i18n::Key::BtnSelectFolder, lang))
-                .clicked()
-            {
-                if let Some(path) = rfd::FileDialog::new()
-                    .set_title(i18n::t(i18n::Key::DialogSelectFolder, lang))
-                    .pick_folder()
+            ui.horizontal(|ui| {
+                if ui
+                    .button(i18n::t(i18n::Key::BtnSelectFolder, lang))
+                    .clicked()
                 {
-                    settings.model_dir = path;
+                    if let Some(path) = rfd::FileDialog::new()
+                        .set_title(i18n::t(i18n::Key::DialogSelectFolder, lang))
+                        .pick_folder()
+                    {
+                        settings.model_dir = path;
+                    }
                 }
-            }
-            if ui.button(i18n::t(i18n::Key::BtnAutoDetect, lang)).clicked() {
-                if let Some(path) = auto_detect_model_dir() {
-                    settings.model_dir = path;
-                } else {
-                    settings.model_dir = std::path::PathBuf::from("");
+                if ui.button(i18n::t(i18n::Key::BtnAutoDetect, lang)).clicked() {
+                    if let Some(path) = auto_detect_model_dir() {
+                        settings.model_dir = path;
+                    } else {
+                        settings.model_dir = std::path::PathBuf::from("");
+                    }
                 }
-            }
-        });
-    });
+            });
+        },
+    );
 
+    // 未选择模型文件夹时，下方区域留空（不显示提示文本）
     if settings.model_dir.as_os_str().is_empty() {
-        ui.colored_label(egui::Color32::GRAY, i18n::t(i18n::Key::NoModelDir, lang));
         return;
     }
 

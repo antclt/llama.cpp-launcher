@@ -6,7 +6,7 @@ use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-const MAX_LOG_LINES: usize = 10_000; // 日志环形缓冲区最大行数
+pub(crate) const MAX_LOG_LINES: usize = 10_000; // 日志环形缓冲区最大行数
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -105,7 +105,7 @@ impl ServerManager {
     }
 
     /// 基于时间戳+位置的单字母标识符检测日志等级
-    fn detect_log_level(line: &str) -> Option<LogLevel> {
+    pub(crate) fn detect_log_level(line: &str) -> Option<LogLevel> {
         let line = line.trim_start();
 
         // 必须以数字开头（类似时间戳）
@@ -274,22 +274,22 @@ impl ServerManager {
             .arg("--gpu-layers")
             .arg(settings.gpu_layers_mode.to_arg());
 
-        // 采样参数（根据 ignore 标志决定是否拼接）
-        if !settings.ignore_temperature {
+        // 采样参数（根据启用标志决定是否拼接；ignore_* 系列为反向语义）
+        if settings.enable_temperature {
             cmd.arg("--temperature")
                 .arg(settings.temperature.to_string());
         }
-        if !settings.ignore_top_p {
+        if settings.enable_top_p {
             cmd.arg("--top-p").arg(settings.top_p.to_string());
         }
-        if !settings.ignore_top_k {
+        if settings.enable_top_k {
             cmd.arg("--top-k").arg(settings.top_k.to_string());
         }
-        if !settings.ignore_repeat_penalty {
+        if settings.enable_repeat_penalty {
             cmd.arg("--repeat-penalty")
                 .arg(settings.repeat_penalty.to_string());
         }
-        if !settings.ignore_presence_penalty {
+        if settings.enable_presence_penalty {
             cmd.arg("--presence-penalty")
                 .arg(settings.presence_penalty.to_string());
         }

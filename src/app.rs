@@ -19,6 +19,7 @@ enum NavSection {
     Model,
     Params,
     Log,
+    RpcLog,
     Commands,
     Presets,
     Settings,
@@ -79,10 +80,16 @@ impl LlamaLauncherApp {
         let mut last_system_dark = None;
         // 如果为跟随系统模式，启动时检测一次
         if settings.theme_mode == "auto" {
-            #[cfg(target_os = "windows")] {
+            #[cfg(target_os = "windows")]
+            {
                 use std::os::windows::process::CommandExt;
                 if let Ok(output) = std::process::Command::new("reg")
-                    .args(["query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", "/v", "AppsUseLightTheme"])
+                    .args([
+                        "query",
+                        "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                        "/v",
+                        "AppsUseLightTheme",
+                    ])
                     .creation_flags(0x0800_0000u32)
                     .output()
                 {
@@ -90,7 +97,10 @@ impl LlamaLauncherApp {
                         let stdout = String::from_utf8_lossy(&output.stdout);
                         for line in stdout.lines() {
                             if line.contains("AppsUseLightTheme") {
-            settings.dark_mode = line.split_whitespace().last().map_or(false, |v| v.contains("0x0"));
+                                settings.dark_mode = line
+                                    .split_whitespace()
+                                    .last()
+                                    .map_or(false, |v| v.contains("0x0"));
                                 last_system_dark = Some(settings.dark_mode);
                             }
                         }
@@ -169,12 +179,10 @@ impl LlamaLauncherApp {
                 }
             }
             ServerState::Running => {
-                let resp = ui.add(
-                    widgets::rounded_button(
-                        i18n::t(i18n::Key::BtnStopServer, &self.lang),
-                        Some(stop_fill),
-                    ),
-                );
+                let resp = ui.add(widgets::rounded_button(
+                    i18n::t(i18n::Key::BtnStopServer, &self.lang),
+                    Some(stop_fill),
+                ));
                 if self.debug_mode {
                     self.spacing_debugger.rects.push(resp.rect);
                 }
@@ -218,12 +226,10 @@ impl LlamaLauncherApp {
                 }
             }
             RpcState::Running => {
-                let resp = ui.add(
-                    widgets::rounded_button(
-                        i18n::t(i18n::Key::BtnStopRpc, &self.lang),
-                        Some(rpc_stop_fill),
-                    ),
-                );
+                let resp = ui.add(widgets::rounded_button(
+                    i18n::t(i18n::Key::BtnStopRpc, &self.lang),
+                    Some(rpc_stop_fill),
+                ));
                 if self.debug_mode {
                     self.spacing_debugger.rects.push(resp.rect);
                 }
@@ -242,13 +248,17 @@ impl LlamaLauncherApp {
 
     fn render_web_client_button(&mut self, ui: &mut egui::Ui) {
         let accent = crate::theme::accent_color(&self.settings.accent_color);
-        let web_accent = egui::Color32::from_rgba_unmultiplied(
-            accent.r(), accent.g(), accent.b(), 175,
+        let web_accent =
+            egui::Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 175);
+        // 可用条件：网页客户端开关开启 且 server 日志出现 "llama_server: listening on"
+        let web_ready = self.settings.web_ui_enabled && self.server_manager.is_listening();
+        let resp = ui.add_enabled(
+            web_ready,
+            widgets::rounded_button(
+                i18n::t(i18n::Key::BtnOpenWebClient, &self.lang),
+                Some(web_accent),
+            ),
         );
-        let resp = ui.add(widgets::rounded_button(
-            i18n::t(i18n::Key::BtnOpenWebClient, &self.lang),
-            Some(web_accent),
-        ));
         if self.debug_mode {
             self.spacing_debugger.rects.push(resp.rect);
         }
@@ -266,7 +276,11 @@ impl LlamaLauncherApp {
             .default_width(198.0)
             .min_width(198.0)
             .max_width(198.0)
-            .frame(egui::Frame::default().fill(sidebar_fill).stroke(egui::Stroke::NONE))
+            .frame(
+                egui::Frame::default()
+                    .fill(sidebar_fill)
+                    .stroke(egui::Stroke::NONE),
+            )
             .show(ctx, |ui| {
                 let accent = crate::theme::accent_color(&self.settings.accent_color);
 
@@ -338,6 +352,11 @@ impl LlamaLauncherApp {
                         i18n::t(i18n::Key::TabLog, &self.lang),
                     ),
                     (
+                        NavSection::RpcLog,
+                        widgets::NavIcon::RpcLog,
+                        i18n::t(i18n::Key::TabRpcLog, &self.lang),
+                    ),
+                    (
                         NavSection::Commands,
                         widgets::NavIcon::Commands,
                         i18n::t(i18n::Key::TabCommands, &self.lang),
@@ -371,6 +390,7 @@ impl LlamaLauncherApp {
             NavSection::Model => i18n::t(i18n::Key::TabModel, &self.lang),
             NavSection::Params => i18n::t(i18n::Key::TabParams, &self.lang),
             NavSection::Log => i18n::t(i18n::Key::TabLog, &self.lang),
+            NavSection::RpcLog => i18n::t(i18n::Key::TabRpcLog, &self.lang),
             NavSection::Commands => i18n::t(i18n::Key::TabCommands, &self.lang),
             NavSection::Presets => i18n::t(i18n::Key::TabPresets, &self.lang),
             NavSection::Settings => i18n::t(i18n::Key::NavSettings, &self.lang),
@@ -396,44 +416,51 @@ impl LlamaLauncherApp {
                 f
             })
             .show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                // 标题放大（HTML .topbar .ttl{font-size:17px;font-weight:600}）
-                // ★ 不用 .strong()（浅色模式下 strong_text_color=白色→隐形），改用显式主文本色
-                ui.label(egui::RichText::new(title)
-                    .size(18.0)
-                    .color(ui.visuals().text_color())
-                    .strong()); // strong 只影响字重（egui 0.33.3 实际不影响字重，但保留语义）
+                ui.horizontal(|ui| {
+                    // 标题放大（HTML .topbar .ttl{font-size:17px;font-weight:600}）
+                    // ★ 不用 .strong()（浅色模式下 strong_text_color=白色→隐形），改用显式主文本色
+                    ui.label(
+                        egui::RichText::new(title)
+                            .size(18.0)
+                            .color(ui.visuals().text_color())
+                            .strong(),
+                    ); // strong 只影响字重（egui 0.33.3 实际不影响字重，但保留语义）
 
-                // 右侧分组：状态点 → 控制按钮 → 主题切换（RTL 布局实现右对齐）
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if widgets::theme_toggle_button(ui, self.settings.dark_mode, accent) {
-                        self.settings.dark_mode = !self.settings.dark_mode;
-                        self.settings.theme_mode = if self.settings.dark_mode { "dark" } else { "light" }.to_string();
-                    }
-                    self.render_web_client_button(ui);
-                    self.render_rpc_controls(ui);
-                    self.render_server_controls(ui);
+                    // 右侧分组：状态点 → 控制按钮 → 主题切换（RTL 布局实现右对齐）
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if widgets::theme_toggle_button(ui, self.settings.dark_mode, accent) {
+                            self.settings.dark_mode = !self.settings.dark_mode;
+                            self.settings.theme_mode = if self.settings.dark_mode {
+                                "dark"
+                            } else {
+                                "light"
+                            }
+                            .to_string();
+                        }
+                        self.render_web_client_button(ui);
+                        self.render_rpc_controls(ui);
+                        self.render_server_controls(ui);
 
-                    let rpc_running = self.rpc_manager.is_running();
-                    let r_color = if rpc_running {
-                        egui::Color32::from_rgb(110, 200, 255)
-                    } else {
-                        egui::Color32::GRAY
-                    };
-                    ui.label(i18n::t(i18n::Key::TabRpc, &self.lang));   // 放大（原 small）
-                    widgets::status_dot(ui, r_color);                       // 尺寸在 widget 内放大
+                        let rpc_running = self.rpc_manager.is_running();
+                        let r_color = if rpc_running {
+                            egui::Color32::from_rgb(110, 200, 255)
+                        } else {
+                            egui::Color32::GRAY
+                        };
+                        ui.label(i18n::t(i18n::Key::TabRpc, &self.lang)); // 放大（原 small）
+                        widgets::status_dot(ui, r_color); // 尺寸在 widget 内放大
 
-                    let server_running = self.server_manager.is_running();
-                    let s_color = if server_running {
-                        egui::Color32::from_rgb(110, 255, 140)
-                    } else {
-                        egui::Color32::GRAY
-                    };
-                    ui.label(i18n::t(i18n::Key::TabServer, &self.lang)); // 放大（原 small）
-                    widgets::status_dot(ui, s_color);                       // 尺寸在 widget 内放大
+                        let server_running = self.server_manager.is_running();
+                        let s_color = if server_running {
+                            egui::Color32::from_rgb(110, 255, 140)
+                        } else {
+                            egui::Color32::GRAY
+                        };
+                        ui.label(i18n::t(i18n::Key::TabServer, &self.lang)); // 放大（原 small）
+                        widgets::status_dot(ui, s_color); // 尺寸在 widget 内放大
+                    });
                 });
             });
-        });
     }
 }
 
@@ -536,68 +563,76 @@ impl eframe::App for LlamaLauncherApp {
         //   深色: content=#1C1C1E < sidebar+card=#2C2C2E
         //   浅色: content=#F5F5F7 < sidebar+card=#FFFFFF
         let content_fill = if self.settings.dark_mode {
-            Color32::from_rgb(28, 28, 30)  // #1C1C1E
+            Color32::from_rgb(28, 28, 30) // #1C1C1E
         } else {
             Color32::from_rgb(245, 245, 247) // #F5F5F7
         };
         egui::CentralPanel::default()
             // 让内容区中的所有子框与内容边缘保留统一的呼吸空间。
             // 32px 与新版设计稿中卡片左右的留白一致。
-            .frame(
-                egui::Frame::default()
-                    .fill(content_fill)
-                    
-            )
+            .frame(egui::Frame::default().fill(content_fill))
             .show(ctx, |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                egui::Frame::default()
-                    .inner_margin(egui::Margin::symmetric(32_i8, 0_i8))
-                    .show(ui, |ui| match self.nav {
-                NavSection::Server => server_panel::ui(
-                    ui,
-                    &mut self.settings,
-                    &self.settings_manager,
-                    &self.lang,
-                    &self.server_manager,
-                ),
-                NavSection::Rpc => rpc_panel::ui(
-                    ui,
-                    &mut self.settings,
-                    &self.settings_manager,
-                    &self.lang,
-                    &self.rpc_manager,
-                ),
-                NavSection::Model => model_panel::ui(ui, &mut self.settings, &self.lang),
-                NavSection::Params => params_panel::ui(ui, &mut self.settings, &self.lang),
-                NavSection::Log => {
-                    log_panel::ui(ui, &mut self.settings, &mut self.server_manager, &self.lang)
-                }
-                NavSection::Commands => {
-                    launch_commands_panel::ui(
-                        ui,
-                        &self.server_manager,
-                        &self.rpc_manager,
-                        &self.lang,
-                        crate::theme::accent_color(&self.settings.accent_color),
-                    )
-                }
-                NavSection::Presets => {
-                    let should_start = presets_panel::ui(ui, &mut self.settings, &self.lang);
-                    if should_start {
-                        self.server_manager.start(&self.settings);
-                    }
-                }
-                NavSection::Settings => settings_panel::ui(
-                    ui,
-                    &mut self.settings,
-                    &self.settings_manager,
-                    &self.lang,
-                    &mut self.show_about,
-                    &mut self.debug_mode,
-                ),
-                    });
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    egui::Frame::default()
+                        .inner_margin(egui::Margin::symmetric(32_i8, 0_i8))
+                        .show(ui, |ui| match self.nav {
+                            NavSection::Server => server_panel::ui(
+                                ui,
+                                &mut self.settings,
+                                &self.settings_manager,
+                                &self.lang,
+                                &self.server_manager,
+                            ),
+                            NavSection::Rpc => rpc_panel::ui(
+                                ui,
+                                &mut self.settings,
+                                &self.settings_manager,
+                                &self.lang,
+                                &self.rpc_manager,
+                            ),
+                            NavSection::Model => {
+                                model_panel::ui(ui, &mut self.settings, &self.lang)
+                            }
+                            NavSection::Params => {
+                                params_panel::ui(ui, &mut self.settings, &self.lang)
+                            }
+                            NavSection::Log => log_panel::ui(
+                                ui,
+                                &mut self.settings,
+                                &mut self.server_manager,
+                                &self.lang,
+                            ),
+                            NavSection::RpcLog => log_panel::rpc_ui(
+                                ui,
+                                &mut self.settings,
+                                &mut self.rpc_manager,
+                                &self.lang,
+                            ),
+                            NavSection::Commands => launch_commands_panel::ui(
+                                ui,
+                                &self.server_manager,
+                                &self.rpc_manager,
+                                &self.lang,
+                                crate::theme::accent_color(&self.settings.accent_color),
+                            ),
+                            NavSection::Presets => {
+                                let should_start =
+                                    presets_panel::ui(ui, &mut self.settings, &self.lang);
+                                if should_start {
+                                    self.server_manager.start(&self.settings);
+                                }
+                            }
+                            NavSection::Settings => settings_panel::ui(
+                                ui,
+                                &mut self.settings,
+                                &self.settings_manager,
+                                &self.lang,
+                                &mut self.show_about,
+                                &mut self.debug_mode,
+                            ),
+                        });
+                });
             });
-        });
 
         // 调试模式：绘制控件间距可视化
         if self.debug_mode {

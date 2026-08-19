@@ -7,7 +7,7 @@ llama-server 和 ggml-rpc-server 的进程管理、状态机、日志聚合。�
 ## STRUCTURE
 
 - server.rs: ServerManager, ServerState；llama-server 生命周期 + launch_command 捕获
-- rpc.rs: RpcManager, RpcState；ggml-rpc-server 生命周期
+- rpc.rs: RpcManager, RpcState；ggml-rpc-server 生命周期（亦捕获 stdout/stderr 日志缓冲，与 server 同模式）
 - mod.rs: LogEntry, LogType(Server/Rpc)；日志聚合与枚举定义
 
 ## WHERE TO LOOK
@@ -16,7 +16,7 @@ llama-server 和 ggml-rpc-server 的进程管理、状态机、日志聚合。�
 |------------------------------------|-----------|------------------------------------------|
 | ServerManager 状态机                  | server.rs | Idle → Starting → Running/Stopping/Error |
 | RpcManager 生命周期                    | rpc.rs    | Idle → Starting → Running/Stopping       |
-| LogEntry / LogType / VecDeque<Log> | mod.rs    | 聚合 Server/Rpc 日志，容量限制 2000 行             |
+| LogEntry / LogType / VecDeque<Log> | mod.rs    | 聚合 Server/Rpc 日志，容量限制 10_000 行            |
 
 ## CONVENTIONS
 
