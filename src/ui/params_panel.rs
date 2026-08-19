@@ -200,17 +200,17 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             widgets::toggle(ui, &mut settings.kv_offload, "", accent);
         });
 
-        ui.label(i18n::t(i18n::Key::LabelCacheTypeK, lang));
+        // K 缓存类型：标签 + ❓提示框同一行
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelCacheTypeK, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCacheTypeK, lang));
+        });
         let k_types = [
             "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1",
         ];
 
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
-
-            ui.horizontal(|ui| {
-                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCacheTypeK, lang));
-            });
 
             for k_type in &k_types {
                 let selected = settings.cache_type_k == *k_type;
@@ -220,17 +220,17 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             }
         });
 
-        // V 缓存类型
-        ui.label(i18n::t(i18n::Key::LabelCacheTypeV, lang));
+        // V 缓存类型：标签 + ❓提示框同一行
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelCacheTypeV, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCacheTypeV, lang));
+        });
         let v_types = [
             "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1",
         ];
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
 
-            ui.horizontal(|ui| {
-                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCacheTypeV, lang));
-            });
             for v_type in &v_types {
                 let selected = settings.cache_type_v == *v_type;
                 if ui.selectable_label(selected, *v_type).clicked() {
