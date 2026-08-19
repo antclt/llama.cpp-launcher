@@ -141,7 +141,15 @@ pub fn ui(
     lang: &i18n::Language,
 ) {
     let progress = server.progress();
-    render(ui, settings, i18n::Key::PanelLogTitle, lang, server, progress, "server_log_scroll_area");
+    render(
+        ui,
+        settings,
+        i18n::Key::PanelLogTitle,
+        lang,
+        server,
+        progress,
+        "server_log_scroll_area",
+    );
 }
 
 /// 远程调用日志面板（ggml-rpc-server 运行日志）；RPC 无 prefill 进度，传 0.0
@@ -151,5 +159,13 @@ pub fn rpc_ui(
     rpc: &mut RpcManager,
     lang: &i18n::Language,
 ) {
-    render(ui, settings, i18n::Key::PanelRpcLogTitle, lang, rpc, 0.0, "rpc_log_scroll_area");
+    render(
+        ui,
+        settings,
+        i18n::Key::PanelRpcLogTitle,
+        lang,
+        rpc,
+        0.0,
+        "rpc_log_scroll_area",
+    );
 }

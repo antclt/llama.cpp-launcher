@@ -215,15 +215,16 @@ impl RpcManager {
                             match line {
                                 Ok(l) => {
                                     // 等级判定与 server 日志一致（时间戳规则不命中则回退关键字）
-                                    let level = ServerManager::detect_log_level(&l).unwrap_or_else(|| {
-                                        if l.contains("WARN") || l.contains("warn") {
-                                            LogLevel::Warn
-                                        } else if l.contains("ERROR") || l.contains("error") {
-                                            LogLevel::Error
-                                        } else {
-                                            LogLevel::Info
-                                        }
-                                    });
+                                    let level =
+                                        ServerManager::detect_log_level(&l).unwrap_or_else(|| {
+                                            if l.contains("WARN") || l.contains("warn") {
+                                                LogLevel::Warn
+                                            } else if l.contains("ERROR") || l.contains("error") {
+                                                LogLevel::Error
+                                            } else {
+                                                LogLevel::Info
+                                            }
+                                        });
                                     let mut inner = inner_clone.lock().unwrap();
                                     // 超过上限时丢弃最旧的一行（与 server 日志一致）
                                     if inner.logs.len() >= crate::engine::server::MAX_LOG_LINES {
@@ -254,15 +255,16 @@ impl RpcManager {
                             match line {
                                 Ok(l) => {
                                     // 等级判定与 server 日志一致（时间戳规则不命中则回退关键字）
-                                    let level = ServerManager::detect_log_level(&l).unwrap_or_else(|| {
-                                        if l.contains("WARN") || l.contains("warn") {
-                                            LogLevel::Warn
-                                        } else if l.contains("ERROR") || l.contains("error") {
-                                            LogLevel::Error
-                                        } else {
-                                            LogLevel::Info
-                                        }
-                                    });
+                                    let level =
+                                        ServerManager::detect_log_level(&l).unwrap_or_else(|| {
+                                            if l.contains("WARN") || l.contains("warn") {
+                                                LogLevel::Warn
+                                            } else if l.contains("ERROR") || l.contains("error") {
+                                                LogLevel::Error
+                                            } else {
+                                                LogLevel::Info
+                                            }
+                                        });
                                     let mut inner = inner_clone2.lock().unwrap();
                                     // 超过上限时丢弃最旧的一行（与 server 日志一致）
                                     if inner.logs.len() >= crate::engine::server::MAX_LOG_LINES {
