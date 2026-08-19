@@ -77,8 +77,14 @@ fn render(
         }
 
         if settings.max_log_lines != 0 {
+            // 日志区撑满剩余高度（auto_shrink(false)），但留 8px 余量：
+            // 否则 card 总高精确顶满外层 ScrollArea 的 inner 边界，
+            // 任何微差都会触发外层垂直滚动条（同 presets 空态问题），
+            // 且滚动条占宽后日志换行加高，锁存持续显示。
+            let max_h = (ui.available_height() - 8.0).max(64.0);
             egui::ScrollArea::vertical()
                 .auto_shrink(false)
+                .max_height(max_h)
                 .id_salt(scroll_salt)
                 .stick_to_bottom(settings.auto_scroll_logs)
                 .show(ui, |ui| {
