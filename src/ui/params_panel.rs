@@ -385,7 +385,11 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         i18n::t(i18n::Key::SectionSpecDecoding, lang),
         accent,
         |ui| {
-            ui.label(i18n::t(i18n::Key::SpecTypeLabel, lang));
+            // 算法类型：标签 + ❓提示框同一行
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::SpecTypeLabel, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecType, lang));
+            });
 
             let spec_options = [
                 "none",
@@ -402,10 +406,6 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
 
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 6.0;
-
-                ui.horizontal(|ui| {
-                    helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecType, lang));
-                });
 
                 for opt in &spec_options[..] {
                     let selected = settings.spec_type == *opt;
