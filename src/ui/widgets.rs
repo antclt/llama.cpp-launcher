@@ -27,6 +27,7 @@ pub enum NavIcon {
     Model,
     Params,
     Log,
+    RpcLog,
     Commands,
     Presets,
     Settings,
@@ -557,6 +558,43 @@ pub fn nav_icon_paint(painter: &Painter, rect: Rect, kind: NavIcon, color: Color
             }
         }
         NavIcon::Log => {
+            // ★ HTML: 文档图标
+            // <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+            // <polyline points="14,2 14,8 20,8"/>
+            // <line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/>
+            // 文档外框
+            painter.add(egui::epaint::PathShape::closed_line(
+                vec![
+                    Pos2::new(sx(6.0), sy(2.0)),
+                    Pos2::new(sx(14.0), sy(2.0)),
+                    Pos2::new(sx(14.0), sy(8.0)),
+                    Pos2::new(sx(20.0), sy(8.0)),
+                    Pos2::new(sx(20.0), sy(20.0)),
+                    Pos2::new(sx(6.0), sy(20.0)),
+                ],
+                s,
+            ));
+            // 折角线
+            painter.line_segment(
+                [Pos2::new(sx(14.0), sy(2.0)), Pos2::new(sx(14.0), sy(8.0))],
+                s,
+            );
+            painter.line_segment(
+                [Pos2::new(sx(14.0), sy(8.0)), Pos2::new(sx(20.0), sy(8.0))],
+                s,
+            );
+            // 文字行
+            painter.line_segment(
+                [Pos2::new(sx(8.0), sy(13.0)), Pos2::new(sx(16.0), sy(13.0))],
+                s,
+            );
+            painter.line_segment(
+                [Pos2::new(sx(8.0), sy(17.0)), Pos2::new(sx(14.0), sy(17.0))],
+                s,
+            );
+        }
+        NavIcon::RpcLog => {
+            // 远程调用日志图标：与服务器日志同款文档样式，靠文字标签区分
             // ★ HTML: 文档图标
             // <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
             // <polyline points="14,2 14,8 20,8"/>

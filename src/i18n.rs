@@ -28,6 +28,7 @@ pub enum Key {
     TabModel,
     TabParams,
     TabLog,
+    TabRpcLog,
     TabCommands,
     TabPresets,
 
@@ -194,6 +195,7 @@ pub enum Key {
     HintNCpuMoe,
     // 日志面板
     PanelLogTitle,
+    PanelRpcLogTitle,
     HintLogSession,
     HintNoLogs,
     CheckboxAutoScroll,
@@ -309,8 +311,10 @@ impl Key {
             (Key::TabParams, &Language::Zh) => "参数",
             (Key::TabParams, &Language::En) => "Params",
 
-            (Key::TabLog, &Language::Zh) => "日志",
-            (Key::TabLog, &Language::En) => "Logs",
+            (Key::TabLog, &Language::Zh) => "服务器日志",
+            (Key::TabLog, &Language::En) => "Server Logs",
+            (Key::TabRpcLog, &Language::Zh) => "远程调用日志",
+            (Key::TabRpcLog, &Language::En) => "RPC Logs",
             (Key::TabCommands, &Language::Zh) => "启动命令",
             (Key::TabCommands, &Language::En) => "Launch Cmd",
             (Key::TabPresets, &Language::Zh) => "预设",
@@ -614,8 +618,10 @@ impl Key {
             (Key::HintNCpuMoe, &Language::Zh) => "前 N 层 MoE 权重保留在 CPU",
             (Key::HintNCpuMoe, &Language::En) => "Keep first N MoE layers on CPU",
             // 日志面板
-            (Key::PanelLogTitle, &Language::Zh) => "运行日志",
-            (Key::PanelLogTitle, &Language::En) => "Runtime Logs",
+            (Key::PanelLogTitle, &Language::Zh) => "服务器日志",
+            (Key::PanelLogTitle, &Language::En) => "Server Logs",
+            (Key::PanelRpcLogTitle, &Language::Zh) => "远程调用日志",
+            (Key::PanelRpcLogTitle, &Language::En) => "RPC Log",
             (Key::HintLogSession, &Language::Zh) => "日志仅在当前会话中保留",
             (Key::HintLogSession, &Language::En) => "Logs are only kept for the current session",
             (Key::HintNoLogs, &Language::Zh) => "暂无日志输出",

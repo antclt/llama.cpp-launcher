@@ -1,16 +1,44 @@
 use crate::config::settings::AppSettings;
-use crate::engine::server::{LogLevel, ServerManager};
+use crate::engine::rpc::RpcManager;
+use crate::engine::server::{LogEntry, LogLevel, ServerManager};
 use crate::i18n;
 use crate::ui::widgets;
 
-pub fn ui(
+/// 日志源抽象：保证「服务器日志」与「远程调用日志」两个面板功能完全一致、永不漂移
+trait LogSource {
+    fn logs(&self) -> Vec<LogEntry>;
+    fn clear_logs(&mut self);
+}
+
+impl LogSource for ServerManager {
+    fn logs(&self) -> Vec<LogEntry> {
+        ServerManager::logs(self)
+    }
+    fn clear_logs(&mut self) {
+        ServerManager::clear_logs(self)
+    }
+}
+
+impl LogSource for RpcManager {
+    fn logs(&self) -> Vec<LogEntry> {
+        RpcManager::logs(self)
+    }
+    fn clear_logs(&mut self) {
+        RpcManager::clear_logs(self)
+    }
+}
+
+fn render(
     ui: &mut egui::Ui,
     settings: &mut AppSettings,
-    server: &mut ServerManager,
+    title_key: i18n::Key,
     lang: &i18n::Language,
+    source: &mut dyn LogSource,
+    progress: f32,
+    scroll_salt: &'static str,
 ) {
     let accent = crate::theme::accent_color(&settings.accent_color);
-    widgets::card(ui, i18n::t(i18n::Key::PanelLogTitle, lang), accent, |ui| {
+    widgets::card(ui, i18n::t(title_key, lang), accent, |ui| {
         let auto_scroll_before = settings.auto_scroll_logs;
 
         ui.horizontal(|ui| {
@@ -18,7 +46,7 @@ pub fn ui(
                 .small_button(i18n::t(i18n::Key::BtnClearLogs, lang))
                 .clicked()
             {
-                server.clear_logs();
+                source.clear_logs();
             }
             widgets::toggle(
                 ui,
@@ -37,7 +65,6 @@ pub fn ui(
 
         ui.add_space(4.0);
 
-        let progress = server.progress();
         if progress > 0.0 {
             let pct = (progress * 100.0).round() as u32;
             let label = format!(
@@ -52,14 +79,14 @@ pub fn ui(
         if settings.max_log_lines != 0 {
             egui::ScrollArea::vertical()
                 .auto_shrink(false)
-                .id_salt("log_scroll_area")
+                .id_salt(scroll_salt)
                 .stick_to_bottom(settings.auto_scroll_logs)
                 .show(ui, |ui| {
                     if should_scroll_to_bottom {
                         ui.scroll_to_cursor(Some(egui::Align::BOTTOM));
                     }
 
-                    let mut logs = server.logs();
+                    let mut logs = source.logs();
                     if settings.max_log_lines > 0 && logs.len() > settings.max_log_lines as usize {
                         let start_index = logs.len() - settings.max_log_lines as usize;
                         logs.drain(..start_index);
@@ -104,4 +131,25 @@ pub fn ui(
                 });
         }
     });
+}
+
+/// 服务器日志面板（原「运行日志」，已改名）
+pub fn ui(
+    ui: &mut egui::Ui,
+    settings: &mut AppSettings,
+    server: &mut ServerManager,
+    lang: &i18n::Language,
+) {
+    let progress = server.progress();
+    render(ui, settings, i18n::Key::PanelLogTitle, lang, server, progress, "server_log_scroll_area");
+}
+
+/// 远程调用日志面板（ggml-rpc-server 运行日志）；RPC 无 prefill 进度，传 0.0
+pub fn rpc_ui(
+    ui: &mut egui::Ui,
+    settings: &mut AppSettings,
+    rpc: &mut RpcManager,
+    lang: &i18n::Language,
+) {
+    render(ui, settings, i18n::Key::PanelRpcLogTitle, lang, rpc, 0.0, "rpc_log_scroll_area");
 }

@@ -19,6 +19,7 @@ enum NavSection {
     Model,
     Params,
     Log,
+    RpcLog,
     Commands,
     Presets,
     Settings,
@@ -351,6 +352,11 @@ impl LlamaLauncherApp {
                         i18n::t(i18n::Key::TabLog, &self.lang),
                     ),
                     (
+                        NavSection::RpcLog,
+                        widgets::NavIcon::RpcLog,
+                        i18n::t(i18n::Key::TabRpcLog, &self.lang),
+                    ),
+                    (
                         NavSection::Commands,
                         widgets::NavIcon::Commands,
                         i18n::t(i18n::Key::TabCommands, &self.lang),
@@ -384,6 +390,7 @@ impl LlamaLauncherApp {
             NavSection::Model => i18n::t(i18n::Key::TabModel, &self.lang),
             NavSection::Params => i18n::t(i18n::Key::TabParams, &self.lang),
             NavSection::Log => i18n::t(i18n::Key::TabLog, &self.lang),
+            NavSection::RpcLog => i18n::t(i18n::Key::TabRpcLog, &self.lang),
             NavSection::Commands => i18n::t(i18n::Key::TabCommands, &self.lang),
             NavSection::Presets => i18n::t(i18n::Key::TabPresets, &self.lang),
             NavSection::Settings => i18n::t(i18n::Key::NavSettings, &self.lang),
@@ -593,6 +600,12 @@ impl eframe::App for LlamaLauncherApp {
                                 ui,
                                 &mut self.settings,
                                 &mut self.server_manager,
+                                &self.lang,
+                            ),
+                            NavSection::RpcLog => log_panel::rpc_ui(
+                                ui,
+                                &mut self.settings,
+                                &mut self.rpc_manager,
                                 &self.lang,
                             ),
                             NavSection::Commands => launch_commands_panel::ui(
