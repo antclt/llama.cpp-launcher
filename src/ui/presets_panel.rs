@@ -199,9 +199,16 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         ui.separator();
 
         if settings.presets.is_empty() {
-            ui.centered_and_justified(|ui| {
-                ui.label(i18n::t(i18n::Key::HintNoPresets, lang));
-            });
+            // 固定 200px 高的居中区域：避免 centered_and_justified 撑满整个
+            // ScrollArea 内容区（content == inner 临界触发外层滚动条），
+            // 同时保留提示文字垂直居中的视觉。
+            ui.allocate_ui_with_layout(
+                egui::vec2(ui.available_width(), 540.0),
+                egui::Layout::centered_and_justified(egui::Direction::TopDown),
+                |ui| {
+                    ui.label(i18n::t(i18n::Key::HintNoPresets, lang));
+                },
+            );
         } else {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 let mut load_index: Option<usize> = None;
