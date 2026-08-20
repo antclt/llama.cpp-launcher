@@ -190,6 +190,26 @@ pub fn ui(
                 i18n::t(i18n::Key::CheckboxEnableWebClient, lang),
                 accent,
             );
+
+            // 日志级别（--log-verbosity）分段控件
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelLogVerbosity, lang));
+                let lv_vals = [0usize, 1, 2, 3, 4, 5];
+                let lv_labels = [
+                    i18n::t(i18n::Key::LogVerbosity0, lang),
+                    i18n::t(i18n::Key::LogVerbosity1, lang),
+                    i18n::t(i18n::Key::LogVerbosity2, lang),
+                    i18n::t(i18n::Key::LogVerbosity3, lang),
+                    i18n::t(i18n::Key::LogVerbosity4, lang),
+                    i18n::t(i18n::Key::LogVerbosity5, lang),
+                ];
+                let mut lv_idx = lv_vals
+                    .iter()
+                    .position(|v| *v == settings.log_verbosity)
+                    .unwrap_or(3);
+                widgets::segmented(ui, &lv_labels, &mut lv_idx, accent);
+                settings.log_verbosity = lv_vals[lv_idx];
+            });
         },
     );
 }
