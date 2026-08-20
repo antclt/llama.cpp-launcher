@@ -302,6 +302,8 @@ pub struct Preset {
     pub tensor_split: String,
     pub cpu_moe: bool,
     pub n_cpu_moe: usize,
+    #[serde(default)]
+    pub override_tensor: String, // --override-tensor
     // 高级
     pub verbose: bool,
     // 离线模式
@@ -366,6 +368,7 @@ impl Default for Preset {
             tensor_split: "".to_string(),
             cpu_moe: false,
             n_cpu_moe: 0,
+            override_tensor: String::new(),
             verbose: false,
             offline_mode: false,
             rpc_mode: false,
@@ -419,6 +422,7 @@ impl Preset {
             tensor_split: settings.tensor_split.clone(),
             cpu_moe: settings.cpu_moe,
             n_cpu_moe: settings.n_cpu_moe,
+            override_tensor: settings.override_tensor.clone(),
             verbose: settings.verbose,
             offline_mode: settings.offline_mode,
             rpc_mode: settings.rpc_mode,
@@ -469,6 +473,7 @@ impl Preset {
         settings.tensor_split = self.tensor_split;
         settings.cpu_moe = self.cpu_moe;
         settings.n_cpu_moe = self.n_cpu_moe;
+        settings.override_tensor = self.override_tensor;
         settings.verbose = self.verbose;
         settings.offline_mode = self.offline_mode;
         settings.rpc_mode = self.rpc_mode;
@@ -566,6 +571,8 @@ pub struct AppSettings {
     pub tensor_split: String,
     pub cpu_moe: bool,
     pub n_cpu_moe: usize,
+    #[serde(default)]
+    pub override_tensor: String, // --override-tensor
 
     // RPC 配置
     pub rpc_server_path: PathBuf,
@@ -701,6 +708,7 @@ impl Default for AppSettings {
             tensor_split: "".to_string(),
             cpu_moe: false,
             n_cpu_moe: 0,
+            override_tensor: String::new(),
             rpc_server_path: PathBuf::new(),
             rpc_host: "127.0.0.1".to_string(),
             rpc_port: 50052,

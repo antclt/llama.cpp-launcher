@@ -386,6 +386,10 @@ impl ServerManager {
         if settings.n_cpu_moe > 0 {
             cmd.arg("--n-cpu-moe").arg(settings.n_cpu_moe.to_string());
         }
+        // 指定特定张量到缓冲区（非空才拼接）
+        if !settings.override_tensor.is_empty() {
+            cmd.arg("--override-tensor").arg(&settings.override_tensor);
+        }
 
         if settings.verbose {
             cmd.arg("--verbose");

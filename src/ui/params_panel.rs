@@ -4,6 +4,26 @@ use crate::kv_cache;
 use crate::ui::helper;
 use crate::ui::widgets;
 
+/// 两段式开关（关/开），样式与 Flash Attention 的 segmented 分段控件一致。
+/// 参数面板布尔开关统一改用此样式，与 Flash Attention (--flash-attn) 行视觉统一。
+fn toggle_segmented(
+    ui: &mut egui::Ui,
+    on: &mut bool,
+    lang: &i18n::Language,
+    accent: egui::Color32,
+) -> bool {
+    let labels: [&str; 2] = [
+        i18n::t(i18n::Key::FaModeOff, lang),
+        i18n::t(i18n::Key::FaModeOn, lang),
+    ];
+    let mut idx = if *on { 1 } else { 0 };
+    let changed = widgets::segmented(ui, &labels, &mut idx, accent);
+    if changed {
+        *on = idx == 1;
+    }
+    changed
+}
+
 pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) {
     let accent = crate::theme::accent_color(&settings.accent_color);
 
@@ -376,6 +396,13 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     });
                 });
             }
+            // 指定特定张量到缓冲区
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelOverrideTensor, lang));
+                ui.text_edit_singleline(&mut settings.override_tensor);
+                ui.small(i18n::t(i18n::Key::HintOverrideTensor, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpOverrideTensor, lang));
+            });
         },
     );
 
