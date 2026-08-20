@@ -135,7 +135,12 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         accent,
         |ui| {
             // 思考子区标题
-            ui.label(egui::RichText::new(i18n::t(i18n::Key::SubSectionThinking, lang)).strong());
+            // ★ 不用 .strong()（浅色模式下 strong_text_color=白色→隐形），改用显式主文本色
+            ui.label(
+                egui::RichText::new(i18n::t(i18n::Key::SubSectionThinking, lang))
+                    .color(ui.visuals().text_color())
+                    .strong(),
+            );
 
             // 推理模式 (--reasoning)
             ui.horizontal(|ui| {
@@ -217,7 +222,12 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             ui.separator();
 
             // 会话子区标题
-            ui.label(egui::RichText::new(i18n::t(i18n::Key::SubSectionChat, lang)).strong());
+            // ★ 不用 .strong()（浅色模式下 strong_text_color=白色→隐形），改用显式主文本色
+            ui.label(
+                egui::RichText::new(i18n::t(i18n::Key::SubSectionChat, lang))
+                    .color(ui.visuals().text_color())
+                    .strong(),
+            );
 
             // Jinja 对话模板引擎开关：标签 + ❓提示框 + 开关
             ui.horizontal(|ui| {
