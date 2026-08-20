@@ -429,13 +429,11 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         |ui| {
             // Min-P
             ui.horizontal(|ui| {
-                widgets::toggle(
-                    ui,
-                    &mut settings.enable_min_p,
-                    i18n::t(i18n::Key::CheckboxMinP, lang),
-                    accent,
-                );
+                ui.label(i18n::t(i18n::Key::CheckboxMinP, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMinP, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.enable_min_p, "", accent);
+                });
             });
             if settings.enable_min_p {
                 ui.indent("min_p_opt", |ui| {
@@ -452,13 +450,11 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             }
             // Top-N-Sigma
             ui.horizontal(|ui| {
-                widgets::toggle(
-                    ui,
-                    &mut settings.enable_top_n_sigma,
-                    i18n::t(i18n::Key::CheckboxTopNSigma, lang),
-                    accent,
-                );
+                ui.label(i18n::t(i18n::Key::CheckboxTopNSigma, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTopNSigma, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.enable_top_n_sigma, "", accent);
+                });
             });
             if settings.enable_top_n_sigma {
                 ui.indent("top_n_sigma_opt", |ui| {
@@ -475,13 +471,11 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             }
             // XTC
             ui.horizontal(|ui| {
-                widgets::toggle(
-                    ui,
-                    &mut settings.enable_xtc,
-                    i18n::t(i18n::Key::CheckboxXtc, lang),
-                    accent,
-                );
+                ui.label(i18n::t(i18n::Key::CheckboxXtc, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpXtc, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.enable_xtc, "", accent);
+                });
             });
             if settings.enable_xtc {
                 ui.indent("xtc_opt", |ui| {
@@ -507,13 +501,11 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             }
             // Typical-P
             ui.horizontal(|ui| {
-                widgets::toggle(
-                    ui,
-                    &mut settings.enable_typical_p,
-                    i18n::t(i18n::Key::CheckboxTypicalP, lang),
-                    accent,
-                );
+                ui.label(i18n::t(i18n::Key::CheckboxTypicalP, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTypicalP, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.enable_typical_p, "", accent);
+                });
             });
             if settings.enable_typical_p {
                 ui.indent("typical_p_opt", |ui| {
@@ -530,13 +522,11 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             }
             // Mirostat
             ui.horizontal(|ui| {
-                widgets::toggle(
-                    ui,
-                    &mut settings.enable_mirostat,
-                    i18n::t(i18n::Key::CheckboxMirostat, lang),
-                    accent,
-                );
+                ui.label(i18n::t(i18n::Key::CheckboxMirostat, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMirostat, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.enable_mirostat, "", accent);
+                });
             });
             if settings.enable_mirostat {
                 ui.indent("mirostat_opt", |ui| {
@@ -573,13 +563,11 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             }
             // 动态温度
             ui.horizontal(|ui| {
-                widgets::toggle(
-                    ui,
-                    &mut settings.enable_dynatemp,
-                    i18n::t(i18n::Key::CheckboxDynatemp, lang),
-                    accent,
-                );
+                ui.label(i18n::t(i18n::Key::CheckboxDynatemp, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpDynatemp, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.enable_dynatemp, "", accent);
+                });
             });
             if settings.enable_dynatemp {
                 ui.indent("dynatemp_opt", |ui| {
@@ -656,11 +644,13 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpLoadMode, lang));
         });
 
-        // 长上下文 / 提示缓存（标签 + ❓提示框 + 开关）
+        // 长上下文 / 提示缓存（标签 + ❓提示框 + 行右侧开关）
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::CheckboxCachePrompt, lang));
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCachePrompt, lang));
-            widgets::toggle(ui, &mut settings.cache_prompt, "", accent);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                widgets::toggle(ui, &mut settings.cache_prompt, "", accent);
+            });
         });
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::LabelCacheReuse, lang));
@@ -675,7 +665,9 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::CheckboxContextShift, lang));
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpContextShift, lang));
-            widgets::toggle(ui, &mut settings.context_shift, "", accent);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                widgets::toggle(ui, &mut settings.context_shift, "", accent);
+            });
         });
 
         // KV 缓存开关统一样式（与「手动指定 GPU 层数」一致）：标签 + ❓提示框 + 开关

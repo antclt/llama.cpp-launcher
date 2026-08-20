@@ -275,11 +275,15 @@ pub fn ui(
                     }
                 }
             });
-            // 端口复用
+            // 端口复用（开关在最左面）
             ui.horizontal(|ui| {
-                ui.label(i18n::t(i18n::Key::CheckboxReusePort, lang));
+                widgets::toggle(
+                    ui,
+                    &mut settings.reuse_port,
+                    i18n::t(i18n::Key::CheckboxReusePort, lang),
+                    accent,
+                );
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReusePort, lang));
-                widgets::toggle(ui, &mut settings.reuse_port, "", accent);
             });
             // NUMA 模式
             ui.horizontal(|ui| {
