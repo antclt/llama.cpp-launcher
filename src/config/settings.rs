@@ -240,7 +240,7 @@ fn default_reasoning_format() -> String {
 }
 
 fn default_reasoning_effort() -> String {
-    "default".to_string() // --reasoning-effort: default/minimal/low/medium/high/xhigh/max
+    "default".to_string() // --chat-template-kwargs: JSON 值（如 {"reasoning_effort": "high"}）；default = 不拼接
 }
 
 fn default_reasoning_budget() -> i32 {
@@ -361,9 +361,11 @@ pub struct Preset {
     #[serde(default = "default_reasoning_format")]
     pub reasoning_format: String, // --reasoning-format
     #[serde(default = "default_reasoning_effort")]
-    pub reasoning_effort: String, // --reasoning-effort
+    pub reasoning_effort: String, // --chat-template-kwargs：JSON 值（如 {"reasoning_effort": "high"}）
     #[serde(default = "default_reasoning_budget")]
     pub reasoning_budget: i32, // --reasoning-budget: -1 = 不限制
+    #[serde(default)]
+    pub reasoning_preserve: Option<bool>, // --reasoning-preserve / --no-reasoning-preserve：None = 模型默认（不拼接）
     #[serde(default = "default_jinja_enabled")]
     pub jinja_enabled: bool, // --jinja / --no-jinja
     #[serde(default)]
@@ -426,6 +428,7 @@ impl Default for Preset {
             reasoning_format: default_reasoning_format(),
             reasoning_effort: default_reasoning_effort(),
             reasoning_budget: default_reasoning_budget(),
+            reasoning_preserve: None,
             jinja_enabled: default_jinja_enabled(),
             chat_template: String::new(),
             chat_template_file: PathBuf::new(),
@@ -488,6 +491,7 @@ impl Preset {
             reasoning_format: settings.reasoning_format.clone(),
             reasoning_effort: settings.reasoning_effort.clone(),
             reasoning_budget: settings.reasoning_budget,
+            reasoning_preserve: settings.reasoning_preserve,
             jinja_enabled: settings.jinja_enabled,
             chat_template: settings.chat_template.clone(),
             chat_template_file: settings.chat_template_file.clone(),
@@ -548,6 +552,7 @@ impl Preset {
         settings.reasoning_format = self.reasoning_format;
         settings.reasoning_effort = self.reasoning_effort;
         settings.reasoning_budget = self.reasoning_budget;
+        settings.reasoning_preserve = self.reasoning_preserve;
         settings.jinja_enabled = self.jinja_enabled;
         settings.chat_template = self.chat_template;
         settings.chat_template_file = self.chat_template_file;
@@ -687,9 +692,11 @@ pub struct AppSettings {
     #[serde(default = "default_reasoning_format")]
     pub reasoning_format: String, // --reasoning-format
     #[serde(default = "default_reasoning_effort")]
-    pub reasoning_effort: String, // --reasoning-effort
+    pub reasoning_effort: String, // --chat-template-kwargs：JSON 值（如 {"reasoning_effort": "high"}）
     #[serde(default = "default_reasoning_budget")]
     pub reasoning_budget: i32, // --reasoning-budget: -1 = 不限制
+    #[serde(default)]
+    pub reasoning_preserve: Option<bool>, // --reasoning-preserve / --no-reasoning-preserve：None = 模型默认（不拼接）
     #[serde(default = "default_jinja_enabled")]
     pub jinja_enabled: bool, // --jinja / --no-jinja
     #[serde(default)]
@@ -817,6 +824,7 @@ impl Default for AppSettings {
             reasoning_format: default_reasoning_format(),
             reasoning_effort: default_reasoning_effort(),
             reasoning_budget: default_reasoning_budget(),
+            reasoning_preserve: None,
             jinja_enabled: default_jinja_enabled(),
             chat_template: String::new(),
             chat_template_file: PathBuf::new(),

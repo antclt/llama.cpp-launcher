@@ -303,12 +303,18 @@ impl ServerManager {
                 .arg(&settings.reasoning_format);
         }
         if !settings.reasoning_effort.is_empty() && settings.reasoning_effort != "default" {
-            cmd.arg("--reasoning-effort")
+            cmd.arg("--chat-template-kwargs")
                 .arg(&settings.reasoning_effort);
         }
         if settings.reasoning_budget != -1 {
             cmd.arg("--reasoning-budget")
                 .arg(settings.reasoning_budget.to_string());
+        }
+        // 思考保留开关：开启 --reasoning-preserve，关闭 --no-reasoning-preserve，模型默认不拼接
+        if settings.reasoning_preserve == Some(true) {
+            cmd.arg("--reasoning-preserve");
+        } else if settings.reasoning_preserve == Some(false) {
+            cmd.arg("--no-reasoning-preserve");
         }
 
         // 会话模板参数

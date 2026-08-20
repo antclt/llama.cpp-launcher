@@ -68,6 +68,8 @@ struct ParamsExport {
     reasoning_effort: String,
     #[serde(default = "default_reasoning_budget")]
     reasoning_budget: i32,
+    #[serde(default)]
+    reasoning_preserve: Option<bool>,
     #[serde(default = "default_jinja_enabled")]
     jinja_enabled: bool,
     #[serde(default)]
@@ -117,6 +119,7 @@ impl ParamsExport {
             reasoning_format: s.reasoning_format.clone(),
             reasoning_effort: s.reasoning_effort.clone(),
             reasoning_budget: s.reasoning_budget,
+            reasoning_preserve: s.reasoning_preserve,
             jinja_enabled: s.jinja_enabled,
             chat_template: s.chat_template.clone(),
             chat_template_file: s.chat_template_file.clone(),
@@ -162,6 +165,7 @@ impl ParamsExport {
         s.reasoning_format = self.reasoning_format;
         s.reasoning_effort = self.reasoning_effort;
         s.reasoning_budget = self.reasoning_budget;
+        s.reasoning_preserve = self.reasoning_preserve;
         s.jinja_enabled = self.jinja_enabled;
         s.chat_template = self.chat_template;
         s.chat_template_file = self.chat_template_file;

@@ -179,13 +179,19 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningFormat, lang));
             });
 
-            // 推理强度 (--reasoning-effort)：标签 + ❓提示框同一行
+            // 推理强度 (--chat-template-kwargs)：值以 JSON 形式传给对话模板；default = 不拼接
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelReasoningEffort, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningEffort, lang));
             });
             let effort_vals = [
-                "default", "minimal", "low", "medium", "high", "xhigh", "max",
+                "default",
+                "{\"reasoning_effort\": \"minimal\"}",
+                "{\"reasoning_effort\": \"low\"}",
+                "{\"reasoning_effort\": \"medium\"}",
+                "{\"reasoning_effort\": \"high\"}",
+                "{\"reasoning_effort\": \"xhigh\"}",
+                "{\"reasoning_effort\": \"max\"}",
             ];
             let effort_labels = [
                 i18n::t(i18n::Key::EffortDefault, lang),
@@ -205,6 +211,24 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                         settings.reasoning_effort = opt.to_string();
                     }
                 }
+            });
+
+            // 保留思考 (--reasoning-preserve)：模型默认 / 开启 / 关闭
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelReasoningPreserve, lang));
+                let rp_vals: [Option<bool>; 3] = [None, Some(true), Some(false)];
+                let rp_labels = [
+                    i18n::t(i18n::Key::ReasoningPreserveDefault, lang),
+                    i18n::t(i18n::Key::ReasoningPreserveOn, lang),
+                    i18n::t(i18n::Key::ReasoningPreserveOff, lang),
+                ];
+                let mut rp_idx = rp_vals
+                    .iter()
+                    .position(|v| *v == settings.reasoning_preserve)
+                    .unwrap_or(0);
+                widgets::segmented(ui, &rp_labels, &mut rp_idx, accent);
+                settings.reasoning_preserve = rp_vals[rp_idx];
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningPreserve, lang));
             });
 
             // 思考预算 (--reasoning-budget)
