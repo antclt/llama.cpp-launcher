@@ -143,7 +143,10 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 );
                 ui.label(format!("{:.2}", settings.temperature));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTemperature, lang));
-                widgets::toggle(ui, &mut settings.enable_temperature, "", accent);
+                // 开关推到行最右侧（与顶栏 right_to_left 右对齐模式一致）
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.enable_temperature, "", accent);
+                });
             });
             // top_p
             ui.horizontal(|ui| {
@@ -155,14 +158,18 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 );
                 ui.label(format!("{:.2}", settings.top_p));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTopP, lang));
-                widgets::toggle(ui, &mut settings.enable_top_p, "", accent);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.enable_top_p, "", accent);
+                });
             });
             // top_k
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelTopK, lang));
                 ui.add(egui::DragValue::new(&mut settings.top_k).range(0..=1000));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTopK, lang));
-                widgets::toggle(ui, &mut settings.enable_top_k, "", accent);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.enable_top_k, "", accent);
+                });
             });
             // 重复惩罚
             ui.horizontal(|ui| {
@@ -174,7 +181,9 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 );
                 ui.label(format!("{:.2}", settings.repeat_penalty));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpRepeatPenalty, lang));
-                widgets::toggle(ui, &mut settings.enable_repeat_penalty, "", accent);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.enable_repeat_penalty, "", accent);
+                });
             });
             // 存在惩罚
             ui.horizontal(|ui| {
@@ -186,7 +195,9 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 );
                 ui.label(format!("{:.2}", settings.presence_penalty));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpPresencePenalty, lang));
-                widgets::toggle(ui, &mut settings.enable_presence_penalty, "", accent);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.enable_presence_penalty, "", accent);
+                });
             });
         },
     );
@@ -197,7 +208,9 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::CheckboxKvOffload, lang));
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpKvOffload, lang));
-            widgets::toggle(ui, &mut settings.kv_offload, "", accent);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                widgets::toggle(ui, &mut settings.kv_offload, "", accent);
+            });
         });
 
         // K 缓存类型：标签 + ❓提示框同一行
@@ -243,24 +256,32 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::CheckboxKvMlock, lang));
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpKvMlock, lang));
-            widgets::toggle(ui, &mut settings.kv_mlock, "", accent);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                widgets::toggle(ui, &mut settings.kv_mlock, "", accent);
+            });
         });
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::CheckboxKvMmap, lang));
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpKvMmap, lang));
-            widgets::toggle(ui, &mut settings.kv_mmap, "", accent);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                widgets::toggle(ui, &mut settings.kv_mmap, "", accent);
+            });
         });
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::CheckboxKvUnified, lang));
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpKvUnified, lang));
-            widgets::toggle(ui, &mut settings.kv_unified, "", accent);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                widgets::toggle(ui, &mut settings.kv_unified, "", accent);
+            });
         });
 
         // 完整滑动窗口 (--swa-full)，与「手动指定 GPU 层数」一致：标签 + ❓提示框 + 开关
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::CheckboxSwaFull, lang));
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSwaFull, lang));
-            widgets::toggle(ui, &mut settings.swa_full, "", accent);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                widgets::toggle(ui, &mut settings.swa_full, "", accent);
+            });
         });
         // 上下文检查点
         ui.horizontal(|ui| {
@@ -322,7 +343,9 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ui.label(i18n::t(i18n::Key::CheckboxManualGpuLayers, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpGpuDevice, lang));
                 // ★ Toggle 新签名（行首已有标签，开关后不再重复文字）
-                widgets::toggle(ui, &mut manual_gpu_layers, "", accent);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut manual_gpu_layers, "", accent);
+                });
             });
             if manual_gpu_layers {
                 ui.indent("manual_gpu_layers_options", |ui| {
@@ -365,7 +388,9 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ui.small(i18n::t(i18n::Key::HintCpuMoe, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCpuMoe, lang));
                 // ★ Toggle 新签名（行首已有标签，开关后不再重复文字）
-                widgets::toggle(ui, &mut settings.cpu_moe, "", accent);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.cpu_moe, "", accent);
+                });
             });
             if settings.cpu_moe {
                 ui.indent("cpu_moe_options", |ui| {
