@@ -294,6 +294,38 @@ impl ServerManager {
                 .arg(settings.presence_penalty.to_string());
         }
 
+        // 思考参数（--reasoning 系列，非默认值才拼接）
+        if !settings.reasoning.is_empty() && settings.reasoning != "auto" {
+            cmd.arg("--reasoning").arg(&settings.reasoning);
+        }
+        if !settings.reasoning_format.is_empty() && settings.reasoning_format != "auto" {
+            cmd.arg("--reasoning-format")
+                .arg(&settings.reasoning_format);
+        }
+        if !settings.reasoning_effort.is_empty() && settings.reasoning_effort != "default" {
+            cmd.arg("--reasoning-effort")
+                .arg(&settings.reasoning_effort);
+        }
+        if settings.reasoning_budget != -1 {
+            cmd.arg("--reasoning-budget")
+                .arg(settings.reasoning_budget.to_string());
+        }
+
+        // 会话模板参数
+        if !settings.chat_template.is_empty() {
+            cmd.arg("--chat-template").arg(&settings.chat_template);
+        }
+        if !settings.chat_template_file.as_os_str().is_empty() {
+            cmd.arg("--chat-template-file")
+                .arg(&settings.chat_template_file);
+        }
+        // Jinja 对话模板引擎开关：启用用 --jinja，禁用用 --no-jinja
+        if settings.jinja_enabled {
+            cmd.arg("--jinja");
+        } else {
+            cmd.arg("--no-jinja");
+        }
+
         // Flash Attention
         if !settings.flash_attn.is_empty() {
             cmd.arg("--flash-attn").arg(&settings.flash_attn);
@@ -401,6 +433,10 @@ impl ServerManager {
         } else {
             cmd.arg("--no-log-timestamps");
         }
+
+        // 日志级别（0=generic 1=error 2=warning 3=info 4=trace 5=debug）
+        cmd.arg("--log-verbosity")
+            .arg(settings.log_verbosity.to_string());
 
         // 离线模式：拼接 --offline（如 llama.cpp 支持）
         if settings.offline_mode {

@@ -92,6 +92,10 @@ fn default_log_timestamps() -> bool {
     true
 }
 
+fn default_log_verbosity() -> usize {
+    3 // --log-verbosity 默认 info
+}
+
 fn default_session_timeout() -> usize {
     600 // 会话超时（秒）默认值
 }
@@ -226,6 +230,27 @@ fn default_checkpoint_min_step() -> usize {
     512
 }
 
+// 思考与会话默认值
+fn default_reasoning() -> String {
+    "auto".to_string() // --reasoning: auto/on/off
+}
+
+fn default_reasoning_format() -> String {
+    "auto".to_string() // --reasoning-format: auto/none/deepseek/deepseek-legacy
+}
+
+fn default_reasoning_effort() -> String {
+    "default".to_string() // --reasoning-effort: default/minimal/low/medium/high/xhigh/max
+}
+
+fn default_reasoning_budget() -> i32 {
+    -1 // --reasoning-budget: -1 = 不限制
+}
+
+fn default_jinja_enabled() -> bool {
+    true // --jinja / --no-jinja（新版 llama-server 默认启用）
+}
+
 // Duplicate definition removed - keeping only one instance above
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Preset {
@@ -322,9 +347,29 @@ pub struct Preset {
     #[serde(default = "default_log_timestamps")]
     pub log_timestamps: bool,
 
+    // 日志级别（0=generic 1=error 2=warning 3=info 4=trace 5=debug）
+    #[serde(default = "default_log_verbosity")]
+    pub log_verbosity: usize,
+
     // 会话超时（秒）
     #[serde(default = "default_session_timeout")]
     pub session_timeout: usize,
+
+    // 思考与会话
+    #[serde(default = "default_reasoning")]
+    pub reasoning: String, // --reasoning: auto/on/off
+    #[serde(default = "default_reasoning_format")]
+    pub reasoning_format: String, // --reasoning-format
+    #[serde(default = "default_reasoning_effort")]
+    pub reasoning_effort: String, // --reasoning-effort
+    #[serde(default = "default_reasoning_budget")]
+    pub reasoning_budget: i32, // --reasoning-budget: -1 = 不限制
+    #[serde(default = "default_jinja_enabled")]
+    pub jinja_enabled: bool, // --jinja / --no-jinja
+    #[serde(default)]
+    pub chat_template: String, // --chat-template（Jinja 模板文本）
+    #[serde(default)]
+    pub chat_template_file: PathBuf, // --chat-template-file（Jinja 模板文件）
 }
 
 impl Default for Preset {
@@ -375,7 +420,15 @@ impl Default for Preset {
             rpc_endpoints: "127.0.0.1:50052".to_string(),
             web_ui_enabled: default_web_ui_enabled(),
             log_timestamps: default_log_timestamps(),
+            log_verbosity: default_log_verbosity(),
             session_timeout: default_session_timeout(),
+            reasoning: default_reasoning(),
+            reasoning_format: default_reasoning_format(),
+            reasoning_effort: default_reasoning_effort(),
+            reasoning_budget: default_reasoning_budget(),
+            jinja_enabled: default_jinja_enabled(),
+            chat_template: String::new(),
+            chat_template_file: PathBuf::new(),
         }
     }
 }
@@ -429,7 +482,15 @@ impl Preset {
             rpc_endpoints: settings.rpc_endpoints.clone(),
             web_ui_enabled: settings.web_ui_enabled,
             log_timestamps: settings.log_timestamps,
+            log_verbosity: settings.log_verbosity,
             session_timeout: settings.session_timeout,
+            reasoning: settings.reasoning.clone(),
+            reasoning_format: settings.reasoning_format.clone(),
+            reasoning_effort: settings.reasoning_effort.clone(),
+            reasoning_budget: settings.reasoning_budget,
+            jinja_enabled: settings.jinja_enabled,
+            chat_template: settings.chat_template.clone(),
+            chat_template_file: settings.chat_template_file.clone(),
         }
     }
 
@@ -480,7 +541,16 @@ impl Preset {
         settings.rpc_endpoints = self.rpc_endpoints;
         settings.web_ui_enabled = self.web_ui_enabled;
         settings.log_timestamps = self.log_timestamps;
+        settings.log_verbosity = self.log_verbosity;
         settings.session_timeout = self.session_timeout;
+        // 思考与会话
+        settings.reasoning = self.reasoning;
+        settings.reasoning_format = self.reasoning_format;
+        settings.reasoning_effort = self.reasoning_effort;
+        settings.reasoning_budget = self.reasoning_budget;
+        settings.jinja_enabled = self.jinja_enabled;
+        settings.chat_template = self.chat_template;
+        settings.chat_template_file = self.chat_template_file;
     }
 }
 
@@ -603,9 +673,29 @@ pub struct AppSettings {
     #[serde(default = "default_log_timestamps")]
     pub log_timestamps: bool,
 
+    // 日志级别（--log-verbosity，0=generic 1=error 2=warning 3=info 4=trace 5=debug）
+    #[serde(default = "default_log_verbosity")]
+    pub log_verbosity: usize,
+
     // 会话超时（秒，追加 --timeout）
     #[serde(default = "default_session_timeout")]
     pub session_timeout: usize,
+
+    // 思考与会话
+    #[serde(default = "default_reasoning")]
+    pub reasoning: String, // --reasoning: auto/on/off
+    #[serde(default = "default_reasoning_format")]
+    pub reasoning_format: String, // --reasoning-format
+    #[serde(default = "default_reasoning_effort")]
+    pub reasoning_effort: String, // --reasoning-effort
+    #[serde(default = "default_reasoning_budget")]
+    pub reasoning_budget: i32, // --reasoning-budget: -1 = 不限制
+    #[serde(default = "default_jinja_enabled")]
+    pub jinja_enabled: bool, // --jinja / --no-jinja
+    #[serde(default)]
+    pub chat_template: String, // --chat-template（Jinja 模板文本）
+    #[serde(default)]
+    pub chat_template_file: PathBuf, // --chat-template-file（Jinja 模板文件）
 
     // 预设
     #[serde(default)]
@@ -721,7 +811,15 @@ impl Default for AppSettings {
             rpc_endpoints: "127.0.0.1:50052".to_string(),
             web_ui_enabled: default_web_ui_enabled(),
             log_timestamps: default_log_timestamps(),
+            log_verbosity: default_log_verbosity(),
             session_timeout: default_session_timeout(),
+            reasoning: default_reasoning(),
+            reasoning_format: default_reasoning_format(),
+            reasoning_effort: default_reasoning_effort(),
+            reasoning_budget: default_reasoning_budget(),
+            jinja_enabled: default_jinja_enabled(),
+            chat_template: String::new(),
+            chat_template_file: PathBuf::new(),
             presets: Vec::new(),
             new_preset_name: String::new(),
             rename_preset_index: None,

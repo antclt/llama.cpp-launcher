@@ -128,6 +128,139 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         },
     );
 
+    // ── 思考与会话 ──
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionThinkingConversation, lang),
+        accent,
+        |ui| {
+            // 思考子区标题
+            ui.label(egui::RichText::new(i18n::t(i18n::Key::SubSectionThinking, lang)).strong());
+
+            // 推理模式 (--reasoning)
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelReasoning, lang));
+                let r_vals = ["auto", "on", "off"];
+                let r_labels = [
+                    i18n::t(i18n::Key::ReasoningModeAuto, lang),
+                    i18n::t(i18n::Key::ReasoningModeOn, lang),
+                    i18n::t(i18n::Key::ReasoningModeOff, lang),
+                ];
+                let mut r_idx = r_vals
+                    .iter()
+                    .position(|v| *v == settings.reasoning)
+                    .unwrap_or(0);
+                widgets::segmented(ui, &r_labels, &mut r_idx, accent);
+                settings.reasoning = r_vals[r_idx].to_string();
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoning, lang));
+            });
+
+            // 思考格式 (--reasoning-format)
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelReasoningFormat, lang));
+                let rf_vals = ["auto", "none", "deepseek", "deepseek-legacy"];
+                let rf_labels = [
+                    i18n::t(i18n::Key::ReasoningFormatAuto, lang),
+                    i18n::t(i18n::Key::ReasoningFormatNone, lang),
+                    i18n::t(i18n::Key::ReasoningFormatDeepseek, lang),
+                    i18n::t(i18n::Key::ReasoningFormatDeepseekLegacy, lang),
+                ];
+                let mut rf_idx = rf_vals
+                    .iter()
+                    .position(|v| *v == settings.reasoning_format)
+                    .unwrap_or(0);
+                widgets::segmented(ui, &rf_labels, &mut rf_idx, accent);
+                settings.reasoning_format = rf_vals[rf_idx].to_string();
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningFormat, lang));
+            });
+
+            // 推理强度 (--reasoning-effort)：标签 + ❓提示框同一行
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelReasoningEffort, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningEffort, lang));
+            });
+            let effort_vals = [
+                "default", "minimal", "low", "medium", "high", "xhigh", "max",
+            ];
+            let effort_labels = [
+                i18n::t(i18n::Key::EffortDefault, lang),
+                i18n::t(i18n::Key::EffortMinimal, lang),
+                i18n::t(i18n::Key::EffortLow, lang),
+                i18n::t(i18n::Key::EffortMedium, lang),
+                i18n::t(i18n::Key::EffortHigh, lang),
+                i18n::t(i18n::Key::EffortXhigh, lang),
+                i18n::t(i18n::Key::EffortMax, lang),
+            ];
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing.x = 6.0;
+
+                for (i, opt) in effort_vals.iter().enumerate() {
+                    let selected = settings.reasoning_effort == *opt;
+                    if ui.selectable_label(selected, effort_labels[i]).clicked() {
+                        settings.reasoning_effort = opt.to_string();
+                    }
+                }
+            });
+
+            // 思考预算 (--reasoning-budget)
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelReasoningBudget, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.reasoning_budget)
+                        .range(-1..=32768)
+                        .speed(1),
+                );
+                ui.small(i18n::t(i18n::Key::HintReasoningBudget, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningBudget, lang));
+            });
+
+            ui.separator();
+
+            // 会话子区标题
+            ui.label(egui::RichText::new(i18n::t(i18n::Key::SubSectionChat, lang)).strong());
+
+            // Jinja 对话模板引擎开关：标签 + ❓提示框 + 开关
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::CheckboxJinja, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpJinja, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.jinja_enabled, "", accent);
+                });
+            });
+
+            // 对话模板 (--chat-template)
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelChatTemplate, lang));
+                ui.text_edit_singleline(&mut settings.chat_template);
+                ui.small(i18n::t(i18n::Key::HintChatTemplate, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpChatTemplate, lang));
+            });
+
+            // 对话模板文件 (--chat-template-file)
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelChatTemplateFile, lang));
+                let mut file_str = settings.chat_template_file.to_string_lossy().to_string();
+                let response = ui.text_edit_singleline(&mut file_str);
+                if response.changed() {
+                    settings.chat_template_file = std::path::PathBuf::from(&file_str);
+                }
+                if ui.button(i18n::t(i18n::Key::BtnBrowse, lang)).clicked() {
+                    if let Some(path) = rfd::FileDialog::new()
+                        .set_title(i18n::t(i18n::Key::DialogSelectChatTemplate, lang))
+                        .add_filter(
+                            i18n::t(i18n::Key::FilterTextFiles, lang),
+                            &["txt", "jinja", "j2"],
+                        )
+                        .pick_file()
+                    {
+                        settings.chat_template_file = path;
+                    }
+                }
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpChatTemplateFile, lang));
+            });
+        },
+    );
+
     // ── 采样参数 ──
     widgets::card(
         ui,

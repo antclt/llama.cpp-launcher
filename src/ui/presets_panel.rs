@@ -2,6 +2,24 @@ use crate::config::settings::{AppSettings, GpuLayersMode, Preset};
 use crate::i18n;
 use crate::ui::widgets;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+
+// 导出/导入兼容旧文件的默认值（与 settings.rs 保持一致）
+fn default_reasoning() -> String {
+    "auto".to_string()
+}
+fn default_reasoning_format() -> String {
+    "auto".to_string()
+}
+fn default_reasoning_effort() -> String {
+    "default".to_string()
+}
+fn default_reasoning_budget() -> i32 {
+    -1
+}
+fn default_jinja_enabled() -> bool {
+    true
+}
 
 /// 导出/导入的“参数面板”专用结构（不包含 Server/RPC/模型路径等）
 #[derive(Serialize, Deserialize)]
@@ -40,6 +58,22 @@ struct ParamsExport {
     tensor_split: String,
     cpu_moe: bool,
     n_cpu_moe: usize,
+
+    // 思考与会话
+    #[serde(default = "default_reasoning")]
+    reasoning: String,
+    #[serde(default = "default_reasoning_format")]
+    reasoning_format: String,
+    #[serde(default = "default_reasoning_effort")]
+    reasoning_effort: String,
+    #[serde(default = "default_reasoning_budget")]
+    reasoning_budget: i32,
+    #[serde(default = "default_jinja_enabled")]
+    jinja_enabled: bool,
+    #[serde(default)]
+    chat_template: String,
+    #[serde(default)]
+    chat_template_file: PathBuf,
 }
 
 impl ParamsExport {
@@ -79,6 +113,13 @@ impl ParamsExport {
             tensor_split: s.tensor_split.clone(),
             cpu_moe: s.cpu_moe,
             n_cpu_moe: s.n_cpu_moe,
+            reasoning: s.reasoning.clone(),
+            reasoning_format: s.reasoning_format.clone(),
+            reasoning_effort: s.reasoning_effort.clone(),
+            reasoning_budget: s.reasoning_budget,
+            jinja_enabled: s.jinja_enabled,
+            chat_template: s.chat_template.clone(),
+            chat_template_file: s.chat_template_file.clone(),
         }
     }
 
@@ -117,6 +158,13 @@ impl ParamsExport {
         s.tensor_split = self.tensor_split;
         s.cpu_moe = self.cpu_moe;
         s.n_cpu_moe = self.n_cpu_moe;
+        s.reasoning = self.reasoning;
+        s.reasoning_format = self.reasoning_format;
+        s.reasoning_effort = self.reasoning_effort;
+        s.reasoning_budget = self.reasoning_budget;
+        s.jinja_enabled = self.jinja_enabled;
+        s.chat_template = self.chat_template;
+        s.chat_template_file = self.chat_template_file;
     }
 }
 
