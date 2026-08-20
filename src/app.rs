@@ -250,8 +250,8 @@ impl LlamaLauncherApp {
         let accent = crate::theme::accent_color(&self.settings.accent_color);
         let web_accent =
             egui::Color32::from_rgba_unmultiplied(accent.r(), accent.g(), accent.b(), 175);
-        // 可用条件：网页客户端开关开启
-        let web_ready = self.settings.web_ui_enabled;
+        // 可用条件：网页客户端开关开启 且 server 日志出现 "llama_server: listening on"
+        let web_ready = self.settings.web_ui_enabled && self.server_manager.is_listening();
         let resp = ui.add_enabled(
             web_ready,
             widgets::rounded_button(
