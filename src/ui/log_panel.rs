@@ -48,12 +48,14 @@ fn render(
             {
                 source.clear_logs();
             }
-            widgets::toggle(
-                ui,
-                &mut settings.auto_scroll_logs,
-                i18n::t(i18n::Key::CheckboxAutoScroll, lang),
-                accent,
-            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                widgets::toggle_trailing(
+                    ui,
+                    &mut settings.auto_scroll_logs,
+                    i18n::t(i18n::Key::CheckboxAutoScroll, lang),
+                    accent,
+                );
+            });
         });
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::LabelMaxLogLines, lang));
