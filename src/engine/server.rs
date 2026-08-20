@@ -448,11 +448,11 @@ impl ServerManager {
             cmd.arg("--rpc").arg(&settings.rpc_endpoints);
         }
 
-        // 网页客户端开关：启用用 --ui，禁用用 --no-ui
+        // 网页客户端开关：启用用 --webui，禁用用 --no-webui
         if settings.web_ui_enabled {
-            cmd.arg("--ui");
+            cmd.arg("--webui");
         } else {
-            cmd.arg("--no-ui");
+            cmd.arg("--no-webui");
         }
 
         // 记录启动命令

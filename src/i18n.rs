@@ -474,8 +474,8 @@ impl Key {
 
             (Key::CheckboxRpcMode, &Language::Zh) => "RPC 模式 (--rpc)",
             (Key::CheckboxRpcMode, &Language::En) => "RPC Mode (--rpc)",
-            (Key::CheckboxEnableWebClient, &Language::Zh) => "网页客户端 (--ui)",
-            (Key::CheckboxEnableWebClient, &Language::En) => "Web Client (--ui)",
+            (Key::CheckboxEnableWebClient, &Language::Zh) => "网页客户端 (--webui)",
+            (Key::CheckboxEnableWebClient, &Language::En) => "Web Client (--webui)",
             (Key::CheckboxLogTimestamps, &Language::Zh) => "日志时间戳 (--log-timestamps)",
             (Key::CheckboxLogTimestamps, &Language::En) => "Log Timestamps (--log-timestamps)",
             (Key::LabelLogVerbosity, &Language::Zh) => "日志级别 (--log-verbosity):",
