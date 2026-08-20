@@ -200,6 +200,17 @@ pub fn accent_color(s: &str) -> egui::Color32 {
     egui::Color32::from_rgb(c[0], c[1], c[2])
 }
 
+/// 将主题色向白色方向提亮：降低饱和度、增加亮度，得到更柔和的浅色调。
+/// `t` = 白(1.0) 时的亮度混合比例（0.0 = 原色，1.0 = 纯白）。
+pub fn lighten_accent(accent: egui::Color32, t: f32) -> egui::Color32 {
+    let t = t.clamp(0.0, 1.0);
+    egui::Color32::from_rgb(
+        (accent.r() as f32 + (255.0 - accent.r() as f32) * t).round() as u8,
+        (accent.g() as f32 + (255.0 - accent.g() as f32) * t).round() as u8,
+        (accent.b() as f32 + (255.0 - accent.b() as f32) * t).round() as u8,
+    )
+}
+
 /// 应用主题到全局视觉样式
 ///
 /// - dark: 深色模式开关

@@ -3,6 +3,7 @@ use crate::i18n;
 use crate::kv_cache;
 use crate::ui::helper;
 use crate::ui::widgets;
+use std::path::PathBuf;
 
 pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) {
     let accent = crate::theme::accent_color(&settings.accent_color);
@@ -295,6 +296,58 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         },
     );
 
+    // ── 线程与生成长度 ──
+    widgets::card(ui, i18n::t(i18n::Key::SectionThreads, lang), accent, |ui| {
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelThreads, lang));
+            ui.add(egui::DragValue::new(&mut settings.threads).range(-1..=256));
+            ui.small(i18n::t(i18n::Key::HintThreadsDefault, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpThreads, lang));
+        });
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelThreadsBatch, lang));
+            ui.add(egui::DragValue::new(&mut settings.threads_batch).range(-1..=256));
+            ui.small(i18n::t(i18n::Key::HintThreadsBatchDefault, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpThreadsBatch, lang));
+        });
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelNPredict, lang));
+            ui.add(
+                egui::DragValue::new(&mut settings.n_predict)
+                    .range(-1..=65536)
+                    .speed(128),
+            );
+            ui.small(i18n::t(i18n::Key::HintNPredictLimit, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpNPredict, lang));
+        });
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelKeep, lang));
+            ui.add(
+                egui::DragValue::new(&mut settings.keep)
+                    .range(0..=8192)
+                    .speed(16),
+            );
+            ui.small(i18n::t(i18n::Key::HintKeepNone, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpKeep, lang));
+        });
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelSeed, lang));
+            ui.add(
+                egui::DragValue::new(&mut settings.seed)
+                    .range(-1..=i32::MAX as i64)
+                    .speed(1),
+            );
+            ui.small(i18n::t(i18n::Key::HintSeedRandom, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSeed, lang));
+        });
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelMainGpu, lang));
+            ui.add(egui::DragValue::new(&mut settings.main_gpu).range(0..=16));
+            ui.small(i18n::t(i18n::Key::HintMainGpuFirst, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMainGpu, lang));
+        });
+    });
+
     // ── 采样参数 ──
     widgets::card(
         ui,
@@ -369,8 +422,396 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         },
     );
 
+    // ── 采样器扩展 ──
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionSamplers, lang),
+        accent,
+        |ui| {
+            // Min-P
+            ui.horizontal(|ui| {
+                widgets::toggle(
+                    ui,
+                    &mut settings.enable_min_p,
+                    i18n::t(i18n::Key::CheckboxMinP, lang),
+                    accent,
+                );
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMinP, lang));
+            });
+            if settings.enable_min_p {
+                ui.indent("min_p_opt", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelMinP, lang));
+                        ui.add(
+                            egui::Slider::new(&mut settings.min_p, 0.0..=1.0)
+                                .smallest_positive(0.01)
+                                .custom_formatter(|v, _| format!("{:.3}", v)),
+                        );
+                        ui.label(format!("{:.3}", settings.min_p));
+                    });
+                });
+            }
+            // Top-N-Sigma
+            ui.horizontal(|ui| {
+                widgets::toggle(
+                    ui,
+                    &mut settings.enable_top_n_sigma,
+                    i18n::t(i18n::Key::CheckboxTopNSigma, lang),
+                    accent,
+                );
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTopNSigma, lang));
+            });
+            if settings.enable_top_n_sigma {
+                ui.indent("top_n_sigma_opt", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelTopNSigma, lang));
+                        ui.add(
+                            egui::Slider::new(&mut settings.top_n_sigma, 0.0..=3.0)
+                                .smallest_positive(0.01)
+                                .custom_formatter(|v, _| format!("{:.2}", v)),
+                        );
+                        ui.label(format!("{:.2}", settings.top_n_sigma));
+                    });
+                });
+            }
+            // XTC
+            ui.horizontal(|ui| {
+                widgets::toggle(
+                    ui,
+                    &mut settings.enable_xtc,
+                    i18n::t(i18n::Key::CheckboxXtc, lang),
+                    accent,
+                );
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpXtc, lang));
+            });
+            if settings.enable_xtc {
+                ui.indent("xtc_opt", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelXtcProbability, lang));
+                        ui.add(
+                            egui::Slider::new(&mut settings.xtc_probability, 0.0..=1.0)
+                                .smallest_positive(0.01)
+                                .custom_formatter(|v, _| format!("{:.2}", v)),
+                        );
+                        ui.label(format!("{:.2}", settings.xtc_probability));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelXtcThreshold, lang));
+                        ui.add(
+                            egui::Slider::new(&mut settings.xtc_threshold, 0.0..=1.0)
+                                .smallest_positive(0.01)
+                                .custom_formatter(|v, _| format!("{:.2}", v)),
+                        );
+                        ui.label(format!("{:.2}", settings.xtc_threshold));
+                    });
+                });
+            }
+            // Typical-P
+            ui.horizontal(|ui| {
+                widgets::toggle(
+                    ui,
+                    &mut settings.enable_typical_p,
+                    i18n::t(i18n::Key::CheckboxTypicalP, lang),
+                    accent,
+                );
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTypicalP, lang));
+            });
+            if settings.enable_typical_p {
+                ui.indent("typical_p_opt", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelTypicalP, lang));
+                        ui.add(
+                            egui::Slider::new(&mut settings.typical_p, 0.0..=1.0)
+                                .smallest_positive(0.01)
+                                .custom_formatter(|v, _| format!("{:.2}", v)),
+                        );
+                        ui.label(format!("{:.2}", settings.typical_p));
+                    });
+                });
+            }
+            // Mirostat
+            ui.horizontal(|ui| {
+                widgets::toggle(
+                    ui,
+                    &mut settings.enable_mirostat,
+                    i18n::t(i18n::Key::CheckboxMirostat, lang),
+                    accent,
+                );
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMirostat, lang));
+            });
+            if settings.enable_mirostat {
+                ui.indent("mirostat_opt", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelMirostat, lang));
+                        let m_vals = [0, 1, 2];
+                        let m_labels = ["0 = 关", "1", "2"];
+                        let mut m_idx = m_vals
+                            .iter()
+                            .position(|v| *v == settings.mirostat)
+                            .unwrap_or(0);
+                        widgets::segmented(ui, &m_labels, &mut m_idx, accent);
+                        settings.mirostat = m_vals[m_idx];
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelMirostatLr, lang));
+                        ui.add(
+                            egui::DragValue::new(&mut settings.mirostat_lr)
+                                .range(0.0..=1.0)
+                                .speed(0.01),
+                        );
+                        ui.label(format!("{:.2}", settings.mirostat_lr));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelMirostatEnt, lang));
+                        ui.add(
+                            egui::DragValue::new(&mut settings.mirostat_ent)
+                                .range(0.0..=20.0)
+                                .speed(0.1),
+                        );
+                        ui.label(format!("{:.2}", settings.mirostat_ent));
+                    });
+                });
+            }
+            // 动态温度
+            ui.horizontal(|ui| {
+                widgets::toggle(
+                    ui,
+                    &mut settings.enable_dynatemp,
+                    i18n::t(i18n::Key::CheckboxDynatemp, lang),
+                    accent,
+                );
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpDynatemp, lang));
+            });
+            if settings.enable_dynatemp {
+                ui.indent("dynatemp_opt", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelDynatempRange, lang));
+                        ui.add(
+                            egui::DragValue::new(&mut settings.dynatemp_range)
+                                .range(0.0..=1.0)
+                                .speed(0.05),
+                        );
+                        ui.label(format!("{:.2}", settings.dynatemp_range));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelDynatempExp, lang));
+                        ui.add(
+                            egui::DragValue::new(&mut settings.dynatemp_exp)
+                                .range(0.0..=2.0)
+                                .speed(0.05),
+                        );
+                        ui.label(format!("{:.2}", settings.dynatemp_exp));
+                    });
+                });
+            }
+            // 采样器序列
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelSamplerSeq, lang));
+                ui.text_edit_singleline(&mut settings.sampler_seq);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSamplerSeq, lang));
+            });
+        },
+    );
+
+    // ── 思考控制（Reasoning / Thinking）──
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionReasoning, lang),
+        accent,
+        |ui| {
+            // 思考模式：标签 + ❓提示框 + 分段选择
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelReasoningMode, lang));
+                let rm_vals = ["auto", "on", "off"];
+                let rm_labels = [
+                    i18n::t(i18n::Key::ReasoningModeAuto, lang),
+                    i18n::t(i18n::Key::ReasoningModeOn, lang),
+                    i18n::t(i18n::Key::ReasoningModeOff, lang),
+                ];
+                let mut rm_idx = rm_vals
+                    .iter()
+                    .position(|v| *v == settings.reasoning_mode)
+                    .unwrap_or(0);
+                widgets::segmented(ui, &rm_labels, &mut rm_idx, accent);
+                settings.reasoning_mode = rm_vals[rm_idx].to_string();
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningMode, lang));
+            });
+            // 思考深度
+            ui.label(i18n::t(i18n::Key::LabelReasoningEffort, lang));
+            let efforts = [
+                "default", "minimal", "low", "medium", "high", "xhigh", "max",
+            ];
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing.x = 6.0;
+                for e in &efforts {
+                    let selected = settings.reasoning_effort == *e;
+                    if ui.selectable_label(selected, *e).clicked() {
+                        settings.reasoning_effort = e.to_string();
+                    }
+                }
+            });
+            ui.horizontal(|ui| {
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningEffort, lang));
+            });
+            // 思考输出格式
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelReasoningFormat, lang));
+                let rf_vals = ["auto", "none", "deepseek", "deepseek-legacy"];
+                let mut rf_idx = rf_vals
+                    .iter()
+                    .position(|v| *v == settings.reasoning_format)
+                    .unwrap_or(0);
+                widgets::segmented(ui, &rf_vals, &mut rf_idx, accent);
+                settings.reasoning_format = rf_vals[rf_idx].to_string();
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningFormat, lang));
+            });
+            // 保留思维轨迹
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelReasoningPreserve, lang));
+                let rp_vals = ["", "on", "off"];
+                let rp_labels = [
+                    i18n::t(i18n::Key::ReasoningPreserveDefault, lang),
+                    i18n::t(i18n::Key::ReasoningPreserveOn, lang),
+                    i18n::t(i18n::Key::ReasoningPreserveOff, lang),
+                ];
+                let mut rp_idx = match settings.reasoning_preserve.as_str() {
+                    "on" => 1,
+                    "off" => 2,
+                    _ => 0,
+                };
+                widgets::segmented(ui, &rp_labels, &mut rp_idx, accent);
+                settings.reasoning_preserve = rp_vals[rp_idx].to_string();
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningPreserve, lang));
+            });
+            // 思考预算
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelReasoningBudget, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.reasoning_budget)
+                        .range(-1..=65536)
+                        .speed(128),
+                );
+                ui.small(i18n::t(i18n::Key::HintReasoningBudget, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningBudget, lang));
+            });
+            // 预算耗尽提示
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelReasoningBudgetMessage, lang));
+                ui.text_edit_singleline(&mut settings.reasoning_budget_message);
+                helper::help_button_inline(
+                    ui,
+                    i18n::t(i18n::Key::HelpReasoningBudgetMessage, lang),
+                );
+            });
+        },
+    );
+
+    // ── 聊天模板 ──
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionChatTemplate, lang),
+        accent,
+        |ui| {
+            // Jinja 引擎开关：标签 + ❓提示框 + 开关
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::CheckboxJinja, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpJinja, lang));
+                widgets::toggle(ui, &mut settings.jinja_enabled, "", accent);
+            });
+            // 外部模板文件
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelChatTemplateFile, lang));
+                let mut path_str = settings.chat_template_file.to_string_lossy().to_string();
+                let resp = ui.text_edit_singleline(&mut path_str);
+                if resp.changed() {
+                    settings.chat_template_file = PathBuf::from(&path_str);
+                }
+                if ui.button(i18n::t(i18n::Key::BtnBrowse, lang)).clicked() {
+                    if let Some(path) = rfd::FileDialog::new()
+                        .set_title(i18n::t(i18n::Key::DialogSelectTemplate, lang))
+                        .add_filter(
+                            i18n::t(i18n::Key::FilterTemplate, lang),
+                            &["jinja", "jinja2", "txt", "json"],
+                        )
+                        .pick_file()
+                    {
+                        settings.chat_template_file = path;
+                    }
+                }
+                if ui.button(i18n::t(i18n::Key::BtnClear, lang)).clicked() {
+                    settings.chat_template_file = PathBuf::new();
+                }
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpChatTemplateFile, lang));
+            });
+        },
+    );
+
+    // ── 结构化输出 ──
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionStructuredOutput, lang),
+        accent,
+        |ui| {
+            // JSON Schema
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelJsonSchema, lang));
+                ui.text_edit_singleline(&mut settings.json_schema);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpJsonSchema, lang));
+            });
+            // Grammar
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelGrammar, lang));
+                ui.text_edit_singleline(&mut settings.grammar);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpGrammar, lang));
+            });
+        },
+    );
+
     // ── KV 缓存配置 ──
     widgets::card(ui, i18n::t(i18n::Key::SectionKvCache, lang), accent, |ui| {
+        // 模型加载模式（新版 --load-mode；auto 时沿用下方旧版 --mmap/--mlock 开关）
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelLoadMode, lang));
+            let lm_vals = ["auto", "none", "mmap", "mlock", "mmap+mlock", "dio"];
+            let lm_labels = [
+                i18n::t(i18n::Key::LoadModeAuto, lang),
+                lm_vals[1],
+                lm_vals[2],
+                lm_vals[3],
+                lm_vals[4],
+                lm_vals[5],
+            ];
+            let mut lm_idx = lm_vals
+                .iter()
+                .position(|v| *v == settings.load_mode)
+                .unwrap_or(0);
+            widgets::segmented(ui, &lm_labels, &mut lm_idx, accent);
+            settings.load_mode = lm_vals[lm_idx].to_string();
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpLoadMode, lang));
+        });
+
+        // 长上下文 / 提示缓存（标签 + ❓提示框 + 开关）
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::CheckboxCachePrompt, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCachePrompt, lang));
+            widgets::toggle(ui, &mut settings.cache_prompt, "", accent);
+        });
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelCacheReuse, lang));
+            ui.add(
+                egui::DragValue::new(&mut settings.cache_reuse)
+                    .range(0..=65536)
+                    .speed(64),
+            );
+            ui.small(i18n::t(i18n::Key::HintCacheReuseDisabled, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCacheReuse, lang));
+        });
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::CheckboxContextShift, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpContextShift, lang));
+            widgets::toggle(ui, &mut settings.context_shift, "", accent);
+        });
+
         // KV 缓存开关统一样式（与「手动指定 GPU 层数」一致）：标签 + ❓提示框 + 开关
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::CheckboxKvOffload, lang));

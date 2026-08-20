@@ -84,6 +84,143 @@ fn default_flash_attn() -> String {
     "auto".to_string()
 }
 
+// 思考控制（Reasoning / Thinking）默认值
+fn default_reasoning_mode() -> String {
+    "auto".to_string() // --reasoning auto/on/off，auto = 按模板自动
+}
+
+fn default_reasoning_effort() -> String {
+    "default".to_string() // --reasoning-effort，"default" = 保持模板默认（不拼接）
+}
+
+fn default_reasoning_format() -> String {
+    "auto".to_string() // --reasoning-format auto/none/deepseek/deepseek-legacy
+}
+
+fn default_reasoning_budget() -> i64 {
+    -1 // --reasoning-budget，-1 = 不限制（不拼接）
+}
+
+fn default_jinja_enabled() -> bool {
+    true // --jinja / --no-jinja
+}
+
+fn default_load_mode() -> String {
+    "auto".to_string() // --load-mode，"auto" = 不拼接并沿用旧版 --mmap/--mlock
+}
+
+// ── 新增参数（llama.cpp b10488+）默认值 ──
+
+// 线程与生成长度
+fn default_threads() -> i64 {
+    -1 // --threads，-1 = 不拼接（沿用 llama 默认）
+}
+
+fn default_threads_batch() -> i64 {
+    -1 // --threads-batch，-1 = 不拼接（沿用 llama 默认）
+}
+
+fn default_n_predict() -> i64 {
+    -1 // --n-predict，-1 = 不拼接（无限生成）
+}
+
+fn default_keep_tokens() -> i64 {
+    0 // --keep，0 = 不拼接
+}
+
+// 随机种子
+fn default_seed() -> i64 {
+    -1 // --seed，-1 = 不拼接（随机种子）
+}
+
+// 主 GPU（多卡时指定）
+fn default_main_gpu() -> i64 {
+    0 // --main-gpu，默认第一张卡；>=0 时拼接
+}
+
+// 采样器扩展
+fn default_min_p() -> f32 {
+    0.05 // --min-p，默认与 llama 一致
+}
+
+fn default_top_n_sigma() -> f32 {
+    -1.0 // --top-n-sigma，-1 = 禁用（不拼接）
+}
+
+fn default_xtc_probability() -> f32 {
+    0.0 // --xtc-probability，0 = 禁用（不拼接）
+}
+
+fn default_xtc_threshold() -> f32 {
+    0.10
+}
+
+fn default_typical_p() -> f32 {
+    1.0 // --typical-p，1.0 = 禁用（不拼接）
+}
+
+fn default_mirostat() -> i32 {
+    0 // --mirostat，0 = 禁用
+}
+
+fn default_mirostat_lr() -> f32 {
+    0.10
+}
+
+fn default_mirostat_ent() -> f32 {
+    5.00
+}
+
+fn default_dynatemp_range() -> f32 {
+    0.0 // --dynatemp-range，0 = 禁用（不拼接）
+}
+
+fn default_dynatemp_exp() -> f32 {
+    1.0
+}
+
+fn default_sampler_seq() -> String {
+    "".to_string() // --sampler-seq，空 = 不拼接（沿用 llama 默认 edskypmxt）
+}
+
+// 长上下文
+fn default_cache_prompt() -> bool {
+    true // --cache-prompt / --no-cache-prompt（llama 默认启用）
+}
+
+fn default_cache_reuse() -> i64 {
+    0 // --cache-reuse，0 = 不拼接
+}
+
+fn default_context_shift() -> bool {
+    false // --context-shift（llama 默认禁用）
+}
+
+// JSON/语法约束
+fn default_json_schema() -> String {
+    "".to_string() // --json-schema / --json-schema-file
+}
+
+fn default_grammar() -> String {
+    "".to_string() // --grammar（空 = 不拼接）
+}
+
+fn default_api_key() -> String {
+    "".to_string() // --api-key（空 = 不拼接）
+}
+
+fn default_api_prefix() -> String {
+    "".to_string() // --api-prefix（空 = 不拼接）
+}
+
+fn default_cors_origins() -> String {
+    "".to_string() // --cors-origins（空 = 不拼接）
+}
+
+fn default_numa() -> String {
+    "".to_string() // --numa（空 = 不拼接）
+}
+
 fn default_web_ui_enabled() -> bool {
     true
 }
@@ -294,6 +431,110 @@ pub struct Preset {
     #[serde(default = "default_flash_attn")]
     pub flash_attn: String,
 
+    // 思考控制（Reasoning / Thinking）配置
+    #[serde(default = "default_reasoning_mode")]
+    pub reasoning_mode: String, // --reasoning (auto/on/off)
+    #[serde(default = "default_reasoning_effort")]
+    pub reasoning_effort: String, // --reasoning-effort ("default" 时不拼接)
+    #[serde(default = "default_reasoning_format")]
+    pub reasoning_format: String, // --reasoning-format (auto/none/deepseek/deepseek-legacy)
+    #[serde(default)]
+    pub reasoning_preserve: String, // "" / "on" / "off" → 不传 / --reasoning-preserve / --no-reasoning-preserve
+    #[serde(default = "default_reasoning_budget")]
+    pub reasoning_budget: i64, // --reasoning-budget (-1 不拼接)
+    #[serde(default)]
+    pub reasoning_budget_message: String, // --reasoning-budget-message (空不拼接)
+
+    // 聊天模板
+    #[serde(default = "default_jinja_enabled")]
+    pub jinja_enabled: bool, // --jinja / --no-jinja
+    #[serde(default)]
+    pub chat_template_file: PathBuf, // --chat-template-file (空不拼接)
+
+    // 加载模式（新版 --load-mode；"auto" 时沿用旧版 --mmap/--mlock 行为）
+    #[serde(default = "default_load_mode")]
+    pub load_mode: String, // --load-mode
+
+    // ── 线程与生成长度（llama.cpp b10488+）──
+    #[serde(default = "default_threads")]
+    pub threads: i64, // --threads (-1 不拼接)
+    #[serde(default = "default_threads_batch")]
+    pub threads_batch: i64, // --threads-batch (-1 不拼接)
+    #[serde(default = "default_n_predict")]
+    pub n_predict: i64, // --n-predict (-1 不拼接)
+    #[serde(default = "default_keep_tokens")]
+    pub keep: i64, // --keep (0 不拼接)
+    #[serde(default = "default_seed")]
+    pub seed: i64, // --seed (-1 不拼接)
+    #[serde(default = "default_main_gpu")]
+    pub main_gpu: i64, // --main-gpu
+
+    // ── 采样器扩展（近新版本加入）──
+    #[serde(default)]
+    pub enable_min_p: bool,
+    #[serde(default = "default_min_p")]
+    pub min_p: f32, // --min-p
+    #[serde(default)]
+    pub enable_top_n_sigma: bool,
+    #[serde(default = "default_top_n_sigma")]
+    pub top_n_sigma: f32, // --top-n-sigma
+    #[serde(default)]
+    pub enable_xtc: bool,
+    #[serde(default = "default_xtc_probability")]
+    pub xtc_probability: f32, // --xtc-probability
+    #[serde(default = "default_xtc_threshold")]
+    pub xtc_threshold: f32, // --xtc-threshold
+    #[serde(default)]
+    pub enable_typical_p: bool,
+    #[serde(default = "default_typical_p")]
+    pub typical_p: f32, // --typical-p
+    #[serde(default)]
+    pub enable_mirostat: bool,
+    #[serde(default = "default_mirostat")]
+    pub mirostat: i32, // --mirostat (0/1/2)
+    #[serde(default = "default_mirostat_lr")]
+    pub mirostat_lr: f32, // --mirostat-lr
+    #[serde(default = "default_mirostat_ent")]
+    pub mirostat_ent: f32, // --mirostat-ent
+    #[serde(default)]
+    pub enable_dynatemp: bool,
+    #[serde(default = "default_dynatemp_range")]
+    pub dynatemp_range: f32, // --dynatemp-range
+    #[serde(default = "default_dynatemp_exp")]
+    pub dynatemp_exp: f32, // --dynatemp-exp
+    #[serde(default = "default_sampler_seq")]
+    pub sampler_seq: String, // --sampler-seq (空不拼接)
+
+    // ── 长上下文 / 提示缓存 ──
+    #[serde(default = "default_cache_prompt")]
+    pub cache_prompt: bool, // --cache-prompt / --no-cache-prompt
+    #[serde(default = "default_cache_reuse")]
+    pub cache_reuse: i64, // --cache-reuse (0 不拼接)
+    #[serde(default = "default_context_shift")]
+    pub context_shift: bool, // --context-shift
+
+    // ── 结构化输出 ──
+    #[serde(default = "default_json_schema")]
+    pub json_schema: String, // --json-schema (空不拼接)
+    #[serde(default = "default_grammar")]
+    pub grammar: String, // --grammar (空不拼接)
+
+    // ── API 安全 / 部署 ──
+    #[serde(default = "default_api_key")]
+    pub api_key: String, // --api-key (空不拼接)
+    #[serde(default = "default_api_prefix")]
+    pub api_prefix: String, // --api-prefix (空不拼接)
+    #[serde(default = "default_cors_origins")]
+    pub cors_origins: String, // --cors-origins (空不拼接)
+    #[serde(default)]
+    pub ssl_cert_file: PathBuf, // --ssl-cert-file (空不拼接)
+    #[serde(default)]
+    pub ssl_key_file: PathBuf, // --ssl-key-file (空不拼接)
+    #[serde(default)]
+    pub reuse_port: bool, // --reuse-port
+    #[serde(default = "default_numa")]
+    pub numa: String, // --numa (空不拼接)
+
     // 推测解码（Speculative Decoding）配置
     #[serde(default = "default_spec_type")]
     pub spec_type: String, // --spec-type
@@ -395,6 +636,50 @@ impl Default for Preset {
             enable_repeat_penalty: false,
             enable_presence_penalty: false,
             flash_attn: default_flash_attn(),
+            reasoning_mode: default_reasoning_mode(),
+            reasoning_effort: default_reasoning_effort(),
+            reasoning_format: default_reasoning_format(),
+            reasoning_preserve: String::new(),
+            reasoning_budget: default_reasoning_budget(),
+            reasoning_budget_message: String::new(),
+            jinja_enabled: default_jinja_enabled(),
+            chat_template_file: PathBuf::new(),
+            load_mode: default_load_mode(),
+            threads: default_threads(),
+            threads_batch: default_threads_batch(),
+            n_predict: default_n_predict(),
+            keep: default_keep_tokens(),
+            seed: default_seed(),
+            main_gpu: default_main_gpu(),
+            enable_min_p: false,
+            min_p: default_min_p(),
+            enable_top_n_sigma: false,
+            top_n_sigma: default_top_n_sigma(),
+            enable_xtc: false,
+            xtc_probability: default_xtc_probability(),
+            xtc_threshold: default_xtc_threshold(),
+            enable_typical_p: false,
+            typical_p: default_typical_p(),
+            enable_mirostat: false,
+            mirostat: default_mirostat(),
+            mirostat_lr: default_mirostat_lr(),
+            mirostat_ent: default_mirostat_ent(),
+            enable_dynatemp: false,
+            dynatemp_range: default_dynatemp_range(),
+            dynatemp_exp: default_dynatemp_exp(),
+            sampler_seq: default_sampler_seq(),
+            cache_prompt: default_cache_prompt(),
+            cache_reuse: default_cache_reuse(),
+            context_shift: default_context_shift(),
+            json_schema: default_json_schema(),
+            grammar: default_grammar(),
+            api_key: default_api_key(),
+            api_prefix: default_api_prefix(),
+            cors_origins: default_cors_origins(),
+            ssl_cert_file: PathBuf::new(),
+            ssl_key_file: PathBuf::new(),
+            reuse_port: false,
+            numa: default_numa(),
             spec_type: default_spec_type(),
             spec_draft_n_max: default_spec_draft_n_max(),
             spec_draft_n_min: 0,
@@ -458,6 +743,50 @@ impl Preset {
             enable_repeat_penalty: settings.enable_repeat_penalty,
             enable_presence_penalty: settings.enable_presence_penalty,
             flash_attn: settings.flash_attn.clone(),
+            reasoning_mode: settings.reasoning_mode.clone(),
+            reasoning_effort: settings.reasoning_effort.clone(),
+            reasoning_format: settings.reasoning_format.clone(),
+            reasoning_preserve: settings.reasoning_preserve.clone(),
+            reasoning_budget: settings.reasoning_budget,
+            reasoning_budget_message: settings.reasoning_budget_message.clone(),
+            jinja_enabled: settings.jinja_enabled,
+            chat_template_file: settings.chat_template_file.clone(),
+            load_mode: settings.load_mode.clone(),
+            threads: settings.threads,
+            threads_batch: settings.threads_batch,
+            n_predict: settings.n_predict,
+            keep: settings.keep,
+            seed: settings.seed,
+            main_gpu: settings.main_gpu,
+            enable_min_p: settings.enable_min_p,
+            min_p: settings.min_p,
+            enable_top_n_sigma: settings.enable_top_n_sigma,
+            top_n_sigma: settings.top_n_sigma,
+            enable_xtc: settings.enable_xtc,
+            xtc_probability: settings.xtc_probability,
+            xtc_threshold: settings.xtc_threshold,
+            enable_typical_p: settings.enable_typical_p,
+            typical_p: settings.typical_p,
+            enable_mirostat: settings.enable_mirostat,
+            mirostat: settings.mirostat,
+            mirostat_lr: settings.mirostat_lr,
+            mirostat_ent: settings.mirostat_ent,
+            enable_dynatemp: settings.enable_dynatemp,
+            dynatemp_range: settings.dynatemp_range,
+            dynatemp_exp: settings.dynatemp_exp,
+            sampler_seq: settings.sampler_seq.clone(),
+            cache_prompt: settings.cache_prompt,
+            cache_reuse: settings.cache_reuse,
+            context_shift: settings.context_shift,
+            json_schema: settings.json_schema.clone(),
+            grammar: settings.grammar.clone(),
+            api_key: settings.api_key.clone(),
+            api_prefix: settings.api_prefix.clone(),
+            cors_origins: settings.cors_origins.clone(),
+            ssl_cert_file: settings.ssl_cert_file.clone(),
+            ssl_key_file: settings.ssl_key_file.clone(),
+            reuse_port: settings.reuse_port,
+            numa: settings.numa.clone(),
             spec_type: settings.spec_type.clone(),
             spec_draft_n_max: settings.spec_draft_n_max,
             spec_draft_n_min: settings.spec_draft_n_min,
@@ -517,6 +846,58 @@ impl Preset {
         settings.enable_repeat_penalty = self.enable_repeat_penalty;
         settings.enable_presence_penalty = self.enable_presence_penalty;
         settings.flash_attn = self.flash_attn;
+        // 思考控制（Reasoning / Thinking）配置
+        settings.reasoning_mode = self.reasoning_mode;
+        settings.reasoning_effort = self.reasoning_effort;
+        settings.reasoning_format = self.reasoning_format;
+        settings.reasoning_preserve = self.reasoning_preserve;
+        settings.reasoning_budget = self.reasoning_budget;
+        settings.reasoning_budget_message = self.reasoning_budget_message;
+        // 聊天模板
+        settings.jinja_enabled = self.jinja_enabled;
+        settings.chat_template_file = self.chat_template_file;
+        // 加载模式
+        settings.load_mode = self.load_mode;
+        // 线程与生成长度
+        settings.threads = self.threads;
+        settings.threads_batch = self.threads_batch;
+        settings.n_predict = self.n_predict;
+        settings.keep = self.keep;
+        settings.seed = self.seed;
+        settings.main_gpu = self.main_gpu;
+        // 采样器扩展
+        settings.enable_min_p = self.enable_min_p;
+        settings.min_p = self.min_p;
+        settings.enable_top_n_sigma = self.enable_top_n_sigma;
+        settings.top_n_sigma = self.top_n_sigma;
+        settings.enable_xtc = self.enable_xtc;
+        settings.xtc_probability = self.xtc_probability;
+        settings.xtc_threshold = self.xtc_threshold;
+        settings.enable_typical_p = self.enable_typical_p;
+        settings.typical_p = self.typical_p;
+        settings.enable_mirostat = self.enable_mirostat;
+        settings.mirostat = self.mirostat;
+        settings.mirostat_lr = self.mirostat_lr;
+        settings.mirostat_ent = self.mirostat_ent;
+        settings.enable_dynatemp = self.enable_dynatemp;
+        settings.dynatemp_range = self.dynatemp_range;
+        settings.dynatemp_exp = self.dynatemp_exp;
+        settings.sampler_seq = self.sampler_seq;
+        // 长上下文 / 提示缓存
+        settings.cache_prompt = self.cache_prompt;
+        settings.cache_reuse = self.cache_reuse;
+        settings.context_shift = self.context_shift;
+        // 结构化输出
+        settings.json_schema = self.json_schema;
+        settings.grammar = self.grammar;
+        // API 安全 / 部署
+        settings.api_key = self.api_key;
+        settings.api_prefix = self.api_prefix;
+        settings.cors_origins = self.cors_origins;
+        settings.ssl_cert_file = self.ssl_cert_file;
+        settings.ssl_key_file = self.ssl_key_file;
+        settings.reuse_port = self.reuse_port;
+        settings.numa = self.numa;
         // 推测解码（Speculative Decoding）配置
         settings.spec_type = self.spec_type;
         settings.spec_draft_n_max = self.spec_draft_n_max;
@@ -611,6 +992,110 @@ pub struct AppSettings {
     pub enable_presence_penalty: bool,
     #[serde(default = "default_flash_attn")]
     pub flash_attn: String,
+
+    // 思考控制（Reasoning / Thinking）配置
+    #[serde(default = "default_reasoning_mode")]
+    pub reasoning_mode: String, // --reasoning (auto/on/off)
+    #[serde(default = "default_reasoning_effort")]
+    pub reasoning_effort: String, // --reasoning-effort ("default" 时不拼接)
+    #[serde(default = "default_reasoning_format")]
+    pub reasoning_format: String, // --reasoning-format (auto/none/deepseek/deepseek-legacy)
+    #[serde(default)]
+    pub reasoning_preserve: String, // "" / "on" / "off" → 不传 / --reasoning-preserve / --no-reasoning-preserve
+    #[serde(default = "default_reasoning_budget")]
+    pub reasoning_budget: i64, // --reasoning-budget (-1 不拼接)
+    #[serde(default)]
+    pub reasoning_budget_message: String, // --reasoning-budget-message (空不拼接)
+
+    // 聊天模板
+    #[serde(default = "default_jinja_enabled")]
+    pub jinja_enabled: bool, // --jinja / --no-jinja
+    #[serde(default)]
+    pub chat_template_file: PathBuf, // --chat-template-file (空不拼接)
+
+    // 加载模式（新版 --load-mode；"auto" 时沿用旧版 --mmap/--mlock 行为）
+    #[serde(default = "default_load_mode")]
+    pub load_mode: String, // --load-mode
+
+    // ── 线程与生成长度（llama.cpp b10488+）──
+    #[serde(default = "default_threads")]
+    pub threads: i64, // --threads (-1 不拼接)
+    #[serde(default = "default_threads_batch")]
+    pub threads_batch: i64, // --threads-batch (-1 不拼接)
+    #[serde(default = "default_n_predict")]
+    pub n_predict: i64, // --n-predict (-1 不拼接)
+    #[serde(default = "default_keep_tokens")]
+    pub keep: i64, // --keep (0 不拼接)
+    #[serde(default = "default_seed")]
+    pub seed: i64, // --seed (-1 不拼接)
+    #[serde(default = "default_main_gpu")]
+    pub main_gpu: i64, // --main-gpu
+
+    // ── 采样器扩展（近新版本加入）──
+    #[serde(default)]
+    pub enable_min_p: bool,
+    #[serde(default = "default_min_p")]
+    pub min_p: f32, // --min-p
+    #[serde(default)]
+    pub enable_top_n_sigma: bool,
+    #[serde(default = "default_top_n_sigma")]
+    pub top_n_sigma: f32, // --top-n-sigma
+    #[serde(default)]
+    pub enable_xtc: bool,
+    #[serde(default = "default_xtc_probability")]
+    pub xtc_probability: f32, // --xtc-probability
+    #[serde(default = "default_xtc_threshold")]
+    pub xtc_threshold: f32, // --xtc-threshold
+    #[serde(default)]
+    pub enable_typical_p: bool,
+    #[serde(default = "default_typical_p")]
+    pub typical_p: f32, // --typical-p
+    #[serde(default)]
+    pub enable_mirostat: bool,
+    #[serde(default = "default_mirostat")]
+    pub mirostat: i32, // --mirostat (0/1/2)
+    #[serde(default = "default_mirostat_lr")]
+    pub mirostat_lr: f32, // --mirostat-lr
+    #[serde(default = "default_mirostat_ent")]
+    pub mirostat_ent: f32, // --mirostat-ent
+    #[serde(default)]
+    pub enable_dynatemp: bool,
+    #[serde(default = "default_dynatemp_range")]
+    pub dynatemp_range: f32, // --dynatemp-range
+    #[serde(default = "default_dynatemp_exp")]
+    pub dynatemp_exp: f32, // --dynatemp-exp
+    #[serde(default = "default_sampler_seq")]
+    pub sampler_seq: String, // --sampler-seq (空不拼接)
+
+    // ── 长上下文 / 提示缓存 ──
+    #[serde(default = "default_cache_prompt")]
+    pub cache_prompt: bool, // --cache-prompt / --no-cache-prompt
+    #[serde(default = "default_cache_reuse")]
+    pub cache_reuse: i64, // --cache-reuse (0 不拼接)
+    #[serde(default = "default_context_shift")]
+    pub context_shift: bool, // --context-shift
+
+    // ── 结构化输出 ──
+    #[serde(default = "default_json_schema")]
+    pub json_schema: String, // --json-schema (空不拼接)
+    #[serde(default = "default_grammar")]
+    pub grammar: String, // --grammar (空不拼接)
+
+    // ── API 安全 / 部署 ──
+    #[serde(default = "default_api_key")]
+    pub api_key: String, // --api-key (空不拼接)
+    #[serde(default = "default_api_prefix")]
+    pub api_prefix: String, // --api-prefix (空不拼接)
+    #[serde(default = "default_cors_origins")]
+    pub cors_origins: String, // --cors-origins (空不拼接)
+    #[serde(default)]
+    pub ssl_cert_file: PathBuf, // --ssl-cert-file (空不拼接)
+    #[serde(default)]
+    pub ssl_key_file: PathBuf, // --ssl-key-file (空不拼接)
+    #[serde(default)]
+    pub reuse_port: bool, // --reuse-port
+    #[serde(default = "default_numa")]
+    pub numa: String, // --numa (空不拼接)
 
     // 推测解码（Speculative Decoding）配置
     #[serde(default = "default_spec_type")]
@@ -785,6 +1270,50 @@ impl Default for AppSettings {
             enable_repeat_penalty: false,
             enable_presence_penalty: false,
             flash_attn: default_flash_attn(),
+            reasoning_mode: default_reasoning_mode(),
+            reasoning_effort: default_reasoning_effort(),
+            reasoning_format: default_reasoning_format(),
+            reasoning_preserve: String::new(),
+            reasoning_budget: default_reasoning_budget(),
+            reasoning_budget_message: String::new(),
+            jinja_enabled: default_jinja_enabled(),
+            chat_template_file: PathBuf::new(),
+            load_mode: default_load_mode(),
+            threads: default_threads(),
+            threads_batch: default_threads_batch(),
+            n_predict: default_n_predict(),
+            keep: default_keep_tokens(),
+            seed: default_seed(),
+            main_gpu: default_main_gpu(),
+            enable_min_p: false,
+            min_p: default_min_p(),
+            enable_top_n_sigma: false,
+            top_n_sigma: default_top_n_sigma(),
+            enable_xtc: false,
+            xtc_probability: default_xtc_probability(),
+            xtc_threshold: default_xtc_threshold(),
+            enable_typical_p: false,
+            typical_p: default_typical_p(),
+            enable_mirostat: false,
+            mirostat: default_mirostat(),
+            mirostat_lr: default_mirostat_lr(),
+            mirostat_ent: default_mirostat_ent(),
+            enable_dynatemp: false,
+            dynatemp_range: default_dynatemp_range(),
+            dynatemp_exp: default_dynatemp_exp(),
+            sampler_seq: default_sampler_seq(),
+            cache_prompt: default_cache_prompt(),
+            cache_reuse: default_cache_reuse(),
+            context_shift: default_context_shift(),
+            json_schema: default_json_schema(),
+            grammar: default_grammar(),
+            api_key: default_api_key(),
+            api_prefix: default_api_prefix(),
+            cors_origins: default_cors_origins(),
+            ssl_cert_file: PathBuf::new(),
+            ssl_key_file: PathBuf::new(),
+            reuse_port: false,
+            numa: default_numa(),
             spec_type: default_spec_type(),
             spec_draft_n_max: default_spec_draft_n_max(),
             spec_draft_n_min: 0,
