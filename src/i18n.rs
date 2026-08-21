@@ -19,6 +19,7 @@ pub enum Key {
     MenuItemSaveConfig,
     MenuItemLoadConfig,
     MenuItemAutoStart,
+    MenuItemSilentStart,
     MenuItemAbout,
     MenuItemCreateShortcut,
 
@@ -426,6 +427,8 @@ impl Key {
             (Key::MenuItemLoadConfig, &Language::En) => "Load Config",
             (Key::MenuItemAutoStart, &Language::Zh) => "开机自启动",
             (Key::MenuItemAutoStart, &Language::En) => "Auto Start",
+            (Key::MenuItemSilentStart, &Language::Zh) => "静默启动",
+            (Key::MenuItemSilentStart, &Language::En) => "Silent Start",
 
             (Key::MenuItemAbout, &Language::Zh) => "关于",
             (Key::MenuItemAbout, &Language::En) => "About",

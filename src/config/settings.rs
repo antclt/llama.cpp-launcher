@@ -255,13 +255,9 @@ fn default_ubatch_size() -> f32 {
     0.5 // 0.5k = 512
 }
 
-/// 将旧版原始值（如 4096）转换为 k 单位，若已是小数值则视为 k 单位
+/// 值直接以 k 为单位存储，最小值为 1
 fn from_raw_or_k(v: usize) -> usize {
-    if v >= 128 {
-        (v + 512) / 1024 // 向上取整到最近的 k
-    } else {
-        v.max(1)
-    }
+    v.max(1)
 }
 
 mod deserialize_context {
@@ -1128,6 +1124,10 @@ pub struct AppSettings {
     #[serde(default)]
     pub auto_start: bool,
 
+    // 静默启动（开机自启时最小化到任务栏）
+    #[serde(default)]
+    pub silent_start: bool,
+
     // 文件日志开关（默认开启）
     #[serde(default = "default_log_to_file")]
     pub log_to_file: bool,
@@ -1269,6 +1269,7 @@ impl Default for AppSettings {
             auto_scroll_logs: default_auto_scroll_logs(),
             max_log_lines: default_max_log_lines(),
             auto_start: false,
+            silent_start: false,
             log_to_file: default_log_to_file(),
             dark_mode: true,
             theme_mode: "auto".to_string(),

@@ -704,7 +704,7 @@ fn load_logo_texture(ctx: &egui::Context) -> Option<egui::TextureHandle> {
 
 // Windows 开机自启动注册表操作函数
 #[cfg(target_os = "windows")]
-pub(crate) fn enable_auto_start() {
+pub(crate) fn enable_auto_start(silent: bool) {
     let exe_path = match std::env::current_exe() {
         Ok(p) => p,
         Err(e) => {
@@ -714,13 +714,19 @@ pub(crate) fn enable_auto_start() {
     };
 
     let path_str = exe_path.to_string_lossy().to_string();
+    let arg = if silent {
+        format!("\"{}\" --minimized", path_str)
+    } else {
+        format!("\"{}\"", path_str)
+    };
+
     match std::process::Command::new("reg")
         .arg("add")
         .arg(r#"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run"#)
         .arg("/v")
         .arg("llama.cpp launcher")
         .arg("/d")
-        .arg(format!("\"{}\" --minimized", path_str))
+        .arg(arg)
         .arg("/f")
         .output()
     {
@@ -764,7 +770,7 @@ pub(crate) fn disable_auto_start() {
 
 // 非 Windows 平台的实现
 #[cfg(not(target_os = "windows"))]
-pub(crate) fn enable_auto_start() {
+pub(crate) fn enable_auto_start(silent: bool) {
     use std::fs;
 
     let autostart_dir = dirs::config_dir()
@@ -780,16 +786,22 @@ pub(crate) fn enable_auto_start() {
         }
     };
 
+    let exec_arg = if silent {
+        format!("{} --minimized", exe_path.display())
+    } else {
+        format!("{}", exe_path.display())
+    };
+
     let desktop_content = format!(
         r#"[Desktop Entry]
 Type=Application
 Name=LLama Launcher
-Exec={} --minimized
+Exec={}
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
 "#,
-        exe_path.display()
+        exec_arg
     );
 
     let desktop_path = autostart_dir.join("llama-cpp-launcher.desktop");

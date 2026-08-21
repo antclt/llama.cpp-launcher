@@ -99,11 +99,30 @@ pub fn ui(
             ) {
                 settings.auto_start = auto;
                 if auto {
-                    enable_auto_start();
+                    enable_auto_start(settings.silent_start);
                 } else {
                     disable_auto_start();
                 }
                 let _ = settings_manager.save(settings);
+            }
+
+            // 静默启动开关（仅在开机自启开启时显示）
+            if settings.auto_start {
+                ui.add_space(4.0);
+                let mut silent = settings.silent_start;
+                if widgets::toggle(
+                    ui,
+                    &mut silent,
+                    i18n::t(i18n::Key::MenuItemSilentStart, lang),
+                    accent,
+                ) {
+                    settings.silent_start = silent;
+                    // 更新注册表项以反映新的静默启动设置
+                    if settings.auto_start {
+                        enable_auto_start(silent);
+                    }
+                    let _ = settings_manager.save(settings);
+                }
             }
 
             ui.add_space(6.0);
