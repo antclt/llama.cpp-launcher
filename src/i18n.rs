@@ -411,6 +411,20 @@ pub enum Key {
     HelpSsl,
     HelpReusePort,
     HelpNuma,
+
+    // Server 面板 - 下载 llama.cpp
+    BtnDownloadLlamaCpp,
+    BtnCheckUpdate,
+    VariantCpu,
+    VariantGpuCuda,
+    VariantGpuVulkan,
+    DlPhaseFetching,
+    DlPhaseDownloading,
+    DlPhaseExtracting,
+    DlPhaseLocating,
+    DlSuccess,
+    DlFailed,
+    CheckUpdateTooltip,
 }
 
 impl Key {
@@ -1159,6 +1173,32 @@ impl Key {
             (Key::HelpReusePort, &Language::En) => "Allow SO_REUSEPORT so multiple sockets can bind the same port",
             (Key::HelpNuma, &Language::Zh) => "NUMA 优化：distribute=均分节点 / isolate=仅本节点线程 / numactl=用系统 NUMA 映射。留空=不拼接",
             (Key::HelpNuma, &Language::En) => "NUMA optimization: distribute / isolate / numactl. Empty=not passed",
+
+            // Server 面板 - 下载 llama.cpp
+            (Key::BtnDownloadLlamaCpp, &Language::Zh) => "下载 llama.cpp",
+            (Key::BtnDownloadLlamaCpp, &Language::En) => "Download llama.cpp",
+            (Key::BtnCheckUpdate, &Language::Zh) => "检查更新",
+            (Key::BtnCheckUpdate, &Language::En) => "Check for Update",
+            (Key::VariantCpu, &Language::Zh) => "CPU",
+            (Key::VariantCpu, &Language::En) => "CPU",
+            (Key::VariantGpuCuda, &Language::Zh) => "GPU (CUDA 12.4)",
+            (Key::VariantGpuCuda, &Language::En) => "GPU (CUDA 12.4)",
+            (Key::VariantGpuVulkan, &Language::Zh) => "GPU (Vulkan)",
+            (Key::VariantGpuVulkan, &Language::En) => "GPU (Vulkan)",
+            (Key::DlPhaseFetching, &Language::Zh) => "正在获取最新版本...",
+            (Key::DlPhaseFetching, &Language::En) => "Fetching latest release...",
+            (Key::DlPhaseDownloading, &Language::Zh) => "正在下载...",
+            (Key::DlPhaseDownloading, &Language::En) => "Downloading...",
+            (Key::DlPhaseExtracting, &Language::Zh) => "正在解压...",
+            (Key::DlPhaseExtracting, &Language::En) => "Extracting...",
+            (Key::DlPhaseLocating, &Language::Zh) => "正在定位 llama-server...",
+            (Key::DlPhaseLocating, &Language::En) => "Locating llama-server...",
+            (Key::DlSuccess, &Language::Zh) => "下载完成，已自动配置 llama-server 路径",
+            (Key::DlSuccess, &Language::En) => "Download complete, llama-server path configured",
+            (Key::DlFailed, &Language::Zh) => "下载失败",
+            (Key::DlFailed, &Language::En) => "Download failed",
+            (Key::CheckUpdateTooltip, &Language::Zh) => "敬请期待",
+            (Key::CheckUpdateTooltip, &Language::En) => "Coming soon",
         }
     }
 }
