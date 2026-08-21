@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -238,6 +239,11 @@ fn default_theme_mode() -> String {
 
 fn default_accent_color() -> String {
     "#FF2D55".to_string()
+}
+
+// llama.cpp 下载变体偏好默认值
+fn default_download_variant() -> String {
+    "cpu".to_string()
 }
 
 // context / batch_size / ubatch_size 以 k 为单位存储 (1k = 1024)
@@ -1148,6 +1154,10 @@ pub struct AppSettings {
     #[serde(default)]
     pub language: String,
 
+    // llama.cpp 下载变体偏好："cpu" 或 "gpu"（gpu: Windows=CUDA 12.4, Linux=Vulkan）
+    #[serde(default = "default_download_variant")]
+    pub download_variant: String,
+
     // llama.cpp 版本信息（不序列化，运行时缓存）
     #[serde(skip, default)]
     pub llama_version: String,
@@ -1275,6 +1285,7 @@ impl Default for AppSettings {
             theme_mode: "auto".to_string(),
             accent_color: default_accent_color(),
             language: String::new(),
+            download_variant: default_download_variant(),
             auto_start_preset_name: None,
             llama_version: String::new(),
             kv_cache_result: None,
@@ -1306,6 +1317,11 @@ impl SettingsManager {
             .unwrap_or_else(|_| PathBuf::from("."));
 
         Self { config_dir }
+    }
+
+    /// 返回配置目录路径（下载功能共用）
+    pub fn config_dir(&self) -> &Path {
+        &self.config_dir
     }
 
     pub fn load(&self) -> Result<AppSettings, String> {
@@ -1340,36 +1356,66 @@ impl SettingsManager {
         }
     }
 
-    /// 在指定目录及其匹配关键词的子目录中查找可执行文件
-    /// 优先级：1. 目录本身  2. 名称包含 keyword 的子目录（按目录名排序，保证确定性）
+    /// 在指定目录及其子目录中 BFS 查找可执行文件（限深 MAX_DEPTH 层）
+    /// 优先级：1. 目录本身  2. 浅层优先；同层中名称含 keyword（忽略大小写）的目录优先，
+    /// 再按目录名忽略大小写字典序 —— 保证确定性。
+    /// 兼容旧行为：keyword 子目录 1 层的匹配仍最先被检查。
     fn find_exe_recursive(&self, dir: &Path, exe_name: &str, keyword: &str) -> Option<PathBuf> {
+        const MAX_DEPTH: usize = 4; // 相对给定目录的最大子目录深度
+
         // 1. 先在目录本身查找
         if let Some(path) = Self::find_exe_in_dir(dir, exe_name) {
             return Some(path);
         }
 
-        // 2. 在名称包含 keyword 的子目录中查找
-        let entries = fs::read_dir(dir).ok()?;
-        let mut subdirs: Vec<_> = entries
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().is_dir())
-            .filter(|e| {
-                e.file_name()
-                    .to_string_lossy()
-                    .to_lowercase()
-                    .contains(&keyword.to_lowercase())
-            })
-            .map(|e| e.path())
-            .collect();
-        subdirs.sort();
+        // 2. BFS：入队 dir 的子目录（深度 1），逐层弹出检查
+        let keyword_lower = keyword.to_lowercase();
+        let mut queue: VecDeque<(PathBuf, usize)> = VecDeque::new();
+        for d in Self::list_subdirs_sorted(dir, &keyword_lower) {
+            queue.push_back((d, 1));
+        }
 
-        for subdir in subdirs {
-            if let Some(path) = Self::find_exe_in_dir(&subdir, exe_name) {
+        while let Some((current, depth)) = queue.pop_front() {
+            if let Some(path) = Self::find_exe_in_dir(&current, exe_name) {
                 return Some(path);
+            }
+            // 未超过最大深度时入队其子目录
+            if depth < MAX_DEPTH {
+                for sub in Self::list_subdirs_sorted(&current, &keyword_lower) {
+                    queue.push_back((sub, depth + 1));
+                }
             }
         }
 
         None
+    }
+
+    /// 列出指定目录下的子目录（read_dir 错误静默跳过）
+    /// 排序规则：名称含 keyword（忽略大小写）者优先，再按目录名忽略大小写字典序（确定性）
+    fn list_subdirs_sorted(dir: &Path, keyword_lower: &str) -> Vec<PathBuf> {
+        let mut subdirs: Vec<PathBuf> = fs::read_dir(dir)
+            .ok()
+            .map(|entries| {
+                entries
+                    .filter_map(|e| e.ok())
+                    .filter(|e| e.path().is_dir())
+                    .map(|e| e.path())
+                    .collect()
+            })
+            .unwrap_or_default();
+        subdirs.sort_by(|a, b| {
+            let name = |p: &Path| -> String {
+                p.file_name()
+                    .map(|n| n.to_string_lossy().to_lowercase())
+                    .unwrap_or_default()
+            };
+            let a_name = name(a);
+            let b_name = name(b);
+            let a_kw = a_name.contains(keyword_lower) as u8;
+            let b_kw = b_name.contains(keyword_lower) as u8;
+            b_kw.cmp(&a_kw).then_with(|| a_name.cmp(&b_name))
+        });
+        subdirs
     }
 
     /// 自动检测 llama-server 路径
@@ -1400,5 +1446,94 @@ pub fn is_rpc_binary_name(name: &str) -> bool {
         name == "ggml-rpc-server.exe" || name == "rpc-server.exe"
     } else {
         name == "ggml-rpc-server" || name == "rpc-server"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 拼接平台对应的 exe 文件名
+    fn exe_filename(name: &str) -> String {
+        if cfg!(target_os = "windows") {
+            format!("{}.exe", name)
+        } else {
+            name.to_string()
+        }
+    }
+
+    /// 创建目录（含父目录）并写入一个 dummy 可执行文件
+    fn make_exe(dir: &Path, name: &str) -> PathBuf {
+        fs::create_dir_all(dir).expect("create dir");
+        let p = dir.join(name);
+        fs::write(&p, b"fake exe").expect("write dummy exe");
+        p
+    }
+
+    fn manager() -> SettingsManager {
+        SettingsManager::new()
+    }
+
+    /// 回归：目录本身包含 exe → 直接返回
+    #[test]
+    fn find_exe_recursive_dir_itself() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let exe = make_exe(tmp.path(), &exe_filename("llama-server"));
+        let found = manager().find_exe_recursive(tmp.path(), "llama-server", "llama");
+        assert_eq!(found, Some(exe));
+    }
+
+    /// 回归：keyword 命名的子目录 1 层深度包含 exe → 返回
+    #[test]
+    fn find_exe_recursive_keyword_subdir_one_level() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let exe = make_exe(
+            &tmp.path().join("llama-b10549"),
+            &exe_filename("llama-server"),
+        );
+        let found = manager().find_exe_recursive(tmp.path(), "llama-server", "llama");
+        assert_eq!(found, Some(exe));
+    }
+
+    /// 新能力：深路径 llama/llama-b10549/bin/llama-server（深度 3）→ 命中
+    #[test]
+    fn find_exe_recursive_deep_path_depth_3() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let exe = make_exe(
+            &tmp.path().join("llama").join("llama-b10549").join("bin"),
+            &exe_filename("llama-server"),
+        );
+        let found = manager().find_exe_recursive(tmp.path(), "llama-server", "llama");
+        assert_eq!(found, Some(exe));
+    }
+
+    /// 限深生效：深度 5 的目录中的 exe → 不命中
+    #[test]
+    fn find_exe_recursive_depth_5_not_found() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        // 深度：a(1) / b(2) / c(3) / d(4) / e(5)，exe 位于深度 5 的目录
+        let exe = make_exe(
+            &tmp
+                .path()
+                .join("a")
+                .join("b")
+                .join("c")
+                .join("d")
+                .join("e"),
+            &exe_filename("llama-server"),
+        );
+        assert!(exe.exists());
+        let found = manager().find_exe_recursive(tmp.path(), "llama-server", "llama");
+        assert_eq!(found, None);
+    }
+
+    /// download_variant serde 默认值：旧配置（缺字段）反序列化后为 "cpu"
+    #[test]
+    fn app_settings_download_variant_default() {
+        assert_eq!(default_download_variant(), "cpu");
+        let json = r#"{"server_path":"","host":"127.0.0.1","port":8080,"parallel_slots":1,"model_path":"","mmproj_path":"","temperature":0.8,"top_p":0.95,"top_k":40,"repeat_penalty":1.1,"presence_penalty":0.0,"kv_offload":false,"cache_type_k":"f16","cache_type_v":"f16","kv_mlock":false,"kv_mmap":true,"kv_unified":false,"gpu_layers_mode":"auto","split_mode":"none","tensor_split":"","cpu_moe":false,"n_cpu_moe":0,"rpc_server_path":"","rpc_host":"127.0.0.1","rpc_port":50052,"rpc_threads":8,"rpc_device":"","rpc_cache":false,"verbose":false}"#;
+        let settings: AppSettings =
+            serde_json::from_str(json).expect("旧格式配置应可反序列化");
+        assert_eq!(settings.download_variant, "cpu");
     }
 }
