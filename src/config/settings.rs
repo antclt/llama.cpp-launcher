@@ -1154,13 +1154,20 @@ pub struct AppSettings {
     #[serde(default)]
     pub language: String,
 
-    // llama.cpp 下载变体偏好："cpu" 或 "gpu"（gpu: Windows=CUDA 12.4, Linux=Vulkan）
+    // llama.cpp 下载变体偏好：
+    // "cpu" | "cuda124" | "cuda133" | "rocm714" | "vulkan"
+    // （兼容旧值 "gpu"：Windows→cuda124, Linux→vulkan）
     #[serde(default = "default_download_variant")]
     pub download_variant: String,
 
     // llama.cpp 版本信息（不序列化，运行时缓存）
     #[serde(skip, default)]
     pub llama_version: String,
+
+    // 检查更新结果（不序列化，运行时缓存）
+    // Some(true)=有新版本 Some(false)=已是最新 None=尚未检查
+    #[serde(skip, default)]
+    pub update_available: Option<bool>,
 
     // KV 缓存计算结果（运行时缓存，不序列化）
     #[serde(skip, default)]
@@ -1288,6 +1295,7 @@ impl Default for AppSettings {
             download_variant: default_download_variant(),
             auto_start_preset_name: None,
             llama_version: String::new(),
+            update_available: None,
             kv_cache_result: None,
         }
     }
@@ -1513,13 +1521,7 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         // 深度：a(1) / b(2) / c(3) / d(4) / e(5)，exe 位于深度 5 的目录
         let exe = make_exe(
-            &tmp
-                .path()
-                .join("a")
-                .join("b")
-                .join("c")
-                .join("d")
-                .join("e"),
+            &tmp.path().join("a").join("b").join("c").join("d").join("e"),
             &exe_filename("llama-server"),
         );
         assert!(exe.exists());
@@ -1532,8 +1534,7 @@ mod tests {
     fn app_settings_download_variant_default() {
         assert_eq!(default_download_variant(), "cpu");
         let json = r#"{"server_path":"","host":"127.0.0.1","port":8080,"parallel_slots":1,"model_path":"","mmproj_path":"","temperature":0.8,"top_p":0.95,"top_k":40,"repeat_penalty":1.1,"presence_penalty":0.0,"kv_offload":false,"cache_type_k":"f16","cache_type_v":"f16","kv_mlock":false,"kv_mmap":true,"kv_unified":false,"gpu_layers_mode":"auto","split_mode":"none","tensor_split":"","cpu_moe":false,"n_cpu_moe":0,"rpc_server_path":"","rpc_host":"127.0.0.1","rpc_port":50052,"rpc_threads":8,"rpc_device":"","rpc_cache":false,"verbose":false}"#;
-        let settings: AppSettings =
-            serde_json::from_str(json).expect("旧格式配置应可反序列化");
+        let settings: AppSettings = serde_json::from_str(json).expect("旧格式配置应可反序列化");
         assert_eq!(settings.download_variant, "cpu");
     }
 }
