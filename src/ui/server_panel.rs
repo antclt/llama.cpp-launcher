@@ -80,73 +80,78 @@ pub fn ui(
                     .button(i18n::t(i18n::Key::BtnCheckVersion, lang))
                     .clicked()
                 {
-                    let mut cmd = std::process::Command::new(&settings.server_path);
-                    cmd.arg("--version")
-                        .stdout(std::process::Stdio::piped())
-                        .stderr(std::process::Stdio::piped());
-                    #[cfg(target_os = "windows")]
-                    cmd.creation_flags(0x0800_0000u32); // CREATE_NO_WINDOW
-                    match cmd.output() {
-                        Ok(output) => {
-                            let stdout = String::from_utf8_lossy(&output.stdout);
-                            let stderr = String::from_utf8_lossy(&output.stderr);
-                            let version = stdout
-                                .lines()
-                                .chain(stderr.lines())
-                                .find(|line| line.contains("version:"))
-                                .and_then(|line| {
-                                    line.split_once("version:")
-                                        .map(|(_, v)| v.trim().to_string())
-                                })
-                                .unwrap_or_else(|| "未知版本".to_string());
-                            settings.llama_version = version;
-                        }
-                        Err(e) => {
-                            settings.llama_version = format!("获取失败: {}", e);
-                        }
-                    }
+                    settings.llama_version = get_local_llama_version(&settings.server_path);
                 }
 
                 if !settings.llama_version.is_empty() {
                     ui.small(egui::RichText::new(&settings.llama_version).weak());
                 }
+                if settings.update_available == Some(true) {
+                    ui.small(
+                        egui::RichText::new(i18n::t(i18n::Key::StatusNewVersion, lang)).weak(),
+                    );
+                }
             });
 
-            // 变体选择 + 下载 llama.cpp + 检查更新（占位）
+            ui.separator();
+
+            // llama.cpp 下载子区标题（与参数面板"思考 (Reasoning)"同风格：显式主文本色 + strong）
+            ui.label(
+                egui::RichText::new(i18n::t(i18n::Key::SubSectionLlamaCppDownload, lang))
+                    .color(ui.visuals().text_color())
+                    .strong(),
+            );
+
+            // 变体选择（按平台展示对应选项）
             let platform_supported = cfg!(target_os = "windows") || cfg!(target_os = "linux");
             let busy = downloader.is_busy();
-            ui.horizontal(|ui| {
-                let is_linux = cfg!(target_os = "linux");
-                let gpu_key = if is_linux {
-                    i18n::Key::VariantGpuVulkan
+            let is_linux = cfg!(target_os = "linux");
+
+            // 兼容旧版：把历史 "gpu" 归一化为当前平台默认 GPU 变体（幂等）
+            if settings.download_variant == "gpu" {
+                settings.download_variant = if is_linux {
+                    "vulkan".to_string()
                 } else {
-                    i18n::Key::VariantGpuCuda
+                    "cuda124".to_string()
                 };
+            }
+
+            ui.horizontal(|ui| {
                 ui.selectable_value(
                     &mut settings.download_variant,
                     "cpu".to_string(),
                     i18n::t(i18n::Key::VariantCpu, lang),
                 );
+                if !is_linux {
+                    ui.selectable_value(
+                        &mut settings.download_variant,
+                        "cuda124".to_string(),
+                        i18n::t(i18n::Key::VariantGpuCuda, lang),
+                    );
+                    ui.selectable_value(
+                        &mut settings.download_variant,
+                        "cuda133".to_string(),
+                        i18n::t(i18n::Key::VariantGpuCuda133, lang),
+                    );
+                    ui.selectable_value(
+                        &mut settings.download_variant,
+                        "rocm714".to_string(),
+                        i18n::t(i18n::Key::VariantGpuRocm714, lang),
+                    );
+                }
                 ui.selectable_value(
                     &mut settings.download_variant,
-                    "gpu".to_string(),
-                    i18n::t(gpu_key, lang),
+                    "vulkan".to_string(),
+                    i18n::t(i18n::Key::VariantGpuVulkan, lang),
                 );
+            });
 
-                let variant = if is_linux {
-                    if settings.download_variant == "gpu" {
-                        crate::downloader::DownloadVariant::LinuxVulkan
-                    } else {
-                        crate::downloader::DownloadVariant::LinuxCpu
-                    }
-                } else if settings.download_variant == "gpu" {
-                    crate::downloader::DownloadVariant::WinCuda124
-                } else if cfg!(target_arch = "aarch64") {
-                    crate::downloader::DownloadVariant::WinCpuArm64
-                } else {
-                    crate::downloader::DownloadVariant::WinCpu
-                };
+            // 解析当前选中配置对应的下载变体（平台感知 + 兜底）
+            let variant =
+                crate::downloader::DownloadVariant::from_settings_value(&settings.download_variant);
 
+            // 下载 llama.cpp + 检查更新：单独一行
+            ui.horizontal(|ui| {
                 if ui
                     .add_enabled(
                         platform_supported && !busy,
@@ -157,11 +162,28 @@ pub fn ui(
                     downloader.start_download(settings_manager.config_dir().to_path_buf(), variant);
                 }
 
-                let check_btn = ui.add_enabled(
-                    false,
-                    egui::Button::new(i18n::t(i18n::Key::BtnCheckUpdate, lang)),
-                );
-                check_btn.on_hover_text(i18n::t(i18n::Key::CheckUpdateTooltip, lang));
+                // 检查更新：llama-server 路径非空时可用
+                if ui
+                    .add_enabled(
+                        !settings.server_path.to_string_lossy().is_empty(),
+                        egui::Button::new(i18n::t(i18n::Key::BtnCheckUpdate, lang)),
+                    )
+                    .clicked()
+                {
+                    // 刷新本地版本缓存并获取最新 tag 比对
+                    settings.llama_version = get_local_llama_version(&settings.server_path);
+                    match crate::downloader::fetch_latest_tag() {
+                        Ok(latest) => {
+                            // 比对 build 标签（如 b10549）；本地无法解析时视为有新版本
+                            let up_to_date =
+                                extract_build_tag(&settings.llama_version) == Some(latest);
+                            settings.update_available = Some(!up_to_date);
+                        }
+                        Err(e) => {
+                            log::error!("检查更新失败: {}", e);
+                        }
+                    }
+                }
             });
 
             // 进度/状态行（仅非 Idle 时渲染）
@@ -177,7 +199,13 @@ pub fn ui(
                         ui.label(i18n::t(phase_key, lang));
                         let ratio = snapshot
                             .total
-                            .map(|t| if t > 0 { snapshot.done as f32 / t as f32 } else { 0.0 })
+                            .map(|t| {
+                                if t > 0 {
+                                    snapshot.done as f32 / t as f32
+                                } else {
+                                    0.0
+                                }
+                            })
                             .unwrap_or(0.0);
                         ui.add(
                             egui::ProgressBar::new(ratio).text(format!("{:.1}%", ratio * 100.0)),
@@ -188,7 +216,11 @@ pub fn ui(
                     ui.label(i18n::t(i18n::Key::DlSuccess, lang));
                 }
                 crate::downloader::DownloadState::Error(message) => {
-                    ui.label(format!("{}: {}", i18n::t(i18n::Key::DlFailed, lang), message));
+                    ui.label(format!(
+                        "{}: {}",
+                        i18n::t(i18n::Key::DlFailed, lang),
+                        message
+                    ));
                 }
                 crate::downloader::DownloadState::Idle => {}
             }
@@ -397,4 +429,67 @@ pub fn ui(
             });
         },
     );
+}
+
+/// 运行 llama-server --version，返回解析出的版本字符串
+fn get_local_llama_version(server_path: &std::path::Path) -> String {
+    let mut cmd = std::process::Command::new(server_path);
+    cmd.arg("--version")
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(0x0800_0000u32); // CREATE_NO_WINDOW
+    match cmd.output() {
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let all_lines: Vec<&str> = stdout.lines().chain(stderr.lines()).collect();
+            // 兼容 "version: xxx" 与 llama.cpp 的 "version = xxx (bxxx, hash)" 两种格式
+            let version_line = all_lines
+                .iter()
+                .find(|line| line.contains("version:"))
+                .or_else(|| {
+                    all_lines
+                        .iter()
+                        .find(|line| line.trim_start().starts_with("version"))
+                });
+            version_line
+                .and_then(|line| {
+                    // 去掉 "version:" / "version =" 前缀，保留版本号部分
+                    let value = if let Some(v) = line.split_once("version:") {
+                        v.1
+                    } else if let Some(v) = line.split_once("version") {
+                        v.1
+                    } else {
+                        return None;
+                    };
+                    let trimmed = value.trim().trim_start_matches('=').trim();
+                    if trimmed.is_empty() {
+                        None
+                    } else {
+                        Some(trimmed.to_string())
+                    }
+                })
+                .unwrap_or_else(|| "未知版本".to_string())
+        }
+        Err(e) => format!("获取失败: {}", e),
+    }
+}
+
+/// 从版本字符串中提取 build 标签（如 "b10549"）
+fn extract_build_tag(version: &str) -> Option<String> {
+    let bytes = version.as_bytes();
+    let mut i = 0;
+    while i + 1 < bytes.len() {
+        if bytes[i] == b'b' && bytes[i + 1].is_ascii_digit() {
+            let start = i + 1;
+            let mut end = start;
+            while end < bytes.len() && bytes[end].is_ascii_digit() {
+                end += 1;
+            }
+            return Some(format!("b{}", &version[start..end]));
+        }
+        i += 1;
+    }
+    None
 }
