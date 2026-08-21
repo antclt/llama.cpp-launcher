@@ -513,7 +513,7 @@ impl Key {
             (Key::BtnHostLocal, &Language::En) => "Local",
             (Key::BtnHostAny, &Language::Zh) => "任意网络",
             (Key::BtnHostAny, &Language::En) => "Any",
-            (Key::BtnSavePreset, &Language::Zh) => "保存预设",
+            (Key::BtnSavePreset, &Language::Zh) => "保存参数预设",
             (Key::BtnSavePreset, &Language::En) => "Save Preset",
 
             // 导出/导入参数预设
