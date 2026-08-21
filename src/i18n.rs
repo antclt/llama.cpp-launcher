@@ -341,6 +341,7 @@ pub enum Key {
 
     // Server 面板 - 版本
     BtnCheckVersion,
+    StatusNewVersion,
 
     // 参数面板帮助文本
     HelpNCtx,
@@ -417,6 +418,8 @@ pub enum Key {
     BtnCheckUpdate,
     VariantCpu,
     VariantGpuCuda,
+    VariantGpuCuda133,
+    VariantGpuRocm714,
     VariantGpuVulkan,
     DlPhaseFetching,
     DlPhaseDownloading,
@@ -425,6 +428,7 @@ pub enum Key {
     DlSuccess,
     DlFailed,
     CheckUpdateTooltip,
+    SubSectionLlamaCppDownload,
 }
 
 impl Key {
@@ -1038,6 +1042,8 @@ impl Key {
             // Server 面板 - 版本
             (Key::BtnCheckVersion, &Language::Zh) => "查看 llama.cpp 版本",
             (Key::BtnCheckVersion, &Language::En) => "Check llama.cpp version",
+            (Key::StatusNewVersion, &Language::Zh) => "有新版本",
+            (Key::StatusNewVersion, &Language::En) => "New version available",
 
             // 参数面板帮助文本
             (Key::HelpNCtx, &Language::Zh) => "上下文长度（单位：k），影响显存占用和推理能力",
@@ -1183,6 +1189,10 @@ impl Key {
             (Key::VariantCpu, &Language::En) => "CPU",
             (Key::VariantGpuCuda, &Language::Zh) => "GPU (CUDA 12.4)",
             (Key::VariantGpuCuda, &Language::En) => "GPU (CUDA 12.4)",
+            (Key::VariantGpuCuda133, &Language::Zh) => "GPU (CUDA 13.3)",
+            (Key::VariantGpuCuda133, &Language::En) => "GPU (CUDA 13.3)",
+            (Key::VariantGpuRocm714, &Language::Zh) => "GPU (ROCm 7.14)",
+            (Key::VariantGpuRocm714, &Language::En) => "GPU (ROCm 7.14)",
             (Key::VariantGpuVulkan, &Language::Zh) => "GPU (Vulkan)",
             (Key::VariantGpuVulkan, &Language::En) => "GPU (Vulkan)",
             (Key::DlPhaseFetching, &Language::Zh) => "正在获取最新版本...",
@@ -1199,6 +1209,8 @@ impl Key {
             (Key::DlFailed, &Language::En) => "Download failed",
             (Key::CheckUpdateTooltip, &Language::Zh) => "敬请期待",
             (Key::CheckUpdateTooltip, &Language::En) => "Coming soon",
+            (Key::SubSectionLlamaCppDownload, &Language::Zh) => "llama.cpp 下载与更新",
+            (Key::SubSectionLlamaCppDownload, &Language::En) => "llama.cpp Download & Update",
         }
     }
 }
