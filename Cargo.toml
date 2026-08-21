@@ -22,6 +22,12 @@ egui-thematic = "0.1.1"
 iconflow = { version = "1.0.0", features = ["pack-fluentui"] }
 image = "0.25"
 
+# llama.cpp 下载/解压相关（ureq: 同步下载 release 资产; zip/tar/flate2: 解压资产）
+ureq = { version = "2", features = ["gzip"] }
+zip = "2"
+tar = "0.4"
+flate2 = "1"
+
 [target.'cfg(windows)'.dependencies]
 shortcuts-rs = "1.1.1"
 # 复用 eframe 已引入的版本（0.6.2 / 0.61.2），仅追加 DWM 所需 feature
@@ -31,6 +37,9 @@ windows-sys = { version = "0.61.2", features = ["Win32_Graphics_Dwm", "Win32_Fou
 [target.'cfg(target_os = "linux")'.dependencies]
 # Linux 需要 x11 后端支持 winit/eframe
 eframe = { version = "0.33", default-features = false, features = ["glow", "default_fonts", "x11"] }
+
+[dev-dependencies]
+tempfile = "3"
 
 [build-dependencies]
 winres = "0.1.12"
