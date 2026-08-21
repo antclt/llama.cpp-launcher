@@ -445,7 +445,7 @@ pub fn pick_asset(assets: &[Asset], variant: DownloadVariant) -> Option<&Asset> 
 /// 定位解压后的 llama-server 二进制：
 /// 1) 优先官方资产标准路径：<extract_root>/<asset_stem>/build/bin/llama-server(.exe)；
 /// 2) 兜底 BFS（限深 4），目录排序：名称含 "llama"（忽略大小写）者优先，再按字典序 —— 保证确定性；
-/// read_dir 错误静默跳过
+///    read_dir 错误静默跳过
 pub fn find_server_binary(
     extract_root: &Path,
     asset_stem: &str,
@@ -494,7 +494,7 @@ fn push_subdirs(queue: &mut VecDeque<(PathBuf, usize)>, dir: &Path, depth: usize
         .map(|e| e.path())
         .filter(|p| p.is_dir())
         .collect();
-    dirs.sort_by(|a, b| sort_key(a).cmp(&sort_key(b)));
+    dirs.sort_by_key(|d| sort_key(d));
     for d in dirs {
         queue.push_back((d, depth));
     }
