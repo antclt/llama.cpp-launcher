@@ -176,6 +176,10 @@ jobs:
     needs: [ build-windows, build-linux ]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Download Windows artifact
         uses: actions/download-artifact@v4
         with:
@@ -203,8 +207,91 @@ jobs:
       - name: List artifacts
         run: ls -la dist/
 
+      - name: Generate detailed changelog
+        id: changelog
+        run: |
+          # 获取当前 tag
+          CURRENT_TAG=${GITHUB_REF#refs/tags/}
+          echo "当前版本: $CURRENT_TAG"
+          
+          # 获取上一个 tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 ${CURRENT_TAG}^ 2>/dev/null || echo "")
+          echo "上一个版本: $PREVIOUS_TAG"
+          
+          # 生成 changelog
+          CHANGELOG="## What's Changed\n\n"
+          
+          if [ -z "$PREVIOUS_TAG" ]; then
+            # 没有上一个 tag，显示所有 commits
+            COMMITS=$(git log --pretty=format:"- %s (%h)" HEAD)
+            CHANGELOG+="### Commits\n${COMMITS}\n"
+          else
+            # 获取两个 tag 之间的 commits
+            echo "获取 $PREVIOUS_TAG 到 $CURRENT_TAG 之间的变更..."
+            
+            # 获取所有 commits
+            COMMITS=$(git log ${PREVIOUS_TAG}..${CURRENT_TAG} --pretty=format:"- %s (%h)")
+            
+            # 按类型分类 commits
+            FEATURES=$(echo "$COMMITS" | grep -i "^- feat" || true)
+            FIXES=$(echo "$COMMITS" | grep -i "^- fix" || true)
+            DOCS=$(echo "$COMMITS" | grep -i "^- docs" || true)
+            REFACTOR=$(echo "$COMMITS" | grep -i "^- refactor" || true)
+            PERF=$(echo "$COMMITS" | grep -i "^- perf" || true)
+            TEST=$(echo "$COMMITS" | grep -i "^- test" || true)
+            CHORE=$(echo "$COMMITS" | grep -i "^- chore\|^- build\|^- ci" || true)
+            OTHER=$(echo "$COMMITS" | grep -vi "^- feat\|^- fix\|^- docs\|^- refactor\|^- perf\|^- test\|^- chore\|^- build\|^- ci" || true)
+            
+            # 构建 changelog
+            if [ -n "$FEATURES" ]; then
+              CHANGELOG+="### 🚀 Features\n${FEATURES}\n\n"
+            fi
+            
+            if [ -n "$FIXES" ]; then
+              CHANGELOG+="### 🐛 Bug Fixes\n${FIXES}\n\n"
+            fi
+            
+            if [ -n "$DOCS" ]; then
+              CHANGELOG+="### 📚 Documentation\n${DOCS}\n\n"
+            fi
+            
+            if [ -n "$REFACTOR" ]; then
+              CHANGELOG+="### ♻️ Refactoring\n${REFACTOR}\n\n"
+            fi
+            
+            if [ -n "$PERF" ]; then
+              CHANGELOG+="### ⚡ Performance\n${PERF}\n\n"
+            fi
+            
+            if [ -n "$TEST" ]; then
+              CHANGELOG+="### ✅ Tests\n${TEST}\n\n"
+            fi
+            
+            if [ -n "$CHORE" ]; then
+              CHANGELOG+="### 🔧 Maintenance\n${CHORE}\n\n"
+            fi
+            
+            if [ -n "$OTHER" ]; then
+              CHANGELOG+="### 📦 Other Changes\n${OTHER}\n\n"
+            fi
+            
+            # 添加贡献者列表
+            CHANGELOG+="### 👥 Contributors\n\n"
+            CONTRIBUTORS=$(git log ${PREVIOUS_TAG}..${CURRENT_TAG} --pretty=format:"- @%an" | sort -u)
+            CHANGELOG+="${CONTRIBUTORS}\n"
+          fi
+          
+          # 保存到文件
+          echo -e "$CHANGELOG" > CHANGELOG.md
+          echo "Changelog 已生成"
+          cat CHANGELOG.md
+          
+          # 设置输出
+          echo "path=CHANGELOG.md" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
+          body_path: CHANGELOG.md
           generate_release_notes: true
