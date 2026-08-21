@@ -274,6 +274,7 @@ pub fn ui(
                         settings.ssl_key_file = path;
                     }
                 }
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSsl, lang));
             });
             // 端口复用（开关在最左面）
             ui.horizontal(|ui| {
