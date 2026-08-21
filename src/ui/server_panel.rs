@@ -13,7 +13,17 @@ pub fn ui(
     settings_manager: &SettingsManager,
     lang: &i18n::Language,
     #[cfg_attr(not(target_os = "linux"), allow(unused_variables))] server_manager: &ServerManager,
+    downloader: &crate::downloader::DownloadHandle,
 ) {
+    // 下载成功时回写 server_path（幂等）
+    let snapshot = downloader.snapshot();
+    if let crate::downloader::DownloadState::Success(path) = &snapshot.state {
+        let new_path = PathBuf::from(path.as_str());
+        if settings.server_path != new_path {
+            settings.server_path = new_path;
+        }
+    }
+
     let accent = crate::theme::accent_color(&settings.accent_color);
 
     // ── Server 路径 ──
@@ -101,6 +111,87 @@ pub fn ui(
                     ui.small(egui::RichText::new(&settings.llama_version).weak());
                 }
             });
+
+            // 变体选择 + 下载 llama.cpp + 检查更新（占位）
+            let platform_supported = cfg!(target_os = "windows") || cfg!(target_os = "linux");
+            let busy = downloader.is_busy();
+            ui.horizontal(|ui| {
+                let is_linux = cfg!(target_os = "linux");
+                let gpu_key = if is_linux {
+                    i18n::Key::VariantGpuVulkan
+                } else {
+                    i18n::Key::VariantGpuCuda
+                };
+                ui.selectable_value(
+                    &mut settings.download_variant,
+                    "cpu".to_string(),
+                    i18n::t(i18n::Key::VariantCpu, lang),
+                );
+                ui.selectable_value(
+                    &mut settings.download_variant,
+                    "gpu".to_string(),
+                    i18n::t(gpu_key, lang),
+                );
+
+                let variant = if is_linux {
+                    if settings.download_variant == "gpu" {
+                        crate::downloader::DownloadVariant::LinuxVulkan
+                    } else {
+                        crate::downloader::DownloadVariant::LinuxCpu
+                    }
+                } else if settings.download_variant == "gpu" {
+                    crate::downloader::DownloadVariant::WinCuda124
+                } else if cfg!(target_arch = "aarch64") {
+                    crate::downloader::DownloadVariant::WinCpuArm64
+                } else {
+                    crate::downloader::DownloadVariant::WinCpu
+                };
+
+                if ui
+                    .add_enabled(
+                        platform_supported && !busy,
+                        egui::Button::new(i18n::t(i18n::Key::BtnDownloadLlamaCpp, lang)),
+                    )
+                    .clicked()
+                {
+                    downloader.start_download(settings_manager.config_dir().to_path_buf(), variant);
+                }
+
+                let check_btn = ui.add_enabled(
+                    false,
+                    egui::Button::new(i18n::t(i18n::Key::BtnCheckUpdate, lang)),
+                );
+                check_btn.on_hover_text(i18n::t(i18n::Key::CheckUpdateTooltip, lang));
+            });
+
+            // 进度/状态行（仅非 Idle 时渲染）
+            match &snapshot.state {
+                crate::downloader::DownloadState::Running => {
+                    let phase_key = match snapshot.phase {
+                        crate::downloader::Phase::FetchingRelease => i18n::Key::DlPhaseFetching,
+                        crate::downloader::Phase::Downloading => i18n::Key::DlPhaseDownloading,
+                        crate::downloader::Phase::Extracting => i18n::Key::DlPhaseExtracting,
+                        crate::downloader::Phase::LocatingServer => i18n::Key::DlPhaseLocating,
+                    };
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(phase_key, lang));
+                        let ratio = snapshot
+                            .total
+                            .map(|t| if t > 0 { snapshot.done as f32 / t as f32 } else { 0.0 })
+                            .unwrap_or(0.0);
+                        ui.add(
+                            egui::ProgressBar::new(ratio).text(format!("{:.1}%", ratio * 100.0)),
+                        );
+                    });
+                }
+                crate::downloader::DownloadState::Success(_) => {
+                    ui.label(i18n::t(i18n::Key::DlSuccess, lang));
+                }
+                crate::downloader::DownloadState::Error(message) => {
+                    ui.label(format!("{}: {}", i18n::t(i18n::Key::DlFailed, lang), message));
+                }
+                crate::downloader::DownloadState::Idle => {}
+            }
         },
     );
 
