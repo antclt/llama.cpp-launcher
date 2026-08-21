@@ -1,6 +1,7 @@
 use crate::config::settings::{
     is_rpc_binary_name, is_server_binary_name, AppSettings, SettingsManager,
 };
+use crate::downloader::DownloadHandle;
 use crate::engine::rpc::{RpcManager, RpcState};
 use crate::engine::server::{ServerManager, ServerState};
 use crate::i18n::{self, Language};
@@ -30,6 +31,7 @@ pub struct LlamaLauncherApp {
     settings_manager: SettingsManager,
     server_manager: ServerManager,
     rpc_manager: RpcManager,
+    downloader: DownloadHandle,
     nav: NavSection,
     logo: Option<egui::TextureHandle>,
     theme_applied: (bool, String),
@@ -130,6 +132,7 @@ impl LlamaLauncherApp {
             settings_manager,
             server_manager,
             rpc_manager,
+            downloader: DownloadHandle::new(),
             nav: NavSection::Server,
             logo,
             theme_applied: (true, String::new()), // 重新应用逻辑在 update 中处理
@@ -582,6 +585,7 @@ impl eframe::App for LlamaLauncherApp {
                                 &self.settings_manager,
                                 &self.lang,
                                 &self.server_manager,
+                                &self.downloader,
                             ),
                             NavSection::Rpc => rpc_panel::ui(
                                 ui,
@@ -645,6 +649,7 @@ impl Drop for LlamaLauncherApp {
     fn drop(&mut self) {
         self.server_manager.stop();
         self.rpc_manager.stop();
+        self.downloader.request_cancel();
         self.save();
     }
 }
