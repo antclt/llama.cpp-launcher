@@ -68,6 +68,10 @@ pub enum DownloadVariant {
     WinCuda124,
     /// Windows x64 CUDA 13.3
     WinCuda133,
+    /// Windows x64 ROCm 7.14
+    WinRocm714,
+    /// Windows x64 Vulkan
+    WinVulkan,
     /// Windows arm64 CPU
     WinCpuArm64,
     /// Linux x64 CPU
@@ -84,6 +88,8 @@ impl DownloadVariant {
             DownloadVariant::WinCpu => "bin-win-cpu-x64",
             DownloadVariant::WinCuda124 => "bin-win-cuda-12.4-x64",
             DownloadVariant::WinCuda133 => "bin-win-cuda-13.3-x64",
+            DownloadVariant::WinRocm714 => "bin-win-rocm-7.14-x64",
+            DownloadVariant::WinVulkan => "bin-win-vulkan-x64",
             DownloadVariant::WinCpuArm64 => "bin-win-cpu-arm64",
             DownloadVariant::LinuxCpu => "bin-ubuntu-x64",
             DownloadVariant::LinuxVulkan => "bin-ubuntu-vulkan-x64",
@@ -95,6 +101,46 @@ impl DownloadVariant {
         match self {
             DownloadVariant::LinuxCpu | DownloadVariant::LinuxVulkan => ".tar.gz",
             _ => ".zip",
+        }
+    }
+
+    /// 根据配置中的 download_variant 值与当前平台解析出实际下载变体
+    ///
+    /// - 配置值（与 UI 选项一致）：`cpu` / `cuda124` / `cuda133` / `rocm714` / `vulkan`
+    /// - GPU 变体仅在对应平台有效：cuda124/cuda133/rocm714 仅 Windows；vulkan 全平台
+    /// - 兼容旧版 `"gpu"`：Windows → CUDA 12.4，Linux → Vulkan
+    /// - 兜底：CPU（Linux x64 / Windows arm64 / Windows x64）
+    pub fn from_settings_value(value: &str) -> Self {
+        let is_linux = cfg!(target_os = "linux");
+        match value {
+            "cuda124" if !is_linux => DownloadVariant::WinCuda124,
+            "cuda133" if !is_linux => DownloadVariant::WinCuda133,
+            "rocm714" if !is_linux => DownloadVariant::WinRocm714,
+            "vulkan" => {
+                if is_linux {
+                    DownloadVariant::LinuxVulkan
+                } else {
+                    DownloadVariant::WinVulkan
+                }
+            }
+            // 兼容旧版 "gpu"
+            "gpu" => {
+                if is_linux {
+                    DownloadVariant::LinuxVulkan
+                } else {
+                    DownloadVariant::WinCuda124
+                }
+            }
+            // CPU 兜底
+            _ => {
+                if is_linux {
+                    DownloadVariant::LinuxCpu
+                } else if cfg!(target_arch = "aarch64") {
+                    DownloadVariant::WinCpuArm64
+                } else {
+                    DownloadVariant::WinCpu
+                }
+            }
         }
     }
 }
@@ -220,6 +266,22 @@ struct ReleaseInfo {
     assets: Vec<Asset>,
 }
 
+/// 请求 GitHub latest release API，返回 release 信息
+fn fetch_release() -> Result<ReleaseInfo, String> {
+    let body = ureq::get(LATEST_RELEASE_API)
+        .set("User-Agent", USER_AGENT)
+        .call()
+        .map_err(|e| format!("fetch latest release failed: {}", e))?
+        .into_string()
+        .map_err(|e| format!("read release response failed: {}", e))?;
+    serde_json::from_str(&body).map_err(|e| format!("parse release info failed: {}", e))
+}
+
+/// 获取最新 release 的 tag_name（如 "b10549"），供"检查更新"使用
+pub fn fetch_latest_tag() -> Result<String, String> {
+    Ok(fetch_release()?.tag_name)
+}
+
 // ======================= 下载流程（后台线程） =======================
 
 /// 后台线程入口：执行完整下载流程，结果写入共享状态
@@ -260,14 +322,7 @@ fn run_download(
 ) -> Result<String, String> {
     // 1) 获取最新版本信息
     set_running(status, Phase::FetchingRelease, 0, None);
-    let body = ureq::get(LATEST_RELEASE_API)
-        .set("User-Agent", USER_AGENT)
-        .call()
-        .map_err(|e| format!("fetch latest release failed: {}", e))?
-        .into_string()
-        .map_err(|e| format!("read release response failed: {}", e))?;
-    let release: ReleaseInfo = serde_json::from_str(&body)
-        .map_err(|e| format!("parse release info failed: {}", e))?;
+    let release = fetch_release()?;
 
     // 2) 按变体匹配资产
     let asset = pick_asset(&release.assets, variant).ok_or_else(|| {
@@ -304,8 +359,7 @@ fn run_download(
     // 4) 按扩展名解压到 llama_dir
     set_running(status, Phase::Extracting, 0, None);
     if asset.name.ends_with(".zip") {
-        extract_zip(&archive_path, &llama_dir)
-            .map_err(|e| format!("extract zip failed: {}", e))?;
+        extract_zip(&archive_path, &llama_dir).map_err(|e| format!("extract zip failed: {}", e))?;
     } else if asset.name.ends_with(".tar.gz") {
         extract_tar_gz(&archive_path, &llama_dir)
             .map_err(|e| format!("extract tar.gz failed: {}", e))?;
@@ -374,9 +428,7 @@ fn download_to_file(
             return Err(DlError::Cancelled);
         }
     }
-    writer
-        .flush()
-        .map_err(|e| DlError::Failed(e.to_string()))?;
+    writer.flush().map_err(|e| DlError::Failed(e.to_string()))?;
     Ok(())
 }
 
@@ -416,12 +468,7 @@ fn chmod_all(dir: &Path) {
 fn chmod_all(_dir: &Path) {}
 
 /// 置状态为 Running（携带阶段与进度）
-fn set_running(
-    status: &Arc<Mutex<DownloadStatus>>,
-    phase: Phase,
-    done: u64,
-    total: Option<u64>,
-) {
+fn set_running(status: &Arc<Mutex<DownloadStatus>>, phase: Phase, done: u64, total: Option<u64>) {
     let mut st = status.lock().unwrap();
     st.state = DownloadState::Running;
     st.phase = phase;
@@ -446,12 +493,12 @@ pub fn pick_asset(assets: &[Asset], variant: DownloadVariant) -> Option<&Asset> 
 /// 1) 优先官方资产标准路径：<extract_root>/<asset_stem>/build/bin/llama-server(.exe)；
 /// 2) 兜底 BFS（限深 4），目录排序：名称含 "llama"（忽略大小写）者优先，再按字典序 —— 保证确定性；
 ///    read_dir 错误静默跳过
-pub fn find_server_binary(
-    extract_root: &Path,
-    asset_stem: &str,
-    windows: bool,
-) -> Option<PathBuf> {
-    let exe_name = if windows { "llama-server.exe" } else { "llama-server" };
+pub fn find_server_binary(extract_root: &Path, asset_stem: &str, windows: bool) -> Option<PathBuf> {
+    let exe_name = if windows {
+        "llama-server.exe"
+    } else {
+        "llama-server"
+    };
     // 1) 官方资产标准路径
     let direct = extract_root
         .join(asset_stem)
@@ -558,8 +605,7 @@ mod tests {
             asset("llama-b10549-bin-win-cuda-12.4-x64.zip"),
             asset("llama-b10549-bin-win-cpu-x64.zip"),
         ];
-        let picked = pick_asset(&assets, DownloadVariant::WinCpu)
-            .expect("应匹配 WinCpu 资产");
+        let picked = pick_asset(&assets, DownloadVariant::WinCpu).expect("应匹配 WinCpu 资产");
         assert_eq!(picked.name, "llama-b10549-bin-win-cpu-x64.zip");
     }
 
@@ -569,11 +615,9 @@ mod tests {
             asset("llama-b10549-bin-win-cuda-12.4-x64.zip"),
             asset("llama-b10549-bin-win-cuda-13.3-x64.zip"),
         ];
-        let p124 = pick_asset(&assets, DownloadVariant::WinCuda124)
-            .expect("应匹配 CUDA 12.4 资产");
+        let p124 = pick_asset(&assets, DownloadVariant::WinCuda124).expect("应匹配 CUDA 12.4 资产");
         assert_eq!(p124.name, "llama-b10549-bin-win-cuda-12.4-x64.zip");
-        let p133 = pick_asset(&assets, DownloadVariant::WinCuda133)
-            .expect("应匹配 CUDA 13.3 资产");
+        let p133 = pick_asset(&assets, DownloadVariant::WinCuda133).expect("应匹配 CUDA 13.3 资产");
         assert_eq!(p133.name, "llama-b10549-bin-win-cuda-13.3-x64.zip");
     }
 
@@ -583,8 +627,7 @@ mod tests {
             asset("llama-b10549-bin-win-cpu-x64.zip"),
             asset("llama-b10549-bin-win-cpu-arm64.zip"),
         ];
-        let picked = pick_asset(&assets, DownloadVariant::WinCpuArm64)
-            .expect("应匹配 arm64 资产");
+        let picked = pick_asset(&assets, DownloadVariant::WinCpuArm64).expect("应匹配 arm64 资产");
         assert_eq!(picked.name, "llama-b10549-bin-win-cpu-arm64.zip");
         // x64 变体不应命中 arm64 资产
         assert!(pick_asset(&[assets[1].clone()], DownloadVariant::WinCpu).is_none());
@@ -600,8 +643,8 @@ mod tests {
             asset("cudart-llama-b10549-bin-win-cuda-12.4-x64.zip"),
             asset("llama-b10549-bin-win-cuda-12.4-x64.zip"),
         ];
-        let picked = pick_asset(&mixed, DownloadVariant::WinCuda124)
-            .expect("应跳过 cudart 选中官方资产");
+        let picked =
+            pick_asset(&mixed, DownloadVariant::WinCuda124).expect("应跳过 cudart 选中官方资产");
         assert_eq!(picked.name, "llama-b10549-bin-win-cuda-12.4-x64.zip");
     }
 
@@ -611,12 +654,77 @@ mod tests {
             asset("llama-b10549-bin-ubuntu-vulkan-x64.tar.gz"),
             asset("llama-b10549-bin-ubuntu-x64.tar.gz"),
         ];
-        let cpu = pick_asset(&assets, DownloadVariant::LinuxCpu)
-            .expect("应匹配 Linux CPU 资产");
+        let cpu = pick_asset(&assets, DownloadVariant::LinuxCpu).expect("应匹配 Linux CPU 资产");
         assert_eq!(cpu.name, "llama-b10549-bin-ubuntu-x64.tar.gz");
-        let vulkan = pick_asset(&assets, DownloadVariant::LinuxVulkan)
-            .expect("应匹配 Vulkan 资产");
+        let vulkan = pick_asset(&assets, DownloadVariant::LinuxVulkan).expect("应匹配 Vulkan 资产");
         assert_eq!(vulkan.name, "llama-b10549-bin-ubuntu-vulkan-x64.tar.gz");
+    }
+
+    #[test]
+    fn pick_asset_win_rocm_and_vulkan() {
+        let assets = vec![
+            asset("llama-b10549-bin-win-rocm-7.14-x64.zip"),
+            asset("llama-b10549-bin-win-vulkan-x64.zip"),
+            asset("llama-b10549-bin-win-cuda-13.3-x64.zip"),
+        ];
+        let rocm = pick_asset(&assets, DownloadVariant::WinRocm714).expect("应匹配 ROCm 7.14 资产");
+        assert_eq!(rocm.name, "llama-b10549-bin-win-rocm-7.14-x64.zip");
+        let vulkan =
+            pick_asset(&assets, DownloadVariant::WinVulkan).expect("应匹配 Win Vulkan 资产");
+        assert_eq!(vulkan.name, "llama-b10549-bin-win-vulkan-x64.zip");
+    }
+
+    #[test]
+    fn from_settings_value_gpu_variants() {
+        // 平台相关的断言按当前编译目标条件化，保证跨平台可编译
+        if cfg!(target_os = "linux") {
+            assert_eq!(
+                DownloadVariant::from_settings_value("cpu"),
+                DownloadVariant::LinuxCpu
+            );
+            assert_eq!(
+                DownloadVariant::from_settings_value("vulkan"),
+                DownloadVariant::LinuxVulkan
+            );
+            // 兼容旧版 "gpu"
+            assert_eq!(
+                DownloadVariant::from_settings_value("gpu"),
+                DownloadVariant::LinuxVulkan
+            );
+            // Linux 无 CUDA/ROCm 资产，回落到 CPU
+            assert_eq!(
+                DownloadVariant::from_settings_value("cuda133"),
+                DownloadVariant::LinuxCpu
+            );
+        } else {
+            let expected_cpu = if cfg!(target_arch = "aarch64") {
+                DownloadVariant::WinCpuArm64
+            } else {
+                DownloadVariant::WinCpu
+            };
+            assert_eq!(DownloadVariant::from_settings_value("cpu"), expected_cpu);
+            assert_eq!(
+                DownloadVariant::from_settings_value("cuda124"),
+                DownloadVariant::WinCuda124
+            );
+            assert_eq!(
+                DownloadVariant::from_settings_value("cuda133"),
+                DownloadVariant::WinCuda133
+            );
+            assert_eq!(
+                DownloadVariant::from_settings_value("rocm714"),
+                DownloadVariant::WinRocm714
+            );
+            assert_eq!(
+                DownloadVariant::from_settings_value("vulkan"),
+                DownloadVariant::WinVulkan
+            );
+            // 兼容旧版 "gpu"
+            assert_eq!(
+                DownloadVariant::from_settings_value("gpu"),
+                DownloadVariant::WinCuda124
+            );
+        }
     }
 
     #[test]
@@ -638,9 +746,8 @@ mod tests {
         let exe = bin_dir.join("llama-server.exe");
         fs::write(&exe, b"").expect("写入假 exe 失败");
 
-        let found =
-            find_server_binary(&root, "llama-b10549-bin-win-cpu-x64", true)
-                .expect("应在标准深路径找到 llama-server.exe");
+        let found = find_server_binary(&root, "llama-b10549-bin-win-cpu-x64", true)
+            .expect("应在标准深路径找到 llama-server.exe");
         assert_eq!(found, exe);
     }
 
