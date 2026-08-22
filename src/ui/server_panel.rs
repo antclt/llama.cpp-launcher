@@ -357,17 +357,26 @@ pub fn ui(
                         ui.small(i18n::t(i18n::Key::HintRpcEndpoints, lang));
                     });
                     // 下一行：添加本机 RPC 客户端按钮
+                    let local_addr = format!("127.0.0.1:{}", settings.rpc_port);
+                    // 已存在相同地址时禁用按钮，防止重复添加
+                    let already_added = settings
+                        .rpc_endpoints
+                        .split(',')
+                        .map(|s| s.trim())
+                        .any(|s| s == local_addr);
                     if ui
-                        .button(i18n::t(i18n::Key::BtnAddLocalRpcClient, lang))
+                        .add_enabled_ui(!already_added, |ui| {
+                            ui.button(i18n::t(i18n::Key::BtnAddLocalRpcClient, lang))
+                        })
+                        .response
                         .clicked()
                     {
-                        let new_addr = format!("127.0.0.1:{}", settings.rpc_port);
                         let existing = settings.rpc_endpoints.trim().to_string();
                         settings.rpc_endpoints = if existing.is_empty() {
-                            new_addr
+                            local_addr.clone()
                         } else {
                             // 已有配置：新增地址 + 英文逗号 + 原内容
-                            format!("{},{}", new_addr, existing)
+                            format!("{},{}", local_addr, existing)
                         };
                     }
                 });
