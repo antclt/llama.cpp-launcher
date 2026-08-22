@@ -574,6 +574,12 @@ pub struct Preset {
     pub chat_template: String, // --chat-template（Jinja 模板文本）
     #[serde(default)]
     pub chat_template_file: PathBuf, // --chat-template-file（Jinja 模板文件）
+
+    // MCP 管理（llama.cpp --mcp-servers-config）
+    #[serde(default)]
+    pub mcp_enabled: bool, // MCP 功能总开关（无启用 server 时不拼接参数）
+    #[serde(default)]
+    pub mcp_server_states: std::collections::BTreeMap<String, bool>, // 每个 MCP server 的启用状态（按名称）
 }
 
 impl Default for Preset {
@@ -670,6 +676,8 @@ impl Default for Preset {
             jinja_enabled: default_jinja_enabled(),
             chat_template: String::new(),
             chat_template_file: PathBuf::new(),
+            mcp_enabled: false,
+            mcp_server_states: std::collections::BTreeMap::new(),
         }
     }
 }
@@ -769,6 +777,8 @@ impl Preset {
             jinja_enabled: settings.jinja_enabled,
             chat_template: settings.chat_template.clone(),
             chat_template_file: settings.chat_template_file.clone(),
+            mcp_enabled: settings.mcp_enabled,
+            mcp_server_states: settings.mcp_server_states.clone(),
         }
     }
 
@@ -872,6 +882,9 @@ impl Preset {
         settings.jinja_enabled = self.jinja_enabled;
         settings.chat_template = self.chat_template;
         settings.chat_template_file = self.chat_template_file;
+        // MCP 管理（原始 JSON 不属于 Preset，仅同步启用状态）
+        settings.mcp_enabled = self.mcp_enabled;
+        settings.mcp_server_states = self.mcp_server_states;
     }
 }
 
@@ -1104,6 +1117,24 @@ pub struct AppSettings {
     #[serde(default)]
     pub chat_template_file: PathBuf, // --chat-template-file（Jinja 模板文件）
 
+    // MCP 管理（llama.cpp --mcp-servers-config）
+    #[serde(default)]
+    pub mcp_enabled: bool, // MCP 功能总开关（无启用 server 时不拼接参数）
+    #[serde(default)]
+    pub mcp_server_states: std::collections::BTreeMap<String, bool>, // 每个 MCP server 的启用状态（按名称）
+
+    // 用户原始 MCP 配置（Cursor-compatible mcpServers JSON 文本，仅全局设置，不进 Preset）
+    #[serde(default)]
+    pub mcp_config_json: String,
+
+    // MCP 配置编辑器 UI 状态（不序列化）
+    #[serde(skip, default)]
+    pub mcp_editor_open: bool,
+    #[serde(skip, default)]
+    pub mcp_editor_text: String,
+    #[serde(skip, default)]
+    pub mcp_editor_error: String,
+
     // 预设
     #[serde(default)]
     pub presets: Vec<Preset>,
@@ -1279,6 +1310,12 @@ impl Default for AppSettings {
             jinja_enabled: default_jinja_enabled(),
             chat_template: String::new(),
             chat_template_file: PathBuf::new(),
+            mcp_enabled: false,
+            mcp_server_states: std::collections::BTreeMap::new(),
+            mcp_config_json: String::new(),
+            mcp_editor_open: false,
+            mcp_editor_text: String::new(),
+            mcp_editor_error: String::new(),
             presets: Vec::new(),
             new_preset_name: String::new(),
             rename_preset_index: None,
@@ -1312,6 +1349,126 @@ impl AppSettings {
     pub fn ubatch_size_actual(&self) -> usize {
         (self.ubatch_size * 1024.0) as usize
     }
+
+    /// 构造"当前启用"的 MCP 配置 JSON（纯逻辑，便于测试）。
+    ///
+    /// 规则（对齐 llama.cpp tools/server/server-mcp.cpp 的解析行为）：
+    /// - 未开启 MCP / 无原始配置 / JSON 非法 / 无启用的 server → 返回 None（不拼接参数）
+    /// - 只保留处于启用状态且带非空 `command`（stdio 型）的 server
+    pub fn build_effective_mcp_json(&self) -> Option<serde_json::Value> {
+        if !self.mcp_enabled || self.mcp_config_json.trim().is_empty() {
+            return None;
+        }
+        let root: serde_json::Value = match serde_json::from_str(&self.mcp_config_json) {
+            Ok(v) => v,
+            Err(e) => {
+                log::warn!("[mcp] 配置 JSON 解析失败，跳过 MCP 参数: {}", e);
+                return None;
+            }
+        };
+        let servers = match root.get("mcpServers").and_then(|v| v.as_object()) {
+            Some(s) => s,
+            None => {
+                log::warn!("[mcp] 配置缺少 mcpServers 对象，跳过 MCP 参数");
+                return None;
+            }
+        };
+        let mut effective = serde_json::Map::new();
+        for (name, cfg) in servers {
+            let enabled = self.mcp_server_states.get(name).copied().unwrap_or(false);
+            let has_command = cfg
+                .get("command")
+                .and_then(|c| c.as_str())
+                .is_some_and(|c| !c.is_empty());
+            if enabled && has_command {
+                effective.insert(name.clone(), cfg.clone());
+            }
+        }
+        if effective.is_empty() {
+            return None;
+        }
+        Some(serde_json::json!({ "mcpServers": effective }))
+    }
+
+    /// 生成"当前启用的 MCP 配置文件"并返回其路径
+    /// （写入 launcher exe 同目录 `mcp_servers.json`，与 llama_cpp_launcher_settings.json 同级）。
+    /// 无启用 server 或生成失败时返回 None（不拼接参数）。
+    pub fn write_effective_mcp_config(&self) -> Option<PathBuf> {
+        let out = self.build_effective_mcp_json()?;
+        let dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
+        let path = dir.join("mcp_servers.json");
+        let content = serde_json::to_string_pretty(&out).unwrap_or_default();
+        match std::fs::write(&path, content) {
+            Ok(_) => Some(path),
+            Err(e) => {
+                log::warn!("[mcp] 写入 MCP 配置文件失败: {}", e);
+                None
+            }
+        }
+    }
+}
+
+/// MCP server 概要（供 UI 列表展示，由 parse_mcp_servers 解析）
+#[derive(Debug, Clone)]
+pub struct McpServerSummary {
+    pub name: String,
+    /// stdio 启动命令；为空表示该条目 llama.cpp 无法启动（会被其跳过）
+    pub command: String,
+    pub args: Vec<String>,
+    pub timeout_ms: i64,
+    /// 条目本身是否为合法 JSON object
+    pub is_object: bool,
+}
+
+/// 解析用户提供的 Cursor-compatible mcpServers JSON，返回 server 概要列表（保持 JSON 顺序）。
+///
+/// 错误情况（返回 Err 描述）：
+/// - JSON 非法
+/// - 顶层不是 object
+/// - 缺少 `mcpServers` 或其不是 object
+pub fn parse_mcp_servers(json_text: &str) -> Result<Vec<McpServerSummary>, String> {
+    let root: serde_json::Value =
+        serde_json::from_str(json_text).map_err(|e| format!("JSON: {}", e))?;
+    let root_obj = root
+        .as_object()
+        .ok_or_else(|| "top-level must be an object".to_string())?;
+    let servers = root_obj
+        .get("mcpServers")
+        .ok_or_else(|| "missing \"mcpServers\"".to_string())?;
+    let servers = servers
+        .as_object()
+        .ok_or_else(|| "\"mcpServers\" must be an object".to_string())?;
+
+    let mut result = Vec::new();
+    for (name, cfg) in servers {
+        let is_object = cfg.is_object();
+        let command = cfg
+            .get("command")
+            .and_then(|c| c.as_str())
+            .unwrap_or("")
+            .to_string();
+        let args = cfg
+            .get("args")
+            .and_then(|a| a.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let timeout_ms = cfg
+            .get("timeout_ms")
+            .and_then(|t| t.as_i64())
+            .unwrap_or(30000);
+        result.push(McpServerSummary {
+            name: name.clone(),
+            command,
+            args,
+            timeout_ms,
+            is_object,
+        });
+    }
+    Ok(result)
 }
 
 pub struct SettingsManager {
@@ -1536,5 +1693,92 @@ mod tests {
         let json = r#"{"server_path":"","host":"127.0.0.1","port":8080,"parallel_slots":1,"model_path":"","mmproj_path":"","temperature":0.8,"top_p":0.95,"top_k":40,"repeat_penalty":1.1,"presence_penalty":0.0,"kv_offload":false,"cache_type_k":"f16","cache_type_v":"f16","kv_mlock":false,"kv_mmap":true,"kv_unified":false,"gpu_layers_mode":"auto","split_mode":"none","tensor_split":"","cpu_moe":false,"n_cpu_moe":0,"rpc_server_path":"","rpc_host":"127.0.0.1","rpc_port":50052,"rpc_threads":8,"rpc_device":"","rpc_cache":false,"verbose":false}"#;
         let settings: AppSettings = serde_json::from_str(json).expect("旧格式配置应可反序列化");
         assert_eq!(settings.download_variant, "cpu");
+    }
+
+    // ──── MCP 解析 / 生效配置 ────
+
+    const MCP_TEST_JSON: &str = r#"{
+        "mcpServers": {
+            "comfyui": {
+                "command": "python",
+                "args": ["C:\\AI\\MCP\\ComfyUI\\server.py"]
+            },
+            "filesystem": {
+                "command": "npx",
+                "args": ["-y", "@example/filesystem-mcp"],
+                "timeout_ms": 60000
+            },
+            "remote-only": {
+                "url": "https://example.com/mcp"
+            }
+        }
+    }"#;
+
+    /// 正常解析：提取全部 server 名称与关键字段，无 command 条目标记
+    #[test]
+    fn mcp_parse_ok() {
+        let servers = parse_mcp_servers(MCP_TEST_JSON).expect("合法配置应解析成功");
+        assert_eq!(servers.len(), 3);
+        assert_eq!(servers[0].name, "comfyui");
+        assert_eq!(servers[0].command, "python");
+        assert_eq!(servers[0].args, vec!["C:\\AI\\MCP\\ComfyUI\\server.py"]);
+        assert_eq!(servers[1].timeout_ms, 60000);
+        assert!(
+            servers[2].command.is_empty(),
+            "无 command 条目应为空 command"
+        );
+    }
+
+    /// 错误场景：非法 JSON / 顶层非对象 / 缺 mcpServers / mcpServers 非 object
+    #[test]
+    fn mcp_parse_errors() {
+        assert!(parse_mcp_servers("{ not json").is_err());
+        assert!(parse_mcp_servers("[1,2]").is_err());
+        assert!(parse_mcp_servers(r#"{"foo":{}}"#).is_err());
+        assert!(parse_mcp_servers(r#"{"mcpServers":[1]}"#).is_err());
+        // 空 mcpServers 合法（返回空列表）
+        assert!(parse_mcp_servers(r#"{"mcpServers":{}}"#)
+            .expect("空对象应成功")
+            .is_empty());
+    }
+
+    /// 生效配置：只保留启用且带 command 的 server；无启用时返回 None
+    #[test]
+    fn mcp_effective_partial_enable() {
+        let mut settings = AppSettings::default();
+        settings.mcp_enabled = true;
+        settings.mcp_config_json = MCP_TEST_JSON.to_string();
+        // 无任何启用 → None
+        assert!(settings.build_effective_mcp_json().is_none());
+        // 只启用 comfyui（stdio）与 remote-only（无 command，应被过滤）
+        settings
+            .mcp_server_states
+            .insert("comfyui".to_string(), true);
+        settings
+            .mcp_server_states
+            .insert("remote-only".to_string(), true);
+        let out = settings
+            .build_effective_mcp_json()
+            .expect("存在启用的 stdio server");
+        let servers = out
+            .get("mcpServers")
+            .and_then(|v| v.as_object())
+            .expect("输出应含 mcpServers 对象");
+        assert_eq!(servers.len(), 1, "remote-only 应被过滤");
+        assert!(servers.contains_key("comfyui"));
+        // 总开关关闭 → None
+        settings.mcp_enabled = false;
+        assert!(settings.build_effective_mcp_json().is_none());
+    }
+
+    /// 旧配置兼容：缺少 MCP 字段的配置反序列化后为默认值
+    #[test]
+    fn mcp_settings_default_compat() {
+        let json = r#"{"server_path":"","host":"127.0.0.1","port":8080,"parallel_slots":1,"model_path":"","mmproj_path":"","temperature":0.8,"top_p":0.95,"top_k":40,"repeat_penalty":1.1,"presence_penalty":0.0,"kv_offload":false,"cache_type_k":"f16","cache_type_v":"f16","kv_mlock":false,"kv_mmap":true,"kv_unified":false,"gpu_layers_mode":"auto","split_mode":"none","tensor_split":"","cpu_moe":false,"n_cpu_moe":0,"rpc_server_path":"","rpc_host":"127.0.0.1","rpc_port":50052,"rpc_threads":8,"rpc_device":"","rpc_cache":false,"verbose":false}"#;
+        let settings: AppSettings = serde_json::from_str(json).expect("旧格式配置应可反序列化");
+        assert!(!settings.mcp_enabled);
+        assert!(settings.mcp_config_json.is_empty());
+        assert!(settings.mcp_server_states.is_empty());
+        assert!(settings.build_effective_mcp_json().is_none());
     }
 }

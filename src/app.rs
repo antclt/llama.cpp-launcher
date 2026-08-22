@@ -7,8 +7,8 @@ use crate::engine::server::{ServerManager, ServerState};
 use crate::i18n::{self, Language};
 use crate::spacing_debugger::SpacingDebugger;
 use crate::ui::{
-    launch_commands_panel, log_panel, model_panel, params_panel, presets_panel, rpc_panel,
-    server_panel, settings_panel, widgets,
+    launch_commands_panel, log_panel, mcp_panel, model_panel, params_panel, presets_panel,
+    rpc_panel, server_panel, settings_panel, widgets,
 };
 use egui::Color32;
 
@@ -19,6 +19,7 @@ enum NavSection {
     Rpc,
     Model,
     Params,
+    Mcp,
     Log,
     RpcLog,
     Commands,
@@ -32,6 +33,8 @@ pub struct LlamaLauncherApp {
     server_manager: ServerManager,
     rpc_manager: RpcManager,
     downloader: DownloadHandle,
+    updater: crate::updater::UpdaterHandle,
+    install_exit_timer: f32, // 自更新安装阶段：显示"正在安装"的倒计时
     nav: NavSection,
     logo: Option<egui::TextureHandle>,
     theme_applied: (bool, String),
@@ -133,6 +136,8 @@ impl LlamaLauncherApp {
             server_manager,
             rpc_manager,
             downloader: DownloadHandle::new(),
+            updater: crate::updater::UpdaterHandle::new(),
+            install_exit_timer: 0.0,
             nav: NavSection::Server,
             logo,
             theme_applied: (true, String::new()), // 重新应用逻辑在 update 中处理
@@ -350,6 +355,11 @@ impl LlamaLauncherApp {
                         i18n::t(i18n::Key::TabParams, &self.lang),
                     ),
                     (
+                        NavSection::Mcp,
+                        widgets::NavIcon::Mcp,
+                        i18n::t(i18n::Key::TabMcp, &self.lang),
+                    ),
+                    (
                         NavSection::Log,
                         widgets::NavIcon::Log,
                         i18n::t(i18n::Key::TabLog, &self.lang),
@@ -392,6 +402,7 @@ impl LlamaLauncherApp {
             NavSection::Rpc => i18n::t(i18n::Key::NavRpc, &self.lang),
             NavSection::Model => i18n::t(i18n::Key::TabModel, &self.lang),
             NavSection::Params => i18n::t(i18n::Key::TabParams, &self.lang),
+            NavSection::Mcp => i18n::t(i18n::Key::TabMcp, &self.lang),
             NavSection::Log => i18n::t(i18n::Key::TabLog, &self.lang),
             NavSection::RpcLog => i18n::t(i18n::Key::TabRpcLog, &self.lang),
             NavSection::Commands => i18n::t(i18n::Key::TabCommands, &self.lang),
@@ -470,6 +481,19 @@ impl LlamaLauncherApp {
 impl eframe::App for LlamaLauncherApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         ctx.request_repaint_after(std::time::Duration::from_millis(500));
+
+        // 自更新安装阶段：下载完成并启动自替换脚本后，短暂展示"正在安装"再关闭窗口
+        // （Let 脚本等待主进程退出）
+        if matches!(
+            self.updater.snapshot().state,
+            crate::updater::UpdateState::Installing
+        ) {
+            self.install_exit_timer += ctx.input(|i| i.stable_dt);
+            if self.install_exit_timer > 1.5 {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                return;
+            }
+        }
 
         // 根据调试模式开关，控制 egui Inspector（悬浮时显示内置检查器面板）
         #[cfg(debug_assertions)]
@@ -600,6 +624,7 @@ impl eframe::App for LlamaLauncherApp {
                             NavSection::Params => {
                                 params_panel::ui(ui, &mut self.settings, &self.lang)
                             }
+                            NavSection::Mcp => mcp_panel::ui(ui, &mut self.settings, &self.lang),
                             NavSection::Log => log_panel::ui(
                                 ui,
                                 &mut self.settings,
@@ -633,6 +658,7 @@ impl eframe::App for LlamaLauncherApp {
                                 &self.lang,
                                 &mut self.show_about,
                                 &mut self.debug_mode,
+                                &self.updater,
                             ),
                         });
                 });
@@ -650,6 +676,7 @@ impl Drop for LlamaLauncherApp {
         self.server_manager.stop();
         self.rpc_manager.stop();
         self.downloader.request_cancel();
+        self.updater.request_cancel();
         self.save();
     }
 }
