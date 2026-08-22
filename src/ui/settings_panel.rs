@@ -16,6 +16,7 @@ pub fn ui(
     lang: &i18n::Language,
     show_about: &mut bool,
     debug_mode: &mut bool,
+    updater: &crate::updater::UpdaterHandle,
 ) {
     let accent = crate::theme::accent_color(&settings.accent_color);
 
@@ -216,5 +217,105 @@ pub fn ui(
                 *show_about = true;
             }
         });
+
+        // ── 自更新 ──
+        ui.add_space(8.0);
+        ui.separator();
+        ui.add_space(4.0);
+        let status = updater.snapshot();
+        let busy = matches!(
+            status.state,
+            crate::updater::UpdateState::Checking
+                | crate::updater::UpdateState::Downloading
+                | crate::updater::UpdateState::Installing
+        );
+        ui.horizontal(|ui| {
+            match status.state {
+                crate::updater::UpdateState::Idle
+                | crate::updater::UpdateState::UpToDate
+                | crate::updater::UpdateState::Error(_) => {
+                    if ui
+                        .add_enabled(
+                            !busy,
+                            widgets::rounded_button(i18n::t(i18n::Key::BtnCheckUpdate, lang), None),
+                        )
+                        .clicked()
+                    {
+                        updater.check();
+                    }
+                }
+                crate::updater::UpdateState::Available(_) => {
+                    if ui
+                        .add(widgets::rounded_button(
+                            i18n::t(i18n::Key::BtnInstallUpdate, lang),
+                            None,
+                        ))
+                        .clicked()
+                    {
+                        updater.install();
+                    }
+                }
+                _ => {
+                    // Checking / Downloading / Installing：按钮禁用，靠状态文案展示
+                    ui.add_enabled(
+                        false,
+                        widgets::rounded_button(i18n::t(i18n::Key::BtnCheckUpdate, lang), None),
+                    );
+                }
+            }
+            ui.small(match &status.state {
+                crate::updater::UpdateState::Checking => {
+                    egui::RichText::new(i18n::t(i18n::Key::UpdChecking, lang))
+                }
+                crate::updater::UpdateState::UpToDate => {
+                    egui::RichText::new(i18n::t(i18n::Key::UpdLatest, lang))
+                }
+                crate::updater::UpdateState::Available(v) => {
+                    let text = format!("{} v{}", i18n::t(i18n::Key::UpdAvailable, lang), v);
+                    egui::RichText::new(text).color(ui.visuals().warn_fg_color)
+                }
+                crate::updater::UpdateState::Downloading => {
+                    let pct = if status.total > 0 {
+                        format!(
+                            "{} ({:.0}%)",
+                            i18n::t(i18n::Key::UpdDownloading, lang),
+                            status.done as f64 * 100.0 / status.total as f64
+                        )
+                    } else {
+                        i18n::t(i18n::Key::UpdDownloading, lang).to_string()
+                    };
+                    egui::RichText::new(pct).color(ui.visuals().text_color())
+                }
+                crate::updater::UpdateState::Installing => {
+                    egui::RichText::new(i18n::t(i18n::Key::UpdInstalling, lang))
+                        .color(ui.visuals().warn_fg_color)
+                }
+                crate::updater::UpdateState::Error(msg) => {
+                    if msg == crate::updater::ERR_NETWORK {
+                        egui::RichText::new(i18n::t(i18n::Key::UpdNetworkError, lang))
+                            .color(ui.visuals().error_fg_color)
+                    } else {
+                        egui::RichText::new(format!(
+                            "{}: {}",
+                            i18n::t(i18n::Key::UpdError, lang),
+                            msg
+                        ))
+                        .color(ui.visuals().error_fg_color)
+                    }
+                }
+                crate::updater::UpdateState::Idle => {
+                    egui::RichText::new("").color(ui.visuals().text_color())
+                }
+            });
+        });
+        // 下载进度条
+        if let crate::updater::UpdateState::Downloading = status.state {
+            let frac = if status.total > 0 {
+                (status.done as f64 / status.total as f64).clamp(0.0, 1.0) as f32
+            } else {
+                0.0
+            };
+            ui.add(egui::ProgressBar::new(frac));
+        }
     });
 }

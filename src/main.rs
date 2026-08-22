@@ -10,6 +10,7 @@ pub mod shortcut;
 mod spacing_debugger;
 pub mod theme;
 pub mod ui;
+pub mod updater;
 
 use chrono::Local;
 use log::{LevelFilter, Log, Metadata, Record};

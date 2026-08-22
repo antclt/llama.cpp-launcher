@@ -1,6 +1,7 @@
 pub mod helper;
 pub mod launch_commands_panel;
 pub mod log_panel;
+pub mod mcp_panel;
 pub mod model_panel;
 pub mod params_panel;
 pub mod presets_panel;

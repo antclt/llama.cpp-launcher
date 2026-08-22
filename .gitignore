@@ -3,3 +3,8 @@
 .sisyphus/
 .omo/
 .codegraph/
+
+# 运行时生成文件（含用户配置，不应提交）
+*.exe.old
+update/
+mcp_servers.json
