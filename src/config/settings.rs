@@ -246,6 +246,11 @@ fn default_download_variant() -> String {
     "cpu".to_string()
 }
 
+// ROCm GPU 目标型号默认值
+fn default_rocm_gpu_target() -> String {
+    "gfx103X".to_string()
+}
+
 // context / batch_size / ubatch_size 以 k 为单位存储 (1k = 1024)
 // 反序列化时兼容旧版原始值（如 4096 → 自动转为 4）
 
@@ -1160,6 +1165,11 @@ pub struct AppSettings {
     #[serde(default = "default_download_variant")]
     pub download_variant: String,
 
+    // ROCm GPU 目标型号（仅当 download_variant 为 rocm714 时生效）
+    // 可选值："gfx103X" | "gfx110X" | "gfx1150" | "gfx1151" | "gfx120X" | "gfx908" | "gfx90a"
+    #[serde(default = "default_rocm_gpu_target")]
+    pub rocm_gpu_target: String,
+
     // llama.cpp 版本信息（不序列化，运行时缓存）
     #[serde(skip, default)]
     pub llama_version: String,
@@ -1293,6 +1303,7 @@ impl Default for AppSettings {
             accent_color: default_accent_color(),
             language: String::new(),
             download_variant: default_download_variant(),
+            rocm_gpu_target: default_rocm_gpu_target(),
             auto_start_preset_name: None,
             llama_version: String::new(),
             update_available: None,
