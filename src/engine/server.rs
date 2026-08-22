@@ -47,6 +47,12 @@ pub struct ServerManager {
     _threads: Vec<thread::JoinHandle<()>>,
 }
 
+impl Default for ServerManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ServerManager {
     pub fn new() -> Self {
         Self {
@@ -148,20 +154,14 @@ impl ServerManager {
         }
 
         match rest.as_bytes()[0] {
-            b'I' => {
-                if rest.len() == 1 || rest.as_bytes().get(1).map_or(false, |&b| b == b' ') {
-                    return Some(LogLevel::Info);
-                }
+            b'I' if (rest.len() == 1 || rest.as_bytes().get(1).is_some_and(|&b| b == b' ')) => {
+                return Some(LogLevel::Info);
             }
-            b'W' => {
-                if rest.len() == 1 || rest.as_bytes().get(1).map_or(false, |&b| b == b' ') {
-                    return Some(LogLevel::Warn);
-                }
+            b'W' if (rest.len() == 1 || rest.as_bytes().get(1).is_some_and(|&b| b == b' ')) => {
+                return Some(LogLevel::Warn);
             }
-            b'E' => {
-                if rest.len() == 1 || rest.as_bytes().get(1).map_or(false, |&b| b == b' ') {
-                    return Some(LogLevel::Error);
-                }
+            b'E' if (rest.len() == 1 || rest.as_bytes().get(1).is_some_and(|&b| b == b' ')) => {
+                return Some(LogLevel::Error);
             }
             _ => {}
         };

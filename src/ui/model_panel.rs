@@ -99,10 +99,10 @@ fn is_param_size(s: &str) -> bool {
 }
 
 fn is_quantization(s: &str) -> bool {
-    if s.starts_with("iq") && s.chars().nth(2).map_or(false, |c| c.is_ascii_digit()) {
+    if s.starts_with("iq") && s.chars().nth(2).is_some_and(|c| c.is_ascii_digit()) {
         return true;
     }
-    s.starts_with('q') && s.chars().nth(1).map_or(false, |c| c.is_ascii_digit())
+    s.starts_with('q') && s.chars().nth(1).is_some_and(|c| c.is_ascii_digit())
 }
 
 fn is_training_method(s: &str) -> bool {

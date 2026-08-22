@@ -43,6 +43,12 @@ pub struct RpcManager {
     _threads: Vec<thread::JoinHandle<()>>,
 }
 
+impl Default for RpcManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RpcManager {
     pub fn new() -> Self {
         Self {

@@ -317,7 +317,7 @@ pub fn nav_row(
         Pos2::new(icon_start_x, rect.center().y - icon_size / 2.0),
         Vec2::new(icon_size, icon_size),
     );
-    nav_icon_paint(&painter, icon_rect, icon, icon_color);
+    nav_icon_paint(painter, icon_rect, icon, icon_color);
 
     // 文字 —— 选中时用 accent 色（对齐 HTML .nav-item.active{color:var(--accent)}）；
     // 与图标共用同一套配色逻辑（idle 次要灰 / hover 主文本 / selected accent）。

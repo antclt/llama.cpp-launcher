@@ -579,6 +579,8 @@ pub struct Preset {
     pub chat_template: String, // --chat-template（Jinja 模板文本）
     #[serde(default)]
     pub chat_template_file: PathBuf, // --chat-template-file（Jinja 模板文件）
+    #[serde(default)]
+    pub rocm_gpu_target: String, // --rocm-gpu-target
 }
 
 impl Default for Preset {
@@ -675,6 +677,7 @@ impl Default for Preset {
             jinja_enabled: default_jinja_enabled(),
             chat_template: String::new(),
             chat_template_file: PathBuf::new(),
+            rocm_gpu_target: default_rocm_gpu_target(),
         }
     }
 }
@@ -774,6 +777,7 @@ impl Preset {
             jinja_enabled: settings.jinja_enabled,
             chat_template: settings.chat_template.clone(),
             chat_template_file: settings.chat_template_file.clone(),
+            rocm_gpu_target: settings.rocm_gpu_target.clone(),
         }
     }
 
@@ -877,6 +881,7 @@ impl Preset {
         settings.jinja_enabled = self.jinja_enabled;
         settings.chat_template = self.chat_template;
         settings.chat_template_file = self.chat_template_file;
+        settings.rocm_gpu_target = self.rocm_gpu_target.clone();
     }
 }
 
@@ -1327,6 +1332,12 @@ impl AppSettings {
 
 pub struct SettingsManager {
     config_dir: PathBuf,
+}
+
+impl Default for SettingsManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SettingsManager {

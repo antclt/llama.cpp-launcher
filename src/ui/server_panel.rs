@@ -138,6 +138,52 @@ pub fn ui(
                         "rocm714".to_string(),
                         i18n::t(i18n::Key::VariantGpuRocm714, lang),
                     );
+                    // 当选择 ROCm 7.14 时显示 GPU 目标选择
+                    if settings.download_variant == "rocm714" {
+                        ui.add_space(8.0);
+                        ui.horizontal(|ui| {
+                            ui.label(i18n::t(i18n::Key::GpuTargetLabel, lang));
+                            egui::ComboBox::from_id_salt("rocm_gpu_target_combo")
+                                .selected_text(&settings.rocm_gpu_target)
+                                .show_ui(ui, |ui| {
+                                    ui.selectable_value(
+                                        &mut settings.rocm_gpu_target,
+                                        "gfx103X".to_string(),
+                                        i18n::t(i18n::Key::VariantGpuGfx103X, lang),
+                                    );
+                                    ui.selectable_value(
+                                        &mut settings.rocm_gpu_target,
+                                        "gfx110X".to_string(),
+                                        i18n::t(i18n::Key::VariantGpuGfx110X, lang),
+                                    );
+                                    ui.selectable_value(
+                                        &mut settings.rocm_gpu_target,
+                                        "gfx1150".to_string(),
+                                        i18n::t(i18n::Key::VariantGpuGfx1150, lang),
+                                    );
+                                    ui.selectable_value(
+                                        &mut settings.rocm_gpu_target,
+                                        "gfx1151".to_string(),
+                                        i18n::t(i18n::Key::VariantGpuGfx1151, lang),
+                                    );
+                                    ui.selectable_value(
+                                        &mut settings.rocm_gpu_target,
+                                        "gfx120X".to_string(),
+                                        i18n::t(i18n::Key::VariantGpuGfx120X, lang),
+                                    );
+                                    ui.selectable_value(
+                                        &mut settings.rocm_gpu_target,
+                                        "gfx908".to_string(),
+                                        i18n::t(i18n::Key::VariantGpuGfx908, lang),
+                                    );
+                                    ui.selectable_value(
+                                        &mut settings.rocm_gpu_target,
+                                        "gfx90a".to_string(),
+                                        i18n::t(i18n::Key::VariantGpuGfx90a, lang),
+                                    );
+                                });
+                        });
+                    }
                 }
                 ui.selectable_value(
                     &mut settings.download_variant,
@@ -172,7 +218,10 @@ pub fn ui(
                 {
                     // 刷新本地版本缓存并获取最新 tag 比对
                     settings.llama_version = get_local_llama_version(&settings.server_path);
-                    match crate::downloader::fetch_latest_tag() {
+                    let variant = crate::downloader::DownloadVariant::from_settings_value(
+                        &settings.download_variant,
+                    );
+                    match crate::downloader::fetch_latest_tag(variant) {
                         Ok(latest) => {
                             // 比对 build 标签（如 b10549）；本地无法解析时视为有新版本
                             let up_to_date =

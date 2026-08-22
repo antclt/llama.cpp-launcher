@@ -102,7 +102,7 @@ impl LlamaLauncherApp {
                                 settings.dark_mode = line
                                     .split_whitespace()
                                     .last()
-                                    .map_or(false, |v| v.contains("0x0"));
+                                    .is_some_and(|v| v.contains("0x0"));
                                 last_system_dark = Some(settings.dark_mode);
                             }
                         }

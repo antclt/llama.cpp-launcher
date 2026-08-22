@@ -149,7 +149,7 @@ fn main() -> eframe::Result {
             load_icon_fonts(&mut fonts);
             cc.egui_ctx.set_fonts(fonts);
 
-            Ok(Box::new(LlamaLauncherApp::new(&cc, start_minimized)))
+            Ok(Box::new(LlamaLauncherApp::new(cc, start_minimized)))
         }),
     )
 }

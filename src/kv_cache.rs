@@ -270,7 +270,8 @@ pub fn calc_max_context(gguf: &GgufInfo, settings: &AppSettings, free_mib: u64) 
     let model_mib = gguf.file_size / (1024 * 1024);
 
     // GPU 空闲显存扣除模型文件后的可用空间（字节）
-    let usable_bytes = (free_mib.saturating_sub(model_mib) as u64)
+    let usable_bytes = free_mib
+        .saturating_sub(model_mib)
         .saturating_mul(1024)
         .saturating_mul(1024);
 
