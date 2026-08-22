@@ -36,7 +36,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 .clicked()
                 && can_start
             {
-                match kv_cache::calc_max_context_facade(settings) {
+                match kv_cache::calc_max_context_facade(settings, lang) {
                     Ok(val) => settings.context = val,
                     Err(e) => log::warn!("[params_panel] calc_max_context 失败: {}", e),
                 }
@@ -94,7 +94,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     .clicked()
                     && can_start
                 {
-                    settings.kv_cache_result = match kv_cache::calc_and_format(settings) {
+                    settings.kv_cache_result = match kv_cache::calc_and_format(settings, lang) {
                         Ok(result) => Some(format!(
                             "{} {}",
                             i18n::t(i18n::Key::LabelKvCacheResult, lang),

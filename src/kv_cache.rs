@@ -1,4 +1,5 @@
 use crate::config::settings::AppSettings;
+use crate::i18n;
 use std::fs;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -27,6 +28,7 @@ pub struct GgufInfo {
 fn resolve_block_count(
     arch: &str,
     kv: &std::collections::BTreeMap<String, serde_json::Value>,
+    lang: &i18n::Language,
 ) -> Result<usize, String> {
     // 触发条件：general.base_model.0.name 命中 Qwen3.8 27B / Qwen3.6 27B
     let base_model = kv
@@ -45,29 +47,35 @@ fn resolve_block_count(
     let block_key = format!("{}.block_count", arch);
     kv.get(&block_key)
         .and_then(|v| v.as_u64())
-        .ok_or_else(|| format!("无法从 GGUF 文件中读取块数 ({})", block_key))
+        .ok_or_else(|| {
+            format!(
+                "{} ({})",
+                i18n::t(i18n::Key::ErrKvGgufBlocks, lang),
+                block_key
+            )
+        })
         .map(|v| v as usize)
 }
 
 /// 从 GGUF 文件中读取模型信息
-pub fn read_gguf_info(file_path: &Path) -> Result<GgufInfo, String> {
+pub fn read_gguf_info(file_path: &Path, lang: &i18n::Language) -> Result<GgufInfo, String> {
     // 获取文件 size
     let file_size = fs::metadata(file_path)
         .map(|m| m.len())
-        .map_err(|e| format!("无法读取模型文件元数据: {}", e))?;
+        .map_err(|e| format!("{}: {}", i18n::t(i18n::Key::ErrKvModelMeta, lang), e))?;
 
     // 打开 GGUF 容器
     let file_str = file_path
         .to_str()
-        .ok_or_else(|| "模型文件路径包含无效字符".to_string())?;
+        .ok_or_else(|| i18n::t(i18n::Key::ErrKvPathInvalid, lang).to_string())?;
 
-    let mut container =
-        gguf_rs::get_gguf_container(file_str).map_err(|e| format!("无法打开 GGUF 文件: {}", e))?;
+    let mut container = gguf_rs::get_gguf_container(file_str)
+        .map_err(|e| format!("{}: {}", i18n::t(i18n::Key::ErrKvGgufOpen, lang), e))?;
 
     // 解码元数据（使用较大 max_array_size 以读取完整 token list）
     let model = container
         .decode()
-        .map_err(|e| format!("GGUF 解码失败: {}", e))?;
+        .map_err(|e| format!("{}: {}", i18n::t(i18n::Key::ErrKvGgufDecode, lang), e))?;
 
     let kv = model.metadata();
 
@@ -75,10 +83,10 @@ pub fn read_gguf_info(file_path: &Path) -> Result<GgufInfo, String> {
     let arch = kv
         .get("general.architecture")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| "无法从 GGUF 文件中读取架构信息".to_string())?;
+        .ok_or_else(|| i18n::t(i18n::Key::ErrKvGgufArch, lang).to_string())?;
 
     // 读取 block_count (层数)
-    let block_count = resolve_block_count(arch, kv)?;
+    let block_count = resolve_block_count(arch, kv, lang)?;
 
     // 读取 KV head count (fallback: attention.head_count_kv → Qwen, attention.head_count)
     let kv_head_key = format!("{}.attention.key_head_count", arch);
@@ -91,8 +99,12 @@ pub fn read_gguf_info(file_path: &Path) -> Result<GgufInfo, String> {
         .and_then(|v| v.as_u64())
         .ok_or_else(|| {
             format!(
-                "无法从 GGUF 文件中读取 KV 头数 (尝试了 {} / {} / {})",
-                kv_head_key, kv_head_fallback_qwen, kv_head_fallback
+                "{} ({} {} / {} / {})",
+                i18n::t(i18n::Key::ErrKvGgufKvHeads, lang),
+                i18n::t(i18n::Key::KvTriedKeys, lang),
+                kv_head_key,
+                kv_head_fallback_qwen,
+                kv_head_fallback
             )
         })? as usize;
 
@@ -105,8 +117,11 @@ pub fn read_gguf_info(file_path: &Path) -> Result<GgufInfo, String> {
         .and_then(|v| v.as_u64())
         .ok_or_else(|| {
             format!(
-                "无法从 GGUF 文件中读取头维度 (尝试了 {} / {})",
-                head_dim_key, head_dim_fallback
+                "{} ({} {} / {})",
+                i18n::t(i18n::Key::ErrKvGgufHeadDim, lang),
+                i18n::t(i18n::Key::KvTriedKeys, lang),
+                head_dim_key,
+                head_dim_fallback
             )
         })? as usize;
 
@@ -115,7 +130,7 @@ pub fn read_gguf_info(file_path: &Path) -> Result<GgufInfo, String> {
     let embedding_length = kv
         .get(&emb_key)
         .and_then(|v| v.as_u64())
-        .ok_or_else(|| format!("无法从 GGUF 文件中读取 Embedding 维度 ({})", emb_key))?
+        .ok_or_else(|| format!("{} ({})", i18n::t(i18n::Key::ErrKvGgufEmbed, lang), emb_key))?
         as usize;
 
     Ok(GgufInfo {
@@ -128,10 +143,14 @@ pub fn read_gguf_info(file_path: &Path) -> Result<GgufInfo, String> {
 }
 
 /// 执行 llama-server --list-devices 并解析空闲显存（MiB）
-pub fn get_free_gpu_mib(server_path: &Path) -> Result<u64, String> {
+pub fn get_free_gpu_mib(server_path: &Path, lang: &i18n::Language) -> Result<u64, String> {
     let exe = Path::new(&server_path);
     if !exe.exists() {
-        return Err(format!("llama-server 不存在: {:?}", server_path));
+        return Err(format!(
+            "{}: {:?}",
+            i18n::t(i18n::Key::ErrKvServerMissing, lang),
+            server_path
+        ));
     }
 
     // 使用 llama-server 所在目录的同名可执行文件来查询设备
@@ -145,7 +164,7 @@ pub fn get_free_gpu_mib(server_path: &Path) -> Result<u64, String> {
 
     let output = cmd
         .output()
-        .map_err(|e| format!("执行 --list-devices 失败: {}", e))?;
+        .map_err(|e| format!("{}: {}", i18n::t(i18n::Key::ErrKvListDevices, lang), e))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -162,7 +181,8 @@ pub fn get_free_gpu_mib(server_path: &Path) -> Result<u64, String> {
     }
 
     Err(format!(
-        "无法解析 --list-devices 输出中的空闲显存:\n{}",
+        "{}:\n{}",
+        i18n::t(i18n::Key::ErrKvParseVram, lang),
         stdout
     ))
 }
@@ -284,7 +304,12 @@ pub fn calc_max_context(gguf: &GgufInfo, settings: &AppSettings, free_mib: u64) 
 
 /// 计算 KV 缓存可用空间
 /// 公式: (GPU空闲显存 - 模型文件大小) - (并发数量 × block_count × embedding_length × 物理批次大小 × 3 (f16=2B × 1.5x))
-pub fn calc_kv_cache_space(gguf: &GgufInfo, settings: &AppSettings, free_mib: u64) -> String {
+pub fn calc_kv_cache_space(
+    gguf: &GgufInfo,
+    settings: &AppSettings,
+    free_mib: u64,
+    lang: &i18n::Language,
+) -> String {
     // Compute Buffer（字节）= parallel_slots * block_count * embedding_length * batch_size_actual × 3 (f16=2B × 1.5x)
     let compute_buffer_bytes = (settings.parallel_slots as u64)
         .saturating_mul(gguf.block_count as u64)
@@ -303,7 +328,11 @@ pub fn calc_kv_cache_space(gguf: &GgufInfo, settings: &AppSettings, free_mib: u6
 
     if compute_buffer_mib > usable_mib {
         let over = compute_buffer_mib - usable_mib;
-        format!("超出 {} MB", over)
+        format!(
+            "{} {} MB",
+            i18n::t(i18n::Key::KvCacheOverBudget, lang),
+            over
+        )
     } else {
         let remaining = usable_mib - compute_buffer_mib;
         format!("{} MB", remaining)
@@ -311,37 +340,40 @@ pub fn calc_kv_cache_space(gguf: &GgufInfo, settings: &AppSettings, free_mib: u6
 }
 
 /// Facade function：聚合读取 GGUF + GPU 信息 → 计算并格式化结果
-pub fn calc_and_format(settings: &AppSettings) -> Result<String, String> {
+pub fn calc_and_format(settings: &AppSettings, lang: &i18n::Language) -> Result<String, String> {
     log::info!("[calc_and_format] 开始计算 KV 缓存空间");
     log::info!("[calc_and_format] model_path = {:?}", settings.model_path);
     log::info!("[calc_and_format] server_path = {:?}", settings.server_path);
 
     // 1. 读取 GGUF 模型信息
-    let gguf = read_gguf_info(&settings.model_path)?;
+    let gguf = read_gguf_info(&settings.model_path, lang)?;
     log::info!("[calc_and_format] GGUF info: block_count={}, kv_head_count={}, head_dim={}, embedding_length={}, file_size={} bytes",
         gguf.block_count, gguf.kv_head_count, gguf.head_dim, gguf.embedding_length, gguf.file_size);
 
     // 2. 获取空闲显存
-    let free_mib = get_free_gpu_mib(&settings.server_path)?;
+    let free_mib = get_free_gpu_mib(&settings.server_path, lang)?;
     log::info!("[calc_and_format] GPU 空闲显存: {} MiB", free_mib);
 
     // 3. 计算并格式化
-    let result = calc_kv_cache_space(&gguf, settings, free_mib);
+    let result = calc_kv_cache_space(&gguf, settings, free_mib, lang);
     log::info!("[calc_and_format] KV 缓存计算结果: {}", result);
     Ok(result)
 }
 
 /// Facade function：聚合读取 GGUF + GPU 信息 → 返回最大上下文（k 单位）
-pub fn calc_max_context_facade(settings: &AppSettings) -> Result<usize, String> {
+pub fn calc_max_context_facade(
+    settings: &AppSettings,
+    lang: &i18n::Language,
+) -> Result<usize, String> {
     log::info!("[calc_max_context_facade] 开始计算最大上下文");
 
     // 1. 读取 GGUF 模型信息
-    let gguf = read_gguf_info(&settings.model_path)?;
+    let gguf = read_gguf_info(&settings.model_path, lang)?;
     log::info!("[calc_max_context_facade] GGUF info: block_count={}, kv_head_count={}, head_dim={}, embedding_length={}, file_size={} bytes",
         gguf.block_count, gguf.kv_head_count, gguf.head_dim, gguf.embedding_length, gguf.file_size);
 
     // 2. 获取空闲显存
-    let free_mib = get_free_gpu_mib(&settings.server_path)?;
+    let free_mib = get_free_gpu_mib(&settings.server_path, lang)?;
     log::info!("[calc_max_context_facade] GPU 空闲显存: {} MiB", free_mib);
 
     // 3. 计算最大上下文（k 单位）
@@ -398,7 +430,7 @@ mod tests {
             "general.base_model.0.name".to_string(),
             serde_json::json!("Qwen3.8 27B"),
         );
-        let result = resolve_block_count("qwen38", &kv);
+        let result = resolve_block_count("qwen38", &kv, &i18n::Language::Zh);
         assert_eq!(result, Ok(16));
     }
 
@@ -410,7 +442,7 @@ mod tests {
             "general.base_model.0.name".to_string(),
             serde_json::json!("Qwen3.6 27B"),
         );
-        let result = resolve_block_count("qwen36", &kv);
+        let result = resolve_block_count("qwen36", &kv, &i18n::Language::Zh);
         assert_eq!(result, Ok(16));
     }
 
@@ -419,7 +451,7 @@ mod tests {
         // 普通架构从 metadata 读取 block_count
         let mut kv = std::collections::BTreeMap::new();
         kv.insert("llama.block_count".to_string(), serde_json::json!(42));
-        let result = resolve_block_count("llama", &kv);
+        let result = resolve_block_count("llama", &kv, &i18n::Language::Zh);
         assert_eq!(result, Ok(42));
     }
 
@@ -428,7 +460,7 @@ mod tests {
         // 普通架构缺少 block_count 字段时报错，错误消息含键名
         let kv = std::collections::BTreeMap::new();
         let block_key = "llama.block_count".to_string();
-        let err = resolve_block_count("llama", &kv).unwrap_err();
+        let err = resolve_block_count("llama", &kv, &i18n::Language::Zh).unwrap_err();
         assert!(err.contains("块数"));
         assert!(err.contains(&block_key));
     }

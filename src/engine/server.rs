@@ -1,4 +1,5 @@
 use crate::config::settings::AppSettings;
+use crate::engine::ErrorInfo;
 use crate::i18n;
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
@@ -17,7 +18,7 @@ pub enum ServerState {
     Starting,
     Running,
     Stopping,
-    Error(String),
+    Error(ErrorInfo),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -74,8 +75,12 @@ impl ServerManager {
             ServerState::Starting => i18n::t(i18n::Key::StatusStarting, lang).to_string(),
             ServerState::Running => i18n::t(i18n::Key::StatusRunning, lang).to_string(),
             ServerState::Stopping => i18n::t(i18n::Key::StatusStopping, lang).to_string(),
-            ServerState::Error(msg) => {
-                format!("{}: {}", i18n::t(i18n::Key::StatusError, lang), msg)
+            ServerState::Error(err) => {
+                format!(
+                    "{}: {}",
+                    i18n::t(i18n::Key::StatusError, lang),
+                    err.text(lang)
+                )
             }
         }
     }
@@ -236,16 +241,12 @@ impl ServerManager {
         let model_path = settings.model_path.clone();
 
         if server_path.as_os_str().is_empty() || model_path.as_os_str().is_empty() {
-            self.state = ServerState::Error(
-                i18n::t(i18n::Key::ErrServerModelMissing, &i18n::Language::En).to_string(),
-            );
+            self.state = ServerState::Error(ErrorInfo::Key(i18n::Key::ErrServerModelMissing));
             return;
         }
 
         if settings.port == settings.rpc_port {
-            self.state = ServerState::Error(
-                i18n::t(i18n::Key::ErrPortConflict, &i18n::Language::En).to_string(),
-            );
+            self.state = ServerState::Error(ErrorInfo::Key(i18n::Key::ErrPortConflict));
             return;
         }
 
@@ -698,10 +699,9 @@ impl ServerManager {
                 self._threads.push(stderr_thread);
             }
             Err(e) => {
-                self.state = ServerState::Error(format!(
-                    "{}: {}",
-                    i18n::t(i18n::Key::ErrStartFailed, &i18n::Language::En),
-                    e
+                self.state = ServerState::Error(ErrorInfo::WithDetail(
+                    i18n::Key::ErrStartFailed,
+                    e.to_string(),
                 ));
                 self.launch_command = None;
             }

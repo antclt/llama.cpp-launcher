@@ -1,5 +1,6 @@
 use crate::config::settings::AppSettings;
 use crate::engine::server::{LogEntry, LogLevel, ServerManager};
+use crate::engine::ErrorInfo;
 use crate::i18n;
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
@@ -17,7 +18,7 @@ pub enum RpcState {
     Starting,
     Running,
     Stopping,
-    Error(String),
+    Error(ErrorInfo),
 }
 
 /// RPC 连接状态
@@ -86,7 +87,13 @@ impl RpcManager {
             RpcState::Starting => i18n::t(i18n::Key::StatusStarting, lang).to_string(),
             RpcState::Running => i18n::t(i18n::Key::StatusRunning, lang).to_string(),
             RpcState::Stopping => i18n::t(i18n::Key::StatusStopping, lang).to_string(),
-            RpcState::Error(msg) => format!("{}: {}", i18n::t(i18n::Key::StatusError, lang), msg),
+            RpcState::Error(err) => {
+                format!(
+                    "{}: {}",
+                    i18n::t(i18n::Key::StatusError, lang),
+                    err.text(lang)
+                )
+            }
         }
     }
 
@@ -129,23 +136,17 @@ impl RpcManager {
         let rpc_path = settings.rpc_server_path.clone();
 
         if rpc_path.as_os_str().is_empty() {
-            self.state = RpcState::Error(
-                i18n::t(i18n::Key::ErrRpcPathMissing, &i18n::Language::En).to_string(),
-            );
+            self.state = RpcState::Error(ErrorInfo::Key(i18n::Key::ErrRpcPathMissing));
             return;
         }
 
         if !self.check_rpc_server(&rpc_path) {
-            self.state = RpcState::Error(
-                i18n::t(i18n::Key::ErrRpcFileNotFound, &i18n::Language::En).to_string(),
-            );
+            self.state = RpcState::Error(ErrorInfo::Key(i18n::Key::ErrRpcFileNotFound));
             return;
         }
 
         if settings.port == settings.rpc_port {
-            self.state = RpcState::Error(
-                i18n::t(i18n::Key::ErrPortConflict, &i18n::Language::En).to_string(),
-            );
+            self.state = RpcState::Error(ErrorInfo::Key(i18n::Key::ErrPortConflict));
             return;
         }
 
@@ -282,10 +283,9 @@ impl RpcManager {
                 self._threads.push(stderr_thread);
             }
             Err(e) => {
-                self.state = RpcState::Error(format!(
-                    "{}: {}",
-                    i18n::t(i18n::Key::ErrStartFailed, &i18n::Language::En),
-                    e
+                self.state = RpcState::Error(ErrorInfo::WithDetail(
+                    i18n::Key::ErrStartFailed,
+                    e.to_string(),
                 ));
                 self.connection = RpcConnection::Disconnected;
                 self.launch_command = None;
@@ -314,10 +314,9 @@ impl RpcManager {
                 if status.success() {
                     self.state = RpcState::Idle;
                 } else {
-                    self.state = RpcState::Error(format!(
-                        "{}: {:?}",
-                        i18n::t(i18n::Key::StatusRpcCrashed, &i18n::Language::En),
-                        status.code()
+                    self.state = RpcState::Error(ErrorInfo::WithDetail(
+                        i18n::Key::StatusRpcCrashed,
+                        format!("{:?}", status.code()),
                     ));
                     self.launch_command = None;
                 }
