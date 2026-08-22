@@ -556,6 +556,12 @@ impl ServerManager {
             cmd.arg("--no-webui");
         }
 
+        // MCP 工具：生成"当前启用"的 MCP 配置文件并传给 llama-server
+        // （无启用 server 或生成失败时函数返回 None，不拼接参数）
+        if let Some(mcp_config_path) = settings.write_effective_mcp_config() {
+            cmd.arg("--mcp-servers-config").arg(&mcp_config_path);
+        }
+
         // API 安全 / 部署（空值不拼接）
         if !settings.api_key.is_empty() {
             cmd.arg("--api-key").arg(&settings.api_key);

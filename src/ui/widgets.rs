@@ -26,6 +26,7 @@ pub enum NavIcon {
     Rpc,
     Model,
     Params,
+    Mcp,
     Log,
     RpcLog,
     Commands,
@@ -509,6 +510,21 @@ pub fn nav_icon_paint(painter: &Painter, rect: Rect, kind: NavIcon, color: Color
             painter.circle_stroke(top, r, s);
             painter.circle_stroke(bl, r, s);
             painter.circle_stroke(br, r, s);
+        }
+        NavIcon::Mcp => {
+            // ★ MCP 工具集线：左侧小方块（主程序）连接右侧三个工具节点
+            let hub = Rect::from_min_max(Pos2::new(sx(3.0), sy(9.0)), Pos2::new(sx(8.0), sy(15.0)));
+            painter.rect_stroke(hub, 1.5, s, egui::StrokeKind::Middle);
+            let r = w * 0.11;
+            let nodes = [
+                Pos2::new(sx(19.0), sy(4.5)),
+                Pos2::new(sx(21.0), sy(12.0)),
+                Pos2::new(sx(19.0), sy(19.5)),
+            ];
+            for &node in &nodes {
+                painter.line_segment([Pos2::new(sx(8.0), sy(12.0)), node], s);
+                painter.circle_stroke(node, r, s);
+            }
         }
         NavIcon::Model => {
             // ★ HTML: 圆角六边形（3D 盒子 / AI 模型经典图标）

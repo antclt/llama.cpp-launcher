@@ -28,10 +28,25 @@ pub enum Key {
     TabRpc,
     TabModel,
     TabParams,
+    TabMcp,
     TabLog,
     TabRpcLog,
     TabCommands,
     TabPresets,
+
+    // MCP 管理面板
+    SectionMcpSettings,
+    CheckboxMcpEnabled,
+    BtnEditMcpConfig,
+    HintMcpTip,
+    SectionMcpServers,
+    HintMcpEntryInvalid,
+    HintMcpUnsupported,
+    TitleMcpEditor,
+    HintMcpEditorTip,
+    BtnMcpSave,
+    BtnMcpCancel,
+    ErrMcpConfigInvalid,
 
     // 侧边栏导航（中文优先）
     NavServer,
@@ -345,6 +360,16 @@ pub enum Key {
     AboutDescription,
     AboutCopyright,
 
+    // 自更新（软件本身；检查更新按钮复用上游 BtnCheckUpdate）
+    BtnInstallUpdate,
+    UpdChecking,
+    UpdLatest,
+    UpdAvailable,
+    UpdDownloading,
+    UpdInstalling,
+    UpdError,
+    UpdNetworkError,
+
     // 菜单 - 项目地址
     MenuItemRepo,
 
@@ -498,6 +523,34 @@ impl Key {
             (Key::TabModel, &Language::En) => "Model",
             (Key::TabParams, &Language::Zh) => "参数",
             (Key::TabParams, &Language::En) => "Params",
+            (Key::TabMcp, &Language::Zh) => "MCP 管理",
+            (Key::TabMcp, &Language::En) => "MCP",
+
+            // MCP 管理面板
+            (Key::SectionMcpSettings, &Language::Zh) => "MCP 设置",
+            (Key::SectionMcpSettings, &Language::En) => "MCP Settings",
+            (Key::CheckboxMcpEnabled, &Language::Zh) => "启用 MCP 工具 (--mcp-servers-config)",
+            (Key::CheckboxMcpEnabled, &Language::En) => "Enable MCP tools (--mcp-servers-config)",
+            (Key::BtnEditMcpConfig, &Language::Zh) => "编辑配置",
+            (Key::BtnEditMcpConfig, &Language::En) => "Edit Config",
+            (Key::HintMcpTip, &Language::Zh) => "读取已有的 Cursor-compatible mcpServers 配置，按需启用后随 llama-server 启动",
+            (Key::HintMcpTip, &Language::En) => "Load your existing Cursor-compatible mcpServers config and pass enabled servers to llama-server",
+            (Key::SectionMcpServers, &Language::Zh) => "MCP Servers",
+            (Key::SectionMcpServers, &Language::En) => "MCP Servers",
+            (Key::HintMcpEntryInvalid, &Language::Zh) => "配置条目不是对象，llama.cpp 将跳过",
+            (Key::HintMcpEntryInvalid, &Language::En) => "Entry is not an object; llama.cpp will skip it",
+            (Key::HintMcpUnsupported, &Language::Zh) => "不含 command（非 stdio 型），llama.cpp 当前仅支持 stdio，将跳过",
+            (Key::HintMcpUnsupported, &Language::En) => "No command (non-stdio); llama.cpp only supports stdio and will skip it",
+            (Key::TitleMcpEditor, &Language::Zh) => "编辑 MCP 配置",
+            (Key::TitleMcpEditor, &Language::En) => "Edit MCP Config",
+            (Key::HintMcpEditorTip, &Language::Zh) => "支持 Cursor-compatible mcpServers JSON",
+            (Key::HintMcpEditorTip, &Language::En) => "Cursor-compatible mcpServers JSON",
+            (Key::BtnMcpSave, &Language::Zh) => "保存",
+            (Key::BtnMcpSave, &Language::En) => "Save",
+            (Key::BtnMcpCancel, &Language::Zh) => "取消",
+            (Key::BtnMcpCancel, &Language::En) => "Cancel",
+            (Key::ErrMcpConfigInvalid, &Language::Zh) => "配置无效：",
+            (Key::ErrMcpConfigInvalid, &Language::En) => "Invalid config:",
 
             (Key::TabLog, &Language::Zh) => "服务器日志",
             (Key::TabLog, &Language::En) => "Server Logs",
@@ -1095,6 +1148,23 @@ impl Key {
             (Key::AboutCopyright, &Language::Zh) => "© yihuishou. All rights reserved.",
             (Key::AboutCopyright, &Language::En) => "© yihuishou. All rights reserved.",
 
+            // 自更新（软件本身）
+            (Key::BtnInstallUpdate, &Language::Zh) => "安装更新",
+            (Key::BtnInstallUpdate, &Language::En) => "Install Update",
+            (Key::UpdChecking, &Language::Zh) => "正在检查更新…",
+            (Key::UpdChecking, &Language::En) => "Checking for updates…",
+            (Key::UpdLatest, &Language::Zh) => "已是最新版本",
+            (Key::UpdLatest, &Language::En) => "Up to date",
+            (Key::UpdAvailable, &Language::Zh) => "发现新版本",
+            (Key::UpdAvailable, &Language::En) => "New version available",
+            (Key::UpdDownloading, &Language::Zh) => "正在下载更新",
+            (Key::UpdDownloading, &Language::En) => "Downloading update",
+            (Key::UpdInstalling, &Language::Zh) => "正在安装，即将重启…",
+            (Key::UpdInstalling, &Language::En) => "Installing, restarting…",
+            (Key::UpdError, &Language::Zh) => "更新失败",
+            (Key::UpdError, &Language::En) => "Update failed",
+            (Key::UpdNetworkError, &Language::Zh) => "获取失败：网络错误",
+            (Key::UpdNetworkError, &Language::En) => "Failed: network error",
 
             // Server 面板 - 版本
             (Key::BtnCheckVersion, &Language::Zh) => "查看 llama.cpp 版本",
