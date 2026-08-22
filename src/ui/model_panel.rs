@@ -182,11 +182,130 @@ enum FileMode {
     Dflash,
 }
 
+/// 模型详情（点击 📋 按钮后读取的 GGUF 元数据）
+#[derive(Debug, Clone, Default)]
+struct ModelDetails {
+    /// 文件名
+    file_name: String,
+    /// 文件大小（字节）
+    file_size: u64,
+    /// 架构 (general.architecture)
+    architecture: String,
+    /// 参数量（人类可读，如 "27B"）
+    parameters: String,
+    /// 量化类型（人类可读，如 "Mostly Q4_0"）
+    quantization: String,
+    /// 上下文长度（若存在）
+    context_length: Option<u64>,
+    /// 嵌入维度（若存在）
+    embedding_length: Option<u64>,
+    /// 层数（若存在）
+    block_count: Option<u64>,
+    /// 张量数量
+    tensor_count: u64,
+}
+
+/// 模型详情弹窗的跨帧状态（存于 Ui 临时数据，按钮点击后保持打开）
+#[derive(Clone, Default)]
+struct DetailsPopupState {
+    /// 弹窗是否打开
+    open: bool,
+    /// 弹窗展示的详情
+    details: ModelDetails,
+}
+
+/// 读取 GGUF 模型详情（流式读取文件头元数据，不加载张量数据）
+fn load_model_details(
+    file_path: &std::path::Path,
+    lang: &i18n::Language,
+) -> Result<ModelDetails, String> {
+    let file_name = file_path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+
+    let file_size = std::fs::metadata(file_path)
+        .map(|m| m.len())
+        .map_err(|e| format!("{}: {}", i18n::t(i18n::Key::ModelDetailsError, lang), e))?;
+
+    let file_str = file_path
+        .to_str()
+        .ok_or_else(|| i18n::t(i18n::Key::ModelDetailsError, lang).to_string())?;
+
+    let mut container = gguf_rs::get_gguf_container(file_str)
+        .map_err(|e| format!("{}: {}", i18n::t(i18n::Key::ModelDetailsError, lang), e))?;
+
+    let model = container
+        .decode()
+        .map_err(|e| format!("{}: {}", i18n::t(i18n::Key::ModelDetailsError, lang), e))?;
+
+    let kv = model.metadata();
+    let architecture = model.model_family();
+
+    // 上下文长度（general.context_length → {arch}.context_length）
+    let context_length = kv
+        .get("general.context_length")
+        .or_else(|| kv.get(&format!("{}.context_length", architecture)))
+        .and_then(|v| v.as_u64());
+
+    // 嵌入维度
+    let embedding_length = kv
+        .get(&format!("{}.embedding_length", architecture))
+        .and_then(|v| v.as_u64());
+
+    // 层数
+    let block_count = kv
+        .get(&format!("{}.block_count", architecture))
+        .and_then(|v| v.as_u64());
+
+    Ok(ModelDetails {
+        file_name,
+        file_size,
+        architecture,
+        parameters: model.model_parameters(),
+        quantization: model.file_type(),
+        context_length,
+        embedding_length,
+        block_count,
+        tensor_count: model.num_tensor(),
+    })
+}
+
+/// 人类可读的文件大小
+fn format_file_size(bytes: u64) -> String {
+    const UNITS: [&str; 3] = ["MB", "GB", "TB"];
+    let mut size = bytes as f64 / (1024.0 * 1024.0);
+    let mut unit = 0usize;
+    while size >= 1024.0 && unit < UNITS.len() - 1 {
+        size /= 1024.0;
+        unit += 1;
+    }
+    if size >= 100.0 {
+        format!("{:.0} {}", size, UNITS[unit])
+    } else {
+        format!("{:.1} {}", size, UNITS[unit])
+    }
+}
+
+/// 详情弹窗中的一行：标签 + 加粗值（明亮主题下值使用纯黑色）
+fn detail_row(ui: &mut egui::Ui, label: &str, value: &str) {
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new(label).color(ui.visuals().weak_text_color()));
+        let mut text = egui::RichText::new(value).strong();
+        // 明亮主题下显式使用纯黑色，让具体值更醒目
+        if !ui.visuals().dark_mode {
+            text = text.color(egui::Color32::BLACK);
+        }
+        ui.label(text);
+    });
+}
+
 fn render_file_list(
     ui: &mut egui::Ui,
     dir: &std::path::Path,
     selected_path: std::path::PathBuf,
     on_select: &mut impl FnMut(std::path::PathBuf),
+    on_show_details: &mut impl FnMut(std::path::PathBuf),
     lang: &i18n::Language,
     mode: FileMode,
     accent: egui::Color32,
@@ -305,6 +424,18 @@ fn render_file_list(
                         egui::RichText::new(relative.as_ref())
                             .color(ui.visuals().weak_text_color()),
                     );
+                    // 模型详情按钮
+                    if ui
+                        .add(
+                            egui::Button::new(egui::RichText::new("📋").size(12.0))
+                                .fill(egui::Color32::TRANSPARENT)
+                                .corner_radius(4.0),
+                        )
+                        .on_hover_text(i18n::t(i18n::Key::BtnShowDetails, lang))
+                        .clicked()
+                    {
+                        on_show_details(file_path.clone());
+                    }
                 });
                 first_item = false;
                 pending_space = ITEM_GAP; // 模型后：与下一个模型/标题分隔
@@ -314,6 +445,11 @@ fn render_file_list(
 
 pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) {
     let accent = crate::theme::accent_color(&settings.accent_color);
+
+    // 模型详情弹窗跨帧状态（Ui 临时数据）
+    let popup_id = ui.id().with("model_details_popup");
+    // 本帧由详情按钮点击产生的待显示状态
+    let mut model_details: Option<ModelDetails> = None;
 
     // ── 模型文件夹 ──
     widgets::card(
@@ -368,6 +504,14 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             &mut |path| {
                 settings.model_path = path;
             },
+            &mut |path| match load_model_details(&path, lang) {
+                Ok(details) => model_details = Some(details),
+                Err(e) => log::error!(
+                    "[model_panel] {}: {}",
+                    i18n::t(i18n::Key::ModelDetailsError, lang),
+                    e
+                ),
+            },
             lang,
             FileMode::Main,
             accent,
@@ -387,6 +531,14 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 } else {
                     path
                 };
+            },
+            &mut |path| match load_model_details(&path, lang) {
+                Ok(details) => model_details = Some(details),
+                Err(e) => log::error!(
+                    "[model_panel] {}: {}",
+                    i18n::t(i18n::Key::ModelDetailsError, lang),
+                    e
+                ),
             },
             lang,
             FileMode::Mmproj,
@@ -408,9 +560,120 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     path
                 };
             },
+            &mut |path| match load_model_details(&path, lang) {
+                Ok(details) => model_details = Some(details),
+                Err(e) => log::error!(
+                    "[model_panel] {}: {}",
+                    i18n::t(i18n::Key::ModelDetailsError, lang),
+                    e
+                ),
+            },
             lang,
             FileMode::Dflash,
             accent,
         );
     });
+
+    // ── 模型详情弹窗 ──
+    // 本帧点击了详情按钮：打开/刷新跨帧弹窗状态
+    if let Some(details) = model_details.take() {
+        ui.data_mut(|map| {
+            map.insert_temp(
+                popup_id,
+                DetailsPopupState {
+                    open: true,
+                    details,
+                },
+            );
+        });
+    }
+
+    // 读取弹窗状态（跨帧保持打开，直到用户关闭）
+    let mut popup = ui.data(|map| map.get_temp::<DetailsPopupState>(popup_id));
+    if let Some(ref mut state) = popup {
+        if state.open {
+            // 用局部变量承载开关状态，避免窗口构建器与内容闭包的借用冲突
+            let mut open = state.open;
+            let ctx = ui.ctx();
+            egui::Window::new(i18n::t(i18n::Key::DetailsWindowTitle, lang))
+                .open(&mut open)
+                .collapsible(true)
+                .resizable(false)
+                .min_size(egui::vec2(340.0, 0.0))
+                .show(ctx, |ui| {
+                    let details = &state.details;
+                    let unknown = i18n::t(i18n::Key::DetailsUnknown, lang).to_string();
+
+                    detail_row(
+                        ui,
+                        i18n::t(i18n::Key::DetailsFileName, lang),
+                        &details.file_name,
+                    );
+                    detail_row(
+                        ui,
+                        i18n::t(i18n::Key::DetailsFileSize, lang),
+                        &format_file_size(details.file_size),
+                    );
+                    ui.separator();
+                    detail_row(
+                        ui,
+                        i18n::t(i18n::Key::DetailsArchitecture, lang),
+                        &details.architecture,
+                    );
+                    detail_row(
+                        ui,
+                        i18n::t(i18n::Key::DetailsParameters, lang),
+                        &details.parameters,
+                    );
+                    detail_row(
+                        ui,
+                        i18n::t(i18n::Key::DetailsQuantization, lang),
+                        &details.quantization,
+                    );
+                    detail_row(
+                        ui,
+                        i18n::t(i18n::Key::DetailsContextLength, lang),
+                        &details
+                            .context_length
+                            .map(|v| v.to_string())
+                            .unwrap_or(unknown.clone()),
+                    );
+                    detail_row(
+                        ui,
+                        i18n::t(i18n::Key::DetailsEmbeddingLength, lang),
+                        &details
+                            .embedding_length
+                            .map(|v| v.to_string())
+                            .unwrap_or(unknown.clone()),
+                    );
+                    detail_row(
+                        ui,
+                        i18n::t(i18n::Key::DetailsBlockCount, lang),
+                        &details
+                            .block_count
+                            .map(|v| v.to_string())
+                            .unwrap_or(unknown.clone()),
+                    );
+                    detail_row(
+                        ui,
+                        i18n::t(i18n::Key::DetailsTensorCount, lang),
+                        &details.tensor_count.to_string(),
+                    );
+                });
+            // 写回开关状态（用户可能已点击关闭按钮）
+            state.open = open;
+        }
+    }
+    // 写回弹窗状态：打开则保留，关闭则清理
+    match popup {
+        Some(state) if state.open => {
+            ui.data_mut(|map| map.insert_temp(popup_id, state));
+        }
+        Some(_) => {
+            ui.data_mut(|map| {
+                map.remove_temp::<DetailsPopupState>(popup_id);
+            });
+        }
+        None => {}
+    }
 }
