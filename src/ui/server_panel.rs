@@ -307,6 +307,20 @@ pub fn ui(
                         ui.text_edit_singleline(&mut settings.rpc_endpoints);
                         ui.small(i18n::t(i18n::Key::HintRpcEndpoints, lang));
                     });
+                    // 下一行：添加本机 RPC 客户端按钮
+                    if ui
+                        .button(i18n::t(i18n::Key::BtnAddLocalRpcClient, lang))
+                        .clicked()
+                    {
+                        let new_addr = format!("127.0.0.1:{}", settings.rpc_port);
+                        let existing = settings.rpc_endpoints.trim().to_string();
+                        settings.rpc_endpoints = if existing.is_empty() {
+                            new_addr
+                        } else {
+                            // 已有配置：新增地址 + 英文逗号 + 原内容
+                            format!("{},{}", new_addr, existing)
+                        };
+                    }
                 });
             }
             widgets::toggle(
