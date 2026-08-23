@@ -344,11 +344,44 @@ fn fetch_nightly_tag_from_latest(variant: &DownloadVariant) -> Result<String, St
     Ok(tag)
 }
 
+/// 获取最新 nightly release（preview 模式使用）
+/// 通过 GitHub releases API 获取所有 releases，找到 tag 匹配 b[NUM] 格式的最新 release
+fn fetch_latest_nightly_release(variant: &DownloadVariant) -> Result<ReleaseInfo, String> {
+    let base_url = if variant.is_rocm_lemonade() {
+        "https://api.github.com/repos/lemonade-sdk/llamacpp-rocm/releases"
+    } else {
+        "https://api.github.com/repos/ggml-org/llama.cpp/releases"
+    };
+    // 获取最新的 releases（每页 10 个，足够找到最新的 nightly）
+    let api_url = format!("{}?per_page=10", base_url);
+    let body = ureq::get(&api_url)
+        .set("User-Agent", USER_AGENT)
+        .call()
+        .map_err(|e| format!("fetch releases list failed: {}", e))?
+        .into_string()
+        .map_err(|e| format!("read releases response failed: {}", e))?;
+    let releases: Vec<ReleaseInfo> =
+        serde_json::from_str(&body).map_err(|e| format!("parse releases list failed: {}", e))?;
+    // 找到第一个 tag 匹配 b[NUM] 格式的 release（最新的 nightly）
+    releases
+        .into_iter()
+        .find(|r| {
+            let tag = &r.tag_name;
+            // 匹配 "b" 开头后跟数字的 tag（如 b10549）
+            tag.starts_with('b') && tag.len() > 1 && tag[1..].chars().all(|c| c.is_ascii_digit())
+        })
+        .ok_or_else(|| "no nightly release (b[NUM] tag) found".to_string())
+}
+
 /// 获取最新 release 的 tag_name（如 "b10549"），供"检查更新"使用
-/// 两个通道都通过 nightly-tag.txt 获取实际 nightly tag，
-/// 因为 GitHub releases/latest 返回的是 vX.Y.Z（无预编译资产）。
-pub fn fetch_latest_tag(variant: DownloadVariant, _release_channel: &str) -> Result<String, String> {
-    fetch_nightly_tag_from_latest(&variant)
+/// stable: 通过 nightly-tag.txt 获取 vX.Y.Z 确认的 nightly tag
+/// preview: 直接获取最新 nightly tag（b[NUM]）
+pub fn fetch_latest_tag(variant: DownloadVariant, release_channel: &str) -> Result<String, String> {
+    if release_channel == "stable" {
+        fetch_nightly_tag_from_latest(&variant)
+    } else {
+        fetch_latest_nightly_release(&variant).map(|r| r.tag_name)
+    }
 }
 
 // ======================= 下载流程（后台线程） =======================
@@ -387,16 +420,20 @@ pub fn download_in_background(
 fn run_download(
     base_dir: &Path,
     variant: DownloadVariant,
-    _release_channel: &str,
+    release_channel: &str,
     cancel: &AtomicBool,
     status: &Arc<Mutex<DownloadStatus>>,
 ) -> Result<String, String> {
     // 1) 获取最新版本信息（根据发布通道）
-    //    注意：GitHub releases/latest API 返回的是 vX.Y.Z（稳定版 tag），其 assets 只有 nightly-tag.txt，
-    //    没有预编译二进制。因此 stable 和 preview 都需要通过 nightly-tag.txt 获取实际 nightly release。
     set_running(status, Phase::FetchingRelease, 0, None);
-    let nightly_tag = fetch_nightly_tag_from_latest(&variant)?;
-    let release = fetch_release_by_tag(&nightly_tag, variant.is_rocm_lemonade())?;
+    let release = if release_channel == "stable" {
+        // stable: 先读取 vX.Y.Z 的 nightly-tag.txt，获取确认的 nightly 版本
+        let nightly_tag = fetch_nightly_tag_from_latest(&variant)?;
+        fetch_release_by_tag(&nightly_tag, variant.is_rocm_lemonade())?
+    } else {
+        // preview: 直接获取最新 nightly release（不经过 vX.Y.Z 确认）
+        fetch_latest_nightly_release(&variant)?
+    };
 
     // 2) 按变体匹配资产
     let asset = pick_asset(&release.assets, &variant).ok_or_else(|| {
