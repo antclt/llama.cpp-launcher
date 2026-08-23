@@ -196,6 +196,21 @@ pub fn ui(
             let variant =
                 crate::downloader::DownloadVariant::from_settings_value(&settings.download_variant);
 
+            // 发布通道选择（stable/preview）
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::ReleaseChannelLabel, lang));
+                ui.selectable_value(
+                    &mut settings.release_channel,
+                    "stable".to_string(),
+                    i18n::t(i18n::Key::ReleaseChannelStable, lang),
+                );
+                ui.selectable_value(
+                    &mut settings.release_channel,
+                    "preview".to_string(),
+                    i18n::t(i18n::Key::ReleaseChannelPreview, lang),
+                );
+            });
+
             // 下载 llama.cpp + 检查更新：单独一行
             ui.horizontal(|ui| {
                 if ui
@@ -205,7 +220,11 @@ pub fn ui(
                     )
                     .clicked()
                 {
-                    downloader.start_download(settings_manager.config_dir().to_path_buf(), variant);
+                    downloader.start_download(
+                        settings_manager.config_dir().to_path_buf(),
+                        variant,
+                        settings.release_channel.clone(),
+                    );
                 }
 
                 // 检查更新：llama-server 路径非空时可用
@@ -221,7 +240,7 @@ pub fn ui(
                     let variant = crate::downloader::DownloadVariant::from_settings_value(
                         &settings.download_variant,
                     );
-                    match crate::downloader::fetch_latest_tag(variant) {
+                    match crate::downloader::fetch_latest_tag(variant, &settings.release_channel) {
                         Ok(latest) => {
                             // 比对 build 标签（如 b10549）；本地无法解析时视为有新版本
                             let up_to_date =

@@ -219,7 +219,12 @@ impl DownloadHandle {
     }
 
     /// 若当前非 Running 则 spawn 下载线程；Running 时直接忽略（防重复点击）
-    pub fn start_download(&self, base_dir: PathBuf, variant: DownloadVariant) {
+    pub fn start_download(
+        &self,
+        base_dir: PathBuf,
+        variant: DownloadVariant,
+        release_channel: String,
+    ) {
         {
             let mut st = self.status.lock().unwrap();
             if matches!(st.state, DownloadState::Running) {
@@ -238,8 +243,9 @@ impl DownloadHandle {
         let status = Arc::clone(&self.status);
         let handle = match thread::Builder::new()
             .name("llama-cpp-downloader".to_string())
-            .spawn(move || download_in_background(base_dir, variant, cancel, status))
-        {
+            .spawn(move || {
+                download_in_background(base_dir, variant, release_channel, cancel, status)
+            }) {
             Ok(h) => h,
             Err(e) => {
                 let mut st = self.status.lock().unwrap();
@@ -292,9 +298,62 @@ fn fetch_release(variant: &DownloadVariant) -> Result<ReleaseInfo, String> {
     serde_json::from_str(&body).map_err(|e| format!("parse release info failed: {}", e))
 }
 
+/// 获取指定 tag 的 release 信息（用于 stable 模式获取 nightly release）
+fn fetch_release_by_tag(tag: &str, is_rocm: bool) -> Result<ReleaseInfo, String> {
+    let api_url = if is_rocm {
+        format!(
+            "https://api.github.com/repos/lemonade-sdk/llamacpp-rocm/releases/tags/{}",
+            tag
+        )
+    } else {
+        format!(
+            "https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/{}",
+            tag
+        )
+    };
+    let body = ureq::get(&api_url)
+        .set("User-Agent", USER_AGENT)
+        .call()
+        .map_err(|e| format!("fetch release by tag '{}' failed: {}", tag, e))?
+        .into_string()
+        .map_err(|e| format!("read release response failed: {}", e))?;
+    serde_json::from_str(&body).map_err(|e| format!("parse release info failed: {}", e))
+}
+
+/// 从 latest release 的 assets 中下载 nightly-tag.txt 的内容
+/// 返回 nightly tag 名（如 "b10549"）
+fn fetch_nightly_tag_from_latest(variant: &DownloadVariant) -> Result<String, String> {
+    let release = fetch_release(variant)?;
+    // 找到 nightly-tag.txt 资产
+    let asset = release
+        .assets
+        .iter()
+        .find(|a| a.name == "nightly-tag.txt")
+        .ok_or_else(|| format!("no nightly-tag.txt asset in release {}", release.tag_name))?;
+    // 下载 nightly-tag.txt 内容
+    let body = ureq::get(&asset.browser_download_url)
+        .set("User-Agent", USER_AGENT)
+        .call()
+        .map_err(|e| format!("fetch nightly-tag.txt failed: {}", e))?
+        .into_string()
+        .map_err(|e| format!("read nightly-tag.txt failed: {}", e))?;
+    let tag = body.trim().to_string();
+    if tag.is_empty() {
+        return Err("nightly-tag.txt is empty".to_string());
+    }
+    Ok(tag)
+}
+
 /// 获取最新 release 的 tag_name（如 "b10549"），供"检查更新"使用
-pub fn fetch_latest_tag(variant: DownloadVariant) -> Result<String, String> {
-    Ok(fetch_release(&variant)?.tag_name)
+/// release_channel: "stable" → 获取 nightly-tag.txt 指向的 nightly tag；"preview" → 直接获取 latest tag
+pub fn fetch_latest_tag(variant: DownloadVariant, release_channel: &str) -> Result<String, String> {
+    if release_channel == "stable" {
+        // stable: 读取 latest release 的 nightly-tag.txt，获取实际 nightly tag
+        fetch_nightly_tag_from_latest(&variant)
+    } else {
+        // preview: 直接获取 latest release 的 tag_name
+        Ok(fetch_release(&variant)?.tag_name)
+    }
 }
 
 // ======================= 下载流程（后台线程） =======================
@@ -303,10 +362,11 @@ pub fn fetch_latest_tag(variant: DownloadVariant) -> Result<String, String> {
 pub fn download_in_background(
     base_dir: PathBuf,
     variant: DownloadVariant,
+    release_channel: String,
     cancel: Arc<AtomicBool>,
     status: Arc<Mutex<DownloadStatus>>,
 ) {
-    match run_download(&base_dir, variant, &cancel, &status) {
+    match run_download(&base_dir, variant, &release_channel, &cancel, &status) {
         Ok(path) => {
             let mut st = status.lock().unwrap();
             // 若流程中被取消（解压/定位阶段不检查取消，可能正常完成），按 Idle 处理
@@ -332,12 +392,20 @@ pub fn download_in_background(
 fn run_download(
     base_dir: &Path,
     variant: DownloadVariant,
+    release_channel: &str,
     cancel: &AtomicBool,
     status: &Arc<Mutex<DownloadStatus>>,
 ) -> Result<String, String> {
-    // 1) 获取最新版本信息
+    // 1) 获取最新版本信息（根据发布通道）
     set_running(status, Phase::FetchingRelease, 0, None);
-    let release = fetch_release(&variant)?;
+    let release = if release_channel == "stable" {
+        // stable: 先获取 latest release 的 nightly-tag.txt，再获取对应 nightly release
+        let nightly_tag = fetch_nightly_tag_from_latest(&variant)?;
+        fetch_release_by_tag(&nightly_tag, variant.is_rocm_lemonade())?
+    } else {
+        // preview: 直接获取最新 release
+        fetch_release(&variant)?
+    };
 
     // 2) 按变体匹配资产
     let asset = pick_asset(&release.assets, &variant).ok_or_else(|| {
