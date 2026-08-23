@@ -494,6 +494,9 @@ pub enum Key {
     DlFailed,
     CheckUpdateTooltip,
     SubSectionLlamaCppDownload,
+    ReleaseChannelLabel,
+    ReleaseChannelStable,
+    ReleaseChannelPreview,
 }
 
 impl Key {
@@ -1397,6 +1400,12 @@ impl Key {
             (Key::CheckUpdateTooltip, &Language::En) => "Coming soon",
             (Key::SubSectionLlamaCppDownload, &Language::Zh) => "llama.cpp 下载与更新",
             (Key::SubSectionLlamaCppDownload, &Language::En) => "llama.cpp Download & Update",
+            (Key::ReleaseChannelLabel, &Language::Zh) => "发布通道:",
+            (Key::ReleaseChannelLabel, &Language::En) => "Release Channel:",
+            (Key::ReleaseChannelStable, &Language::Zh) => "稳定版",
+            (Key::ReleaseChannelStable, &Language::En) => "Stable",
+            (Key::ReleaseChannelPreview, &Language::Zh) => "预览版",
+            (Key::ReleaseChannelPreview, &Language::En) => "Preview",
         }
     }
 }

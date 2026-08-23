@@ -374,6 +374,10 @@ fn default_jinja_enabled() -> bool {
     true // --jinja / --no-jinja（新版 llama-server 默认启用）
 }
 
+fn default_release_channel() -> String {
+    "stable".to_string()
+}
+
 // Duplicate definition removed - keeping only one instance above
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Preset {
@@ -1201,6 +1205,12 @@ pub struct AppSettings {
     #[serde(default = "default_download_variant")]
     pub download_variant: String,
 
+    // 发布通道："stable" | "preview"
+    // stable: 读取 vX.Y.Z 的 nightly-tag.txt 获取对应 nightly 版本的预编译资产
+    // preview: 直接获取最新 nightly release 的预编译资产
+    #[serde(default = "default_release_channel")]
+    pub release_channel: String,
+
     // ROCm GPU 目标型号（仅当 download_variant 为 rocm714 时生效）
     // 可选值："gfx103X" | "gfx110X" | "gfx1150" | "gfx1151" | "gfx120X" | "gfx908" | "gfx90a"
     #[serde(default = "default_rocm_gpu_target")]
@@ -1345,6 +1355,7 @@ impl Default for AppSettings {
             accent_color: default_accent_color(),
             language: String::new(),
             download_variant: default_download_variant(),
+            release_channel: default_release_channel(),
             rocm_gpu_target: default_rocm_gpu_target(),
             auto_start_preset_name: None,
             llama_version: String::new(),
