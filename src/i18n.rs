@@ -161,6 +161,7 @@ pub enum Key {
     DetailsBlockCount,
     DetailsTensorCount,
     DetailsUnknown,
+    Loading,
 
     // 参数面板
     PanelParamsTitle,
@@ -785,6 +786,8 @@ impl Key {
             (Key::DetailsTensorCount, &Language::En) => "Tensors:",
             (Key::DetailsUnknown, &Language::Zh) => "未知",
             (Key::DetailsUnknown, &Language::En) => "N/A",
+            (Key::Loading, &Language::Zh) => "加载中...",
+            (Key::Loading, &Language::En) => "Loading...",
 
             // 参数面板
             (Key::PanelParamsTitle, &Language::Zh) => "推理参数",

@@ -1,6 +1,13 @@
 use crate::config::settings::AppSettings;
 use crate::i18n;
 use crate::ui::widgets;
+use poll_promise::Promise;
+use std::cell::RefCell;
+
+// 跨帧持有的异步加载任务（Promise 不实现 Clone/Sync，无法存入 egui 临时数据）
+thread_local! {
+    static DETAIL_PROMISE: RefCell<Option<Promise<Result<ModelDetails, String>>>> = const { RefCell::new(None) };
+}
 
 /// 自动检测模型文件夹
 fn auto_detect_model_dir() -> Option<std::path::PathBuf> {
@@ -210,8 +217,8 @@ struct ModelDetails {
 struct DetailsPopupState {
     /// 弹窗是否打开
     open: bool,
-    /// 弹窗展示的详情
-    details: ModelDetails,
+    /// 弹窗展示的详情（异步加载完成前为 None）
+    details: Option<ModelDetails>,
 }
 
 /// 读取 GGUF 模型详情（流式读取文件头元数据，不加载张量数据）
@@ -448,8 +455,8 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
 
     // 模型详情弹窗跨帧状态（Ui 临时数据）
     let popup_id = ui.id().with("model_details_popup");
-    // 本帧由详情按钮点击产生的待显示状态
-    let mut model_details: Option<ModelDetails> = None;
+    // 本帧由详情按钮点击产生的异步加载任务
+    let mut pending_promise: Option<Promise<Result<ModelDetails, String>>> = None;
 
     // ── 模型文件夹 ──
     widgets::card(
@@ -504,13 +511,12 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             &mut |path| {
                 settings.model_path = path;
             },
-            &mut |path| match load_model_details(&path, lang) {
-                Ok(details) => model_details = Some(details),
-                Err(e) => log::error!(
-                    "[model_panel] {}: {}",
-                    i18n::t(i18n::Key::ModelDetailsError, lang),
-                    e
-                ),
+            &mut |path| {
+                let lang = lang.clone();
+                let promise = Promise::spawn_thread("load_model_details", move || {
+                    load_model_details(&path, &lang)
+                });
+                pending_promise = Some(promise);
             },
             lang,
             FileMode::Main,
@@ -532,13 +538,12 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     path
                 };
             },
-            &mut |path| match load_model_details(&path, lang) {
-                Ok(details) => model_details = Some(details),
-                Err(e) => log::error!(
-                    "[model_panel] {}: {}",
-                    i18n::t(i18n::Key::ModelDetailsError, lang),
-                    e
-                ),
+            &mut |path| {
+                let lang = lang.clone();
+                let promise = Promise::spawn_thread("load_model_details", move || {
+                    load_model_details(&path, &lang)
+                });
+                pending_promise = Some(promise);
             },
             lang,
             FileMode::Mmproj,
@@ -560,13 +565,12 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     path
                 };
             },
-            &mut |path| match load_model_details(&path, lang) {
-                Ok(details) => model_details = Some(details),
-                Err(e) => log::error!(
-                    "[model_panel] {}: {}",
-                    i18n::t(i18n::Key::ModelDetailsError, lang),
-                    e
-                ),
+            &mut |path| {
+                let lang = lang.clone();
+                let promise = Promise::spawn_thread("load_model_details", move || {
+                    load_model_details(&path, &lang)
+                });
+                pending_promise = Some(promise);
             },
             lang,
             FileMode::Dflash,
@@ -575,18 +579,49 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
     });
 
     // ── 模型详情弹窗 ──
-    // 本帧点击了详情按钮：打开/刷新跨帧弹窗状态
-    if let Some(details) = model_details.take() {
+    // 本帧点击了详情按钮：将异步任务存入 thread_local，确保弹窗打开
+    if let Some(promise) = pending_promise.take() {
+        DETAIL_PROMISE.with(|cell| {
+            *cell.borrow_mut() = Some(promise);
+        });
+        // 若弹窗尚未打开，初始化一个空状态
         ui.data_mut(|map| {
             map.insert_temp(
                 popup_id,
                 DetailsPopupState {
                     open: true,
-                    details,
+                    details: None,
                 },
             );
         });
     }
+
+    // 轮询 thread_local 中的异步任务，完成后写入弹窗状态
+    DETAIL_PROMISE.with(|cell| {
+        let mut guard = cell.borrow_mut();
+        if let Some(ref promise) = *guard {
+            if let Some(result) = promise.ready() {
+                match result {
+                    Ok(details) => {
+                        ui.data_mut(|map| {
+                            if let Some(mut state) = map.get_temp::<DetailsPopupState>(popup_id) {
+                                state.details = Some(details.clone());
+                                map.insert_temp(popup_id, state);
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        log::error!(
+                            "[model_panel] {}: {}",
+                            i18n::t(i18n::Key::ModelDetailsError, lang),
+                            e
+                        );
+                    }
+                }
+                *guard = None;
+            }
+        }
+    });
 
     // 读取弹窗状态（跨帧保持打开，直到用户关闭）
     let mut popup = ui.data(|map| map.get_temp::<DetailsPopupState>(popup_id));
@@ -601,64 +636,72 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 .resizable(false)
                 .min_size(egui::vec2(340.0, 0.0))
                 .show(ctx, |ui| {
-                    let details = &state.details;
-                    let unknown = i18n::t(i18n::Key::DetailsUnknown, lang).to_string();
+                    // 显示详情或加载状态
+                    if let Some(ref details) = state.details {
+                        let unknown = i18n::t(i18n::Key::DetailsUnknown, lang).to_string();
 
-                    detail_row(
-                        ui,
-                        i18n::t(i18n::Key::DetailsFileName, lang),
-                        &details.file_name,
-                    );
-                    detail_row(
-                        ui,
-                        i18n::t(i18n::Key::DetailsFileSize, lang),
-                        &format_file_size(details.file_size),
-                    );
-                    ui.separator();
-                    detail_row(
-                        ui,
-                        i18n::t(i18n::Key::DetailsArchitecture, lang),
-                        &details.architecture,
-                    );
-                    detail_row(
-                        ui,
-                        i18n::t(i18n::Key::DetailsParameters, lang),
-                        &details.parameters,
-                    );
-                    detail_row(
-                        ui,
-                        i18n::t(i18n::Key::DetailsQuantization, lang),
-                        &details.quantization,
-                    );
-                    detail_row(
-                        ui,
-                        i18n::t(i18n::Key::DetailsContextLength, lang),
-                        &details
-                            .context_length
-                            .map(|v| v.to_string())
-                            .unwrap_or(unknown.clone()),
-                    );
-                    detail_row(
-                        ui,
-                        i18n::t(i18n::Key::DetailsEmbeddingLength, lang),
-                        &details
-                            .embedding_length
-                            .map(|v| v.to_string())
-                            .unwrap_or(unknown.clone()),
-                    );
-                    detail_row(
-                        ui,
-                        i18n::t(i18n::Key::DetailsBlockCount, lang),
-                        &details
-                            .block_count
-                            .map(|v| v.to_string())
-                            .unwrap_or(unknown.clone()),
-                    );
-                    detail_row(
-                        ui,
-                        i18n::t(i18n::Key::DetailsTensorCount, lang),
-                        &details.tensor_count.to_string(),
-                    );
+                        detail_row(
+                            ui,
+                            i18n::t(i18n::Key::DetailsFileName, lang),
+                            &details.file_name,
+                        );
+                        detail_row(
+                            ui,
+                            i18n::t(i18n::Key::DetailsFileSize, lang),
+                            &format_file_size(details.file_size),
+                        );
+                        ui.separator();
+                        detail_row(
+                            ui,
+                            i18n::t(i18n::Key::DetailsArchitecture, lang),
+                            &details.architecture,
+                        );
+                        detail_row(
+                            ui,
+                            i18n::t(i18n::Key::DetailsParameters, lang),
+                            &details.parameters,
+                        );
+                        detail_row(
+                            ui,
+                            i18n::t(i18n::Key::DetailsQuantization, lang),
+                            &details.quantization,
+                        );
+                        detail_row(
+                            ui,
+                            i18n::t(i18n::Key::DetailsContextLength, lang),
+                            &details
+                                .context_length
+                                .map(|v| v.to_string())
+                                .unwrap_or(unknown.clone()),
+                        );
+                        detail_row(
+                            ui,
+                            i18n::t(i18n::Key::DetailsEmbeddingLength, lang),
+                            &details
+                                .embedding_length
+                                .map(|v| v.to_string())
+                                .unwrap_or(unknown.clone()),
+                        );
+                        detail_row(
+                            ui,
+                            i18n::t(i18n::Key::DetailsBlockCount, lang),
+                            &details
+                                .block_count
+                                .map(|v| v.to_string())
+                                .unwrap_or(unknown.clone()),
+                        );
+                        detail_row(
+                            ui,
+                            i18n::t(i18n::Key::DetailsTensorCount, lang),
+                            &details.tensor_count.to_string(),
+                        );
+                    } else {
+                        // 异步任务进行中，显示加载指示器
+                        ui.horizontal(|ui| {
+                            ui.spinner();
+                            ui.label(i18n::t(i18n::Key::Loading, lang));
+                        });
+                    }
                 });
             // 写回开关状态（用户可能已点击关闭按钮）
             state.open = open;
