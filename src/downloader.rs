@@ -22,17 +22,27 @@ use std::thread::{self, JoinHandle};
 
 use serde::Deserialize;
 
-/// GitHub latest release API（ggml-org/llama.cpp）
-const LATEST_RELEASE_API: &str = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest";
-/// lemonade-sdk ROCm 构建下载 API
-const LEMONADE_RELEASE_API: &str =
-    "https://api.github.com/repos/lemonade-sdk/llamacpp-rocm/releases/latest";
 /// 请求 User-Agent（GitHub API 必需）
 const USER_AGENT: &str = "llama-cpp-launcher";
 /// 下载块大小（字节）
 const CHUNK_SIZE: usize = 8192;
 /// 定位二进制时 BFS 最大深度（相对解压根的子目录深度）
 const MAX_SEARCH_DEPTH: usize = 4;
+/// 单次网络请求超时（秒）；超时后自动尝试下一个源
+const NETWORK_TIMEOUT_SECS: u64 = 8;
+/// 全部源都失败时 UI 展示的固定错误消息（网络层）
+pub const ERR_NETWORK: &str = "network-error";
+/// API 镜像基址（gh-proxy 前缀，官方超时/失败时自动回退）
+const API_MIRROR_BASE: &str = "https://gh-proxy.com";
+/// 资产下载源（镜像前缀；官方 URL 直接使用 asset.browser_download_url）
+const DOWNLOAD_MIRROR_BASE: &str = "https://gh-proxy.com/https://github.com";
+
+/// 带超时与 User-Agent 的共享 Agent（在每个源上复用）
+fn agent() -> ureq::Agent {
+    ureq::AgentBuilder::new()
+        .timeout(std::time::Duration::from_secs(NETWORK_TIMEOUT_SECS))
+        .build()
+}
 
 // ======================= 公开类型 =======================
 
@@ -282,46 +292,75 @@ struct ReleaseInfo {
     assets: Vec<Asset>,
 }
 
-/// 请求 GitHub latest release API，返回 release 信息
-fn fetch_release(variant: &DownloadVariant) -> Result<ReleaseInfo, String> {
-    let api_url = if variant.is_rocm_lemonade() {
-        LEMONADE_RELEASE_API
+/// GitHub API 基址（官方直连）
+fn api_base(variant: &DownloadVariant) -> &'static str {
+    if variant.is_rocm_lemonade() {
+        "https://api.github.com/repos/lemonade-sdk/llamacpp-rocm"
     } else {
-        LATEST_RELEASE_API
-    };
-    let body = ureq::get(api_url)
-        .set("User-Agent", USER_AGENT)
-        .call()
-        .map_err(|e| format!("fetch latest release failed: {}", e))?
-        .into_string()
-        .map_err(|e| format!("read release response failed: {}", e))?;
-    serde_json::from_str(&body).map_err(|e| format!("parse release info failed: {}", e))
+        "https://api.github.com/repos/ggml-org/llama.cpp"
+    }
 }
 
-/// 获取指定 tag 的 release 信息（用于 stable 模式获取 nightly release）
+/// 将 GitHub API URL 转换为 gh-proxy 镜像 URL
+fn mirror_url(official: &str) -> String {
+    match official.strip_prefix("https://api.github.com") {
+        Some(rest) => format!("{}{}", API_MIRROR_BASE, rest),
+        None => official.to_string(),
+    }
+}
+
+/// 请求 GitHub latest release API：官方直连失败（超时/网络错误）时自动尝试镜像。
+/// 全部源失败返回 ERR_NETWORK（固定标记，UI 展示"获取失败：网络错误"）。
+fn fetch_release(variant: &DownloadVariant) -> Result<ReleaseInfo, String> {
+    let official_url = format!("{}/releases/latest", api_base(variant));
+    let mirror_url = mirror_url(&official_url);
+    let ag = agent();
+    for url in [official_url, mirror_url] {
+        let response = match ag.get(&url).set("User-Agent", USER_AGENT).call() {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+        let body = match response.into_string() {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        if let Ok(info) = serde_json::from_str::<ReleaseInfo>(&body) {
+            return Ok(info);
+        }
+    }
+    Err(ERR_NETWORK.to_string())
+}
+
+/// 获取指定 tag 的 release 信息（用于 stable 模式获取 nightly release）。
+/// 官方直连失败（超时/网络错误）时自动尝试镜像；全部失败返回 ERR_NETWORK。
 fn fetch_release_by_tag(tag: &str, is_rocm: bool) -> Result<ReleaseInfo, String> {
-    let api_url = if is_rocm {
-        format!(
-            "https://api.github.com/repos/lemonade-sdk/llamacpp-rocm/releases/tags/{}",
-            tag
-        )
+    let variant_base = if is_rocm {
+        "https://api.github.com/repos/lemonade-sdk/llamacpp-rocm"
     } else {
-        format!(
-            "https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/{}",
-            tag
-        )
+        "https://api.github.com/repos/ggml-org/llama.cpp"
     };
-    let body = ureq::get(&api_url)
-        .set("User-Agent", USER_AGENT)
-        .call()
-        .map_err(|e| format!("fetch release by tag '{}' failed: {}", tag, e))?
-        .into_string()
-        .map_err(|e| format!("read release response failed: {}", e))?;
-    serde_json::from_str(&body).map_err(|e| format!("parse release info failed: {}", e))
+    let official_url = format!("{}/releases/tags/{}", variant_base, tag);
+    let mirror = mirror_url(&official_url);
+    let ag = agent();
+    for url in [official_url, mirror] {
+        let response = match ag.get(&url).set("User-Agent", USER_AGENT).call() {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+        let body = match response.into_string() {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        if let Ok(info) = serde_json::from_str::<ReleaseInfo>(&body) {
+            return Ok(info);
+        }
+    }
+    Err(ERR_NETWORK.to_string())
 }
 
 /// 从 latest release 的 assets 中下载 nightly-tag.txt 的内容
 /// 返回 nightly tag 名（如 "b10549"）
+/// 官方直连失败（超时/网络错误）时自动尝试镜像；全部失败返回 ERR_NETWORK。
 fn fetch_nightly_tag_from_latest(variant: &DownloadVariant) -> Result<String, String> {
     let release = fetch_release(variant)?;
     // 找到 nightly-tag.txt 资产
@@ -330,47 +369,61 @@ fn fetch_nightly_tag_from_latest(variant: &DownloadVariant) -> Result<String, St
         .iter()
         .find(|a| a.name == "nightly-tag.txt")
         .ok_or_else(|| format!("no nightly-tag.txt asset in release {}", release.tag_name))?;
-    // 下载 nightly-tag.txt 内容
-    let body = ureq::get(&asset.browser_download_url)
-        .set("User-Agent", USER_AGENT)
-        .call()
-        .map_err(|e| format!("fetch nightly-tag.txt failed: {}", e))?
-        .into_string()
-        .map_err(|e| format!("read nightly-tag.txt failed: {}", e))?;
-    let tag = body.trim().to_string();
-    if tag.is_empty() {
-        return Err("nightly-tag.txt is empty".to_string());
+    // 下载 nightly-tag.txt 内容（官方直连 → gh-proxy 镜像依次尝试）
+    let ag = agent();
+    let official_url = &asset.browser_download_url;
+    let mirror = match official_url.strip_prefix("https://github.com") {
+        Some(rest) => format!("{}{}", DOWNLOAD_MIRROR_BASE, rest),
+        None => official_url.clone(),
+    };
+    for url in [official_url.as_str(), mirror.as_str()] {
+        let response = match ag.get(url).set("User-Agent", USER_AGENT).call() {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+        let body = match response.into_string() {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        let tag = body.trim().to_string();
+        if !tag.is_empty() {
+            return Ok(tag);
+        }
     }
-    Ok(tag)
+    Err(ERR_NETWORK.to_string())
 }
 
 /// 获取最新 nightly release（preview 模式使用）
-/// 通过 GitHub releases API 获取所有 releases，找到 tag 匹配 b[NUM] 格式的最新 release
+/// 通过 GitHub releases API 获取所有 releases，找到 tag 匹配 b[NUM] 格式的最新 release。
+/// 官方直连失败（超时/网络错误）时自动尝试镜像；全部失败返回 ERR_NETWORK。
 fn fetch_latest_nightly_release(variant: &DownloadVariant) -> Result<ReleaseInfo, String> {
-    let base_url = if variant.is_rocm_lemonade() {
-        "https://api.github.com/repos/lemonade-sdk/llamacpp-rocm/releases"
-    } else {
-        "https://api.github.com/repos/ggml-org/llama.cpp/releases"
-    };
-    // 获取最新的 releases（每页 10 个，足够找到最新的 nightly）
-    let api_url = format!("{}?per_page=10", base_url);
-    let body = ureq::get(&api_url)
-        .set("User-Agent", USER_AGENT)
-        .call()
-        .map_err(|e| format!("fetch releases list failed: {}", e))?
-        .into_string()
-        .map_err(|e| format!("read releases response failed: {}", e))?;
-    let releases: Vec<ReleaseInfo> =
-        serde_json::from_str(&body).map_err(|e| format!("parse releases list failed: {}", e))?;
-    // 找到第一个 tag 匹配 b[NUM] 格式的 release（最新的 nightly）
-    releases
-        .into_iter()
-        .find(|r| {
-            let tag = &r.tag_name;
-            // 匹配 "b" 开头后跟数字的 tag（如 b10549）
-            tag.starts_with('b') && tag.len() > 1 && tag[1..].chars().all(|c| c.is_ascii_digit())
-        })
-        .ok_or_else(|| "no nightly release (b[NUM] tag) found".to_string())
+    let official_url = format!("{}/releases?per_page=10", api_base(variant));
+    let mirror = mirror_url(&official_url);
+    let ag = agent();
+    for url in [official_url.as_str(), mirror.as_str()] {
+        let response = match ag.get(url).set("User-Agent", USER_AGENT).call() {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+        let body = match response.into_string() {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        if let Ok(releases) = serde_json::from_str::<Vec<ReleaseInfo>>(&body) {
+            // 找到第一个 tag 匹配 b[NUM] 格式的 release（最新的 nightly）
+            if let Some(release) = releases.into_iter().find(|r| {
+                let tag = &r.tag_name;
+                tag.starts_with('b')
+                    && tag.len() > 1
+                    && tag[1..].chars().all(|c| c.is_ascii_digit())
+            }) {
+                return Ok(release);
+            }
+            // 解析成功但没找到 nightly tag，视为业务错误（非网络错误）
+            return Err("no nightly release (b[NUM] tag) found".to_string());
+        }
+    }
+    Err(ERR_NETWORK.to_string())
 }
 
 /// 获取最新 release 的 tag_name（如 "b10549"），供"检查更新"使用
@@ -444,19 +497,53 @@ fn run_download(
         )
     })?;
 
-    // 3) 流式下载（partial 文件 + rename 原子落盘）
+    // 3) 流式下载（partial 文件 + rename 原子落盘）；官方/镜像两源依次尝试
     set_running(status, Phase::Downloading, 0, Some(asset.size));
     let llama_dir = base_dir.join("llama");
-    fs::create_dir_all(&llama_dir).map_err(|e| format!("create llama dir failed: {}", e))?;
+    fs::create_dir_all(&llama_dir).map_err(|e| format!("create dir failed: {}", e))?;
     let partial = llama_dir.join(format!(".partial.{}", asset.name));
-    match download_to_file(&asset.browser_download_url, &partial, cancel, status) {
-        Ok(()) => {}
-        Err(DlError::Cancelled) => {
-            // 取消：清理 partial 文件
+    // 构造官方与镜像两组下载 URL
+    let official_url = asset.browser_download_url.clone();
+    let mirror = match official_url.strip_prefix("https://github.com") {
+        Some(rest) => format!("{}{}", DOWNLOAD_MIRROR_BASE, rest),
+        None => official_url.clone(),
+    };
+    let mut last_err = String::new();
+    for url in [official_url, mirror] {
+        if cancel.load(Ordering::SeqCst) {
             let _ = fs::remove_file(&partial);
             return Err("download cancelled".to_string());
         }
-        Err(DlError::Failed(e)) => return Err(format!("download failed: {}", e)),
+        let _ = fs::remove_file(&partial); // 上一源失败的残留
+        match download_to_file(&url, &partial, cancel, status) {
+            Ok(()) => {
+                // 下载完整性校验：实际字节应与资产声明一致
+                let actual_size = fs::metadata(&partial)
+                    .map(|m| m.len())
+                    .unwrap_or(0);
+                if actual_size != asset.size {
+                    last_err = format!(
+                        "incomplete download: expected {} bytes, got {}",
+                        asset.size, actual_size
+                    );
+                    continue; // 数据不完整，尝试下一个源
+                }
+                last_err.clear();
+                break;
+            }
+            Err(DlError::Cancelled) => {
+                let _ = fs::remove_file(&partial);
+                return Err("download cancelled".to_string());
+            }
+            Err(DlError::Failed(e)) => {
+                last_err = e;
+                continue; // 该源失败，尝试下一个
+            }
+        }
+    }
+    if !last_err.is_empty() {
+        let _ = fs::remove_file(&partial);
+        return Err(ERR_NETWORK.to_string());
     }
     // 下载完成后再次检查取消（防最后一 chunk 后取消）
     if cancel.load(Ordering::SeqCst) {
@@ -503,13 +590,16 @@ enum DlError {
 }
 
 /// 流式下载到文件（8192 字节/chunk；每 chunk 更新进度 + 检查取消）
+/// 使用带超时的 agent，防止网络卡死。
 fn download_to_file(
     url: &str,
     out: &Path,
     cancel: &AtomicBool,
     status: &Arc<Mutex<DownloadStatus>>,
 ) -> Result<(), DlError> {
-    let response = ureq::get(url)
+    let ag = agent();
+    let response = ag
+        .get(url)
         .set("User-Agent", USER_AGENT)
         .call()
         .map_err(|e| DlError::Failed(e.to_string()))?;
