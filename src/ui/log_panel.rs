@@ -115,10 +115,16 @@ fn render(
                         // 合并后按级别着色保持不变，且拖选可跨任意行延伸。
                         let mut job = egui::text::LayoutJob::default();
                         let text_color = ui.visuals().text_color();
+                        // Warn 颜色随主题变化：浅色主题用蓝色（#007AFF），深色主题保持黄色
+                        let warn_color = if settings.dark_mode {
+                            egui::Color32::YELLOW
+                        } else {
+                            egui::Color32::from_rgb(0, 122, 255)
+                        };
                         for entry in &logs {
                             let (prefix, color) = match entry.level {
                                 LogLevel::Info => ("", text_color),
-                                LogLevel::Warn => ("⚠ ", egui::Color32::YELLOW),
+                                LogLevel::Warn => ("⚠ ", warn_color),
                                 LogLevel::Error => ("✖ ", egui::Color32::RED),
                             };
                             let line = format!("{}{}\n", prefix, entry.text);
