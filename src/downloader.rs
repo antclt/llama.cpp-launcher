@@ -518,9 +518,7 @@ fn run_download(
         match download_to_file(&url, &partial, cancel, status) {
             Ok(()) => {
                 // 下载完整性校验：实际字节应与资产声明一致
-                let actual_size = fs::metadata(&partial)
-                    .map(|m| m.len())
-                    .unwrap_or(0);
+                let actual_size = fs::metadata(&partial).map(|m| m.len()).unwrap_or(0);
                 if actual_size != asset.size {
                     last_err = format!(
                         "incomplete download: expected {} bytes, got {}",

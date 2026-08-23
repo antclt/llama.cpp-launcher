@@ -249,7 +249,10 @@ pub fn ui(
                         }
                         Err(e) => {
                             if e == crate::downloader::ERR_NETWORK {
-                                log::error!("检查更新失败: {}", i18n::t(i18n::Key::UpdNetworkError, lang));
+                                log::error!(
+                                    "检查更新失败: {}",
+                                    i18n::t(i18n::Key::UpdNetworkError, lang)
+                                );
                             } else {
                                 log::error!("检查更新失败: {}", e);
                             }
@@ -291,15 +294,9 @@ pub fn ui(
                     let display = if message == crate::downloader::ERR_NETWORK {
                         i18n::t(i18n::Key::UpdNetworkError, lang).to_string()
                     } else {
-                        format!(
-                            "{}: {}",
-                            i18n::t(i18n::Key::DlFailed, lang),
-                            message
-                        )
+                        format!("{}: {}", i18n::t(i18n::Key::DlFailed, lang), message)
                     };
-                    ui.label(
-                        egui::RichText::new(display).color(ui.visuals().error_fg_color),
-                    );
+                    ui.label(egui::RichText::new(display).color(ui.visuals().error_fg_color));
                 }
                 crate::downloader::DownloadState::Idle => {}
             }
