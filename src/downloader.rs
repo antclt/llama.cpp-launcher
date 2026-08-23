@@ -345,15 +345,10 @@ fn fetch_nightly_tag_from_latest(variant: &DownloadVariant) -> Result<String, St
 }
 
 /// 获取最新 release 的 tag_name（如 "b10549"），供"检查更新"使用
-/// release_channel: "stable" → 获取 nightly-tag.txt 指向的 nightly tag；"preview" → 直接获取 latest tag
-pub fn fetch_latest_tag(variant: DownloadVariant, release_channel: &str) -> Result<String, String> {
-    if release_channel == "stable" {
-        // stable: 读取 latest release 的 nightly-tag.txt，获取实际 nightly tag
-        fetch_nightly_tag_from_latest(&variant)
-    } else {
-        // preview: 直接获取 latest release 的 tag_name
-        Ok(fetch_release(&variant)?.tag_name)
-    }
+/// 两个通道都通过 nightly-tag.txt 获取实际 nightly tag，
+/// 因为 GitHub releases/latest 返回的是 vX.Y.Z（无预编译资产）。
+pub fn fetch_latest_tag(variant: DownloadVariant, _release_channel: &str) -> Result<String, String> {
+    fetch_nightly_tag_from_latest(&variant)
 }
 
 // ======================= 下载流程（后台线程） =======================
@@ -392,20 +387,16 @@ pub fn download_in_background(
 fn run_download(
     base_dir: &Path,
     variant: DownloadVariant,
-    release_channel: &str,
+    _release_channel: &str,
     cancel: &AtomicBool,
     status: &Arc<Mutex<DownloadStatus>>,
 ) -> Result<String, String> {
     // 1) 获取最新版本信息（根据发布通道）
+    //    注意：GitHub releases/latest API 返回的是 vX.Y.Z（稳定版 tag），其 assets 只有 nightly-tag.txt，
+    //    没有预编译二进制。因此 stable 和 preview 都需要通过 nightly-tag.txt 获取实际 nightly release。
     set_running(status, Phase::FetchingRelease, 0, None);
-    let release = if release_channel == "stable" {
-        // stable: 先获取 latest release 的 nightly-tag.txt，再获取对应 nightly release
-        let nightly_tag = fetch_nightly_tag_from_latest(&variant)?;
-        fetch_release_by_tag(&nightly_tag, variant.is_rocm_lemonade())?
-    } else {
-        // preview: 直接获取最新 release
-        fetch_release(&variant)?
-    };
+    let nightly_tag = fetch_nightly_tag_from_latest(&variant)?;
+    let release = fetch_release_by_tag(&nightly_tag, variant.is_rocm_lemonade())?;
 
     // 2) 按变体匹配资产
     let asset = pick_asset(&release.assets, &variant).ok_or_else(|| {
