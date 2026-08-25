@@ -400,6 +400,7 @@ pub enum Key {
 
     // Server 面板 - 版本
     BtnCheckVersion,
+    StatusChecking,
     StatusNewVersion,
 
     // 参数面板帮助文本
@@ -1221,7 +1222,9 @@ impl Key {
             // Server 面板 - 版本
             (Key::BtnCheckVersion, &Language::Zh) => "查看 llama.cpp 版本",
             (Key::BtnCheckVersion, &Language::En) => "Check llama.cpp version",
-            (Key::StatusNewVersion, &Language::Zh) => "有新版本",
+            (Key::StatusChecking, &Language::Zh) => "检查中...",
+(Key::StatusChecking, &Language::En) => "Checking...",
+(Key::StatusNewVersion, &Language::Zh) => "有新版本",
             (Key::StatusNewVersion, &Language::En) => "New version available",
 
             // 参数面板帮助文本

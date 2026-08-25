@@ -6,6 +6,97 @@ use crate::ui::widgets;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use std::thread::{self, JoinHandle};
+
+/// 检查更新状态
+#[derive(Debug, Clone)]
+pub enum CheckUpdateState {
+    /// 空闲
+    Idle,
+    /// 检查中
+    Checking,
+    /// 完成（版本号, 是否有更新, 错误消息）
+    Done(String, bool, Option<String>),
+}
+
+/// 检查更新句柄（用于后台线程与 UI 线程通信）
+#[derive(Clone)]
+pub struct CheckUpdateHandle {
+    state: Arc<Mutex<CheckUpdateState>>,
+    worker: Arc<Mutex<Option<JoinHandle<()>>>>,
+}
+
+impl Default for CheckUpdateHandle {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CheckUpdateHandle {
+    pub fn new() -> Self {
+        Self {
+            state: Arc::new(Mutex::new(CheckUpdateState::Idle)),
+            worker: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    /// 启动检查更新（后台线程）
+    pub fn start_check(
+        &self,
+        server_path: PathBuf,
+        variant: crate::downloader::DownloadVariant,
+        release_channel: String,
+    ) {
+        // 如果正在检查，忽略
+        {
+            let mut st = self.state.lock().unwrap();
+            if matches!(*st, CheckUpdateState::Checking) {
+                return;
+            }
+            *st = CheckUpdateState::Checking;
+        }
+
+        // 清理上一个 worker
+        self.worker.lock().unwrap().take();
+
+        let state = Arc::clone(&self.state);
+        let handle = thread::Builder::new()
+            .name("check-update".to_string())
+            .spawn(move || {
+                // 1. 获取本地版本
+                let llama_version = super::server_panel::get_local_llama_version(&server_path);
+                // 2. 获取远程最新 tag
+                let result = crate::downloader::fetch_latest_tag(variant, &release_channel);
+                match result {
+                    Ok(latest) => {
+                        let build_tag = super::server_panel::extract_build_tag(&llama_version);
+                        let up_to_date = build_tag == Some(latest.clone());
+                        let mut st = state.lock().unwrap();
+                        *st = CheckUpdateState::Done(
+                            llama_version,
+                            !up_to_date,
+                            if up_to_date { None } else { Some(latest) },
+                        );
+                    }
+                    Err(e) => {
+                        let mut st = state.lock().unwrap();
+                        *st = CheckUpdateState::Done(llama_version, false, None);
+                        log::error!("检查更新失败: {}", e);
+                    }
+                }
+            });
+
+        if let Ok(h) = handle {
+            *self.worker.lock().unwrap() = Some(h);
+        }
+    }
+
+    /// 获取当前状态
+    pub fn snapshot(&self) -> CheckUpdateState {
+        self.state.lock().unwrap().clone()
+    }
+}
 
 pub fn ui(
     ui: &mut egui::Ui,
@@ -14,6 +105,7 @@ pub fn ui(
     lang: &i18n::Language,
     #[cfg_attr(not(target_os = "linux"), allow(unused_variables))] server_manager: &ServerManager,
     downloader: &crate::downloader::DownloadHandle,
+    check_update: &CheckUpdateHandle,
 ) {
     // 下载成功时回写 server_path（幂等）
     let snapshot = downloader.snapshot();
@@ -211,41 +303,26 @@ pub fn ui(
                 }
 
                 // 检查更新：llama-server 路径非空时可用
+                let checking = matches!(check_update.snapshot(), CheckUpdateState::Checking);
                 if ui
                     .add_enabled(
-                        !settings.server_path.to_string_lossy().is_empty(),
-                        egui::Button::new(i18n::t(i18n::Key::BtnCheckUpdate, lang)),
+                        !settings.server_path.to_string_lossy().is_empty() && !checking,
+                        egui::Button::new(if checking {
+                            i18n::t(i18n::Key::StatusChecking, lang)
+                        } else {
+                            i18n::t(i18n::Key::BtnCheckUpdate, lang)
+                        }),
                     )
                     .clicked()
                 {
-                    // 刷新本地版本缓存并获取最新 tag 比对
-                    settings.llama_version = get_local_llama_version(&settings.server_path);
                     let variant = crate::downloader::DownloadVariant::from_settings_value(
                         &settings.download_variant,
                     );
-                    match crate::downloader::fetch_latest_tag(variant, &settings.release_channel) {
-                        Ok(latest) => {
-                            // 比对 build 标签（如 b10549）；本地无法解析时视为有新版本
-                            let up_to_date =
-                                extract_build_tag(&settings.llama_version) == Some(latest.clone());
-                            settings.update_available = Some(!up_to_date);
-                            if !up_to_date {
-                                settings.new_version_tag = Some(latest);
-                            } else {
-                                settings.new_version_tag = None;
-                            }
-                        }
-                        Err(e) => {
-                            if e == crate::downloader::ERR_NETWORK {
-                                log::error!(
-                                    "检查更新失败: {}",
-                                    i18n::t(i18n::Key::UpdNetworkError, lang)
-                                );
-                            } else {
-                                log::error!("检查更新失败: {}", e);
-                            }
-                        }
-                    }
+                    check_update.start_check(
+                        settings.server_path.clone(),
+                        variant,
+                        settings.release_channel.clone(),
+                    );
                 }
             });
 
@@ -519,7 +596,7 @@ pub fn ui(
 }
 
 /// 运行 llama-server --version，返回解析出的版本字符串
-fn get_local_llama_version(server_path: &std::path::Path) -> String {
+pub fn get_local_llama_version(server_path: &std::path::Path) -> String {
     let mut cmd = std::process::Command::new(server_path);
     cmd.arg("--version")
         .stdout(std::process::Stdio::piped())
@@ -564,7 +641,7 @@ fn get_local_llama_version(server_path: &std::path::Path) -> String {
 }
 
 /// 从版本字符串中提取 build 标签（如 "b10549" 或 "build 10621"）
-fn extract_build_tag(version: &str) -> Option<String> {
+pub fn extract_build_tag(version: &str) -> Option<String> {
     // 先尝试匹配 "build 10621" 格式
     if let Some(pos) = version.find("build ") {
         let start = pos + 6; // "build " 长度

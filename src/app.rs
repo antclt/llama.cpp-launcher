@@ -34,6 +34,7 @@ pub struct LlamaLauncherApp {
     rpc_manager: RpcManager,
     downloader: DownloadHandle,
     updater: crate::updater::UpdaterHandle,
+    check_update: crate::ui::server_panel::CheckUpdateHandle,
     install_exit_timer: f32, // 自更新安装阶段：显示"正在安装"的倒计时
     nav: NavSection,
     logo: Option<egui::TextureHandle>,
@@ -137,6 +138,7 @@ impl LlamaLauncherApp {
             rpc_manager,
             downloader: DownloadHandle::new(),
             updater: crate::updater::UpdaterHandle::new(),
+            check_update: crate::ui::server_panel::CheckUpdateHandle::new(),
             install_exit_timer: 0.0,
             nav: NavSection::Server,
             logo,
@@ -555,6 +557,18 @@ impl eframe::App for LlamaLauncherApp {
         self.server_manager.poll_logs();
         self.rpc_manager.poll();
 
+        // 检查更新结果轮询
+        if let crate::ui::server_panel::CheckUpdateState::Done(
+            llama_version,
+            update_available,
+            new_version_tag,
+        ) = self.check_update.snapshot()
+        {
+            self.settings.llama_version = llama_version;
+            self.settings.update_available = Some(update_available);
+            self.settings.new_version_tag = new_version_tag;
+        }
+
         if self.show_about {
             egui::Window::new(i18n::t(i18n::Key::AboutTitle, &self.lang))
                 .collapsible(false)
@@ -610,6 +624,7 @@ impl eframe::App for LlamaLauncherApp {
                                 &self.lang,
                                 &self.server_manager,
                                 &self.downloader,
+                                &self.check_update,
                             ),
                             NavSection::Rpc => rpc_panel::ui(
                                 ui,
