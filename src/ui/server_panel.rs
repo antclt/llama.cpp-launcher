@@ -87,9 +87,12 @@ pub fn ui(
                     ui.small(egui::RichText::new(&settings.llama_version).weak());
                 }
                 if settings.update_available == Some(true) {
-                    ui.small(
-                        egui::RichText::new(i18n::t(i18n::Key::StatusNewVersion, lang)).weak(),
-                    );
+                    let text = if let Some(ref tag) = settings.new_version_tag {
+                        format!("{} {}", i18n::t(i18n::Key::StatusNewVersion, lang), tag)
+                    } else {
+                        i18n::t(i18n::Key::StatusNewVersion, lang).to_string()
+                    };
+                    ui.small(egui::RichText::new(text).weak());
                 }
             });
 
@@ -224,8 +227,13 @@ pub fn ui(
                         Ok(latest) => {
                             // 比对 build 标签（如 b10549）；本地无法解析时视为有新版本
                             let up_to_date =
-                                extract_build_tag(&settings.llama_version) == Some(latest);
+                                extract_build_tag(&settings.llama_version) == Some(latest.clone());
                             settings.update_available = Some(!up_to_date);
+                            if !up_to_date {
+                                settings.new_version_tag = Some(latest);
+                            } else {
+                                settings.new_version_tag = None;
+                            }
                         }
                         Err(e) => {
                             if e == crate::downloader::ERR_NETWORK {

@@ -1225,6 +1225,10 @@ pub struct AppSettings {
     #[serde(skip, default)]
     pub update_available: Option<bool>,
 
+    // 新版本号（不序列化，运行时缓存）
+    #[serde(skip, default)]
+    pub new_version_tag: Option<String>,
+
     // KV 缓存计算结果（运行时缓存，不序列化）
     #[serde(skip, default)]
     pub kv_cache_result: Option<String>,
@@ -1360,6 +1364,7 @@ impl Default for AppSettings {
             auto_start_preset_name: None,
             llama_version: String::new(),
             update_available: None,
+            new_version_tag: None,
             kv_cache_result: None,
         }
     }
