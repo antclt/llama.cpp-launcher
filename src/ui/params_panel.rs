@@ -623,13 +623,13 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
 
     // ── KV 缓存配置 ──
     widgets::card(ui, i18n::t(i18n::Key::SectionKvCache, lang), accent, |ui| {
-        // 模型加载模式（新版 --load-mode；auto 时沿用下方旧版 --mmap/--mlock 开关）
+        // 模型加载模式（--load-mode；auto 不拼接参数）
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::LabelLoadMode, lang));
             let lm_vals = ["auto", "none", "mmap", "mlock", "mmap+mlock", "dio"];
             let lm_labels = [
                 i18n::t(i18n::Key::LoadModeAuto, lang),
-                lm_vals[1],
+                i18n::t(i18n::Key::LoadModeNone, lang),
                 lm_vals[2],
                 lm_vals[3],
                 lm_vals[4],

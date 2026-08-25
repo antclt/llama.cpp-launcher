@@ -194,6 +194,7 @@ pub enum Key {
     // 加载模式
     LabelLoadMode,
     LoadModeAuto,
+    LoadModeNone,
 
     // ── 线程与生成长度 ──
     SectionThreads,
@@ -913,6 +914,8 @@ impl Key {
             (Key::LabelLoadMode, &Language::En) => "Load Mode (--load-mode):",
             (Key::LoadModeAuto, &Language::Zh) => "自动",
             (Key::LoadModeAuto, &Language::En) => "Auto",
+            (Key::LoadModeNone, &Language::Zh) => "无",
+            (Key::LoadModeNone, &Language::En) => "none",
 
             // ── 线程与生成长度 ──
             (Key::SectionThreads, &Language::Zh) => "线程与生成长度",
