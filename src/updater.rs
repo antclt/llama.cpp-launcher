@@ -34,8 +34,10 @@ const API_MIRROR: &str =
     "https://gh-proxy.com/https://api.github.com/repos/yihuishou/llama.cpp-launcher/releases/latest";
 /// 资产下载源（镜像前缀；官方 URL 直接使用 asset.browser_download_url）
 const DOWNLOAD_MIRROR: &str = "https://gh-proxy.com/https://github.com";
-/// 单次网络请求超时（秒）；超时后自动尝试下一个源
-const NETWORK_TIMEOUT_SECS: u64 = 8;
+/// 官方 GitHub API 超时（秒）
+const OFFICIAL_TIMEOUT_SECS: u64 = 16;
+/// gh-proxy 镜像超时（秒）
+const MIRROR_TIMEOUT_SECS: u64 = 32;
 /// 全部源都失败时 UI 展示的固定错误消息（网络层；区别于业务错误）
 pub const ERR_NETWORK: &str = "network-error";
 /// 请求 User-Agent（GitHub API 必需）
@@ -43,11 +45,34 @@ const USER_AGENT: &str = "llama-cpp-launcher";
 /// 下载块大小（字节）
 const CHUNK_SIZE: usize = 8192;
 
-/// 带超时与 User-Agent 的共享 Agent（在每个源上复用）
-fn agent() -> ureq::Agent {
+/// 带超时与 User-Agent 的共享 Agent
+fn agent(timeout_secs: u64) -> ureq::Agent {
     ureq::AgentBuilder::new()
-        .timeout(std::time::Duration::from_secs(NETWORK_TIMEOUT_SECS))
+        .timeout(std::time::Duration::from_secs(timeout_secs))
         .build()
+}
+
+/// 官方 + 镜像依次尝试，带不同超时；返回 Response body 字符串
+fn fetch_with_fallback(official_url: &str, mirror_url: &str) -> Result<String, String> {
+    let official_agent = agent(OFFICIAL_TIMEOUT_SECS);
+    if let Ok(body) = fetch_body(&official_agent, official_url) {
+        return Ok(body);
+    }
+    let mirror_agent = agent(MIRROR_TIMEOUT_SECS);
+    if let Ok(body) = fetch_body(&mirror_agent, mirror_url) {
+        return Ok(body);
+    }
+    Err(ERR_NETWORK.to_string())
+}
+
+/// 单次 GET + 读取 body
+fn fetch_body(ag: &ureq::Agent, url: &str) -> Result<String, String> {
+    let response = ag
+        .get(url)
+        .set("User-Agent", USER_AGENT)
+        .call()
+        .map_err(|e| e.to_string())?;
+    response.into_string().map_err(|e| e.to_string())
 }
 
 // ======================= 公开类型 =======================
@@ -192,22 +217,8 @@ struct ReleaseAsset {
 /// 请求 GitHub latest release API：官方直连失败（超时/网络错误）时自动尝试镜像。
 /// 全部源失败返回 ERR_NETWORK（固定标记，UI 展示"获取失败：网络错误"）。
 fn fetch_release() -> Result<ReleaseInfo, String> {
-    let agent = agent();
-    for url in [API_OFFICIAL, API_MIRROR] {
-        let response = match agent.get(url).set("User-Agent", USER_AGENT).call() {
-            Ok(r) => r,
-            Err(_) => continue, // 该源失败，尝试下一个
-        };
-        let body = match response.into_string() {
-            Ok(b) => b,
-            Err(_) => continue,
-        };
-        if let Ok(info) = serde_json::from_str::<ReleaseInfo>(&body) {
-            return Ok(info);
-        }
-        // 解析失败也视为坏源，继续尝试镜像
-    }
-    Err(ERR_NETWORK.to_string()) // 网络层面：不暴露具体源错误
+    let body = fetch_with_fallback(API_OFFICIAL, API_MIRROR)?;
+    serde_json::from_str::<ReleaseInfo>(&body).map_err(|e| e.to_string())
 }
 
 /// 匹配 Windows exe 资产（llama_cpp_launcher_v*.exe）
@@ -310,7 +321,6 @@ fn run_download(cancel: &AtomicBool, status: &Arc<Mutex<UpdateStatus>>) -> Resul
         st.total = asset.size;
     }
     let partial = update_dir.join(".partial.new.exe");
-    let agent = agent();
 
     // asset.browser_download_url 形如 https://github.com/.../releases/download/...
     // 官方源直接使用；镜像源去掉 github.com 前缀后接在 DOWNLOAD_MIRROR 之后
@@ -321,12 +331,15 @@ fn run_download(cancel: &AtomicBool, status: &Arc<Mutex<UpdateStatus>>) -> Resul
         None => official_url.clone(),
     };
 
-    for url in [official_url, mirror_url] {
+    for (i, url) in [official_url, mirror_url].iter().enumerate() {
         if cancel.load(Ordering::SeqCst) {
             return Err("download cancelled".to_string());
         }
         let _ = fs::remove_file(&partial); // 上一源失败的残留
-        let response = match agent.get(&url).set("User-Agent", USER_AGENT).call() {
+        // i=0 官方源 16s，i=1 镜像源 32s
+        let timeout = if i == 0 { OFFICIAL_TIMEOUT_SECS } else { MIRROR_TIMEOUT_SECS };
+        let ag = agent(timeout);
+        let response = match ag.get(url).set("User-Agent", USER_AGENT).call() {
             Ok(r) => r,
             Err(_) => continue, // 该源失败，尝试下一个
         };

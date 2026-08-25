@@ -28,8 +28,10 @@ const USER_AGENT: &str = "llama-cpp-launcher";
 const CHUNK_SIZE: usize = 8192;
 /// 定位二进制时 BFS 最大深度（相对解压根的子目录深度）
 const MAX_SEARCH_DEPTH: usize = 4;
-/// 单次网络请求超时（秒）；超时后自动尝试下一个源
-const NETWORK_TIMEOUT_SECS: u64 = 8;
+/// 官方 GitHub API 超时（秒）
+const OFFICIAL_TIMEOUT_SECS: u64 = 16;
+/// gh-proxy 镜像超时（秒）
+const MIRROR_TIMEOUT_SECS: u64 = 32;
 /// 全部源都失败时 UI 展示的固定错误消息（网络层）
 pub const ERR_NETWORK: &str = "network-error";
 /// API 镜像基址（gh-proxy 前缀，官方超时/失败时自动回退）
@@ -37,11 +39,36 @@ const API_MIRROR_BASE: &str = "https://gh-proxy.com";
 /// 资产下载源（镜像前缀；官方 URL 直接使用 asset.browser_download_url）
 const DOWNLOAD_MIRROR_BASE: &str = "https://gh-proxy.com/https://github.com";
 
-/// 带超时与 User-Agent 的共享 Agent（在每个源上复用）
-fn agent() -> ureq::Agent {
+/// 带超时与 User-Agent 的共享 Agent
+fn agent(timeout_secs: u64) -> ureq::Agent {
     ureq::AgentBuilder::new()
-        .timeout(std::time::Duration::from_secs(NETWORK_TIMEOUT_SECS))
+        .timeout(std::time::Duration::from_secs(timeout_secs))
         .build()
+}
+
+/// 官方 + 镜像依次尝试，带不同超时；返回 Response body 字符串
+fn fetch_with_fallback(official_url: &str, mirror_url: &str) -> Result<String, String> {
+    // 官方源：16秒超时
+    let official_agent = agent(OFFICIAL_TIMEOUT_SECS);
+    if let Ok(body) = fetch_body(&official_agent, official_url) {
+        return Ok(body);
+    }
+    // 镜像源：32秒超时
+    let mirror_agent = agent(MIRROR_TIMEOUT_SECS);
+    if let Ok(body) = fetch_body(&mirror_agent, mirror_url) {
+        return Ok(body);
+    }
+    Err(ERR_NETWORK.to_string())
+}
+
+/// 单次 GET + 读取 body
+fn fetch_body(ag: &ureq::Agent, url: &str) -> Result<String, String> {
+    let response = ag
+        .get(url)
+        .set("User-Agent", USER_AGENT)
+        .call()
+        .map_err(|e| e.to_string())?;
+    response.into_string().map_err(|e| e.to_string())
 }
 
 // ======================= 公开类型 =======================
@@ -314,21 +341,8 @@ fn mirror_url(official: &str) -> String {
 fn fetch_release(variant: &DownloadVariant) -> Result<ReleaseInfo, String> {
     let official_url = format!("{}/releases/latest", api_base(variant));
     let mirror_url = mirror_url(&official_url);
-    let ag = agent();
-    for url in [official_url, mirror_url] {
-        let response = match ag.get(&url).set("User-Agent", USER_AGENT).call() {
-            Ok(r) => r,
-            Err(_) => continue,
-        };
-        let body = match response.into_string() {
-            Ok(b) => b,
-            Err(_) => continue,
-        };
-        if let Ok(info) = serde_json::from_str::<ReleaseInfo>(&body) {
-            return Ok(info);
-        }
-    }
-    Err(ERR_NETWORK.to_string())
+    let body = fetch_with_fallback(&official_url, &mirror_url)?;
+    serde_json::from_str::<ReleaseInfo>(&body).map_err(|e| e.to_string())
 }
 
 /// 获取指定 tag 的 release 信息（用于 stable 模式获取 nightly release）。
@@ -341,21 +355,8 @@ fn fetch_release_by_tag(tag: &str, is_rocm: bool) -> Result<ReleaseInfo, String>
     };
     let official_url = format!("{}/releases/tags/{}", variant_base, tag);
     let mirror = mirror_url(&official_url);
-    let ag = agent();
-    for url in [official_url, mirror] {
-        let response = match ag.get(&url).set("User-Agent", USER_AGENT).call() {
-            Ok(r) => r,
-            Err(_) => continue,
-        };
-        let body = match response.into_string() {
-            Ok(b) => b,
-            Err(_) => continue,
-        };
-        if let Ok(info) = serde_json::from_str::<ReleaseInfo>(&body) {
-            return Ok(info);
-        }
-    }
-    Err(ERR_NETWORK.to_string())
+    let body = fetch_with_fallback(&official_url, &mirror)?;
+    serde_json::from_str::<ReleaseInfo>(&body).map_err(|e| e.to_string())
 }
 
 /// 从 latest release 的 assets 中下载 nightly-tag.txt 的内容
@@ -370,27 +371,17 @@ fn fetch_nightly_tag_from_latest(variant: &DownloadVariant) -> Result<String, St
         .find(|a| a.name == "nightly-tag.txt")
         .ok_or_else(|| format!("no nightly-tag.txt asset in release {}", release.tag_name))?;
     // 下载 nightly-tag.txt 内容（官方直连 → gh-proxy 镜像依次尝试）
-    let ag = agent();
     let official_url = &asset.browser_download_url;
     let mirror = match official_url.strip_prefix("https://github.com") {
         Some(rest) => format!("{}{}", DOWNLOAD_MIRROR_BASE, rest),
         None => official_url.clone(),
     };
-    for url in [official_url.as_str(), mirror.as_str()] {
-        let response = match ag.get(url).set("User-Agent", USER_AGENT).call() {
-            Ok(r) => r,
-            Err(_) => continue,
-        };
-        let body = match response.into_string() {
-            Ok(b) => b,
-            Err(_) => continue,
-        };
-        let tag = body.trim().to_string();
-        if !tag.is_empty() {
-            return Ok(tag);
-        }
+    let body = fetch_with_fallback(official_url, &mirror)?;
+    let tag = body.trim().to_string();
+    if tag.is_empty() {
+        return Err("empty nightly-tag.txt".to_string());
     }
-    Err(ERR_NETWORK.to_string())
+    Ok(tag)
 }
 
 /// 获取最新 nightly release（preview 模式使用）
@@ -399,31 +390,17 @@ fn fetch_nightly_tag_from_latest(variant: &DownloadVariant) -> Result<String, St
 fn fetch_latest_nightly_release(variant: &DownloadVariant) -> Result<ReleaseInfo, String> {
     let official_url = format!("{}/releases?per_page=10", api_base(variant));
     let mirror = mirror_url(&official_url);
-    let ag = agent();
-    for url in [official_url.as_str(), mirror.as_str()] {
-        let response = match ag.get(url).set("User-Agent", USER_AGENT).call() {
-            Ok(r) => r,
-            Err(_) => continue,
-        };
-        let body = match response.into_string() {
-            Ok(b) => b,
-            Err(_) => continue,
-        };
-        if let Ok(releases) = serde_json::from_str::<Vec<ReleaseInfo>>(&body) {
-            // 找到第一个 tag 匹配 b[NUM] 格式的 release（最新的 nightly）
-            if let Some(release) = releases.into_iter().find(|r| {
-                let tag = &r.tag_name;
-                tag.starts_with('b')
-                    && tag.len() > 1
-                    && tag[1..].chars().all(|c| c.is_ascii_digit())
-            }) {
-                return Ok(release);
-            }
-            // 解析成功但没找到 nightly tag，视为业务错误（非网络错误）
-            return Err("no nightly release (b[NUM] tag) found".to_string());
-        }
-    }
-    Err(ERR_NETWORK.to_string())
+    let body = fetch_with_fallback(&official_url, &mirror)?;
+    let releases: Vec<ReleaseInfo> =
+        serde_json::from_str(&body).map_err(|e| e.to_string())?;
+    // 找到第一个 tag 匹配 b[NUM] 格式的 release（最新的 nightly）
+    releases
+        .into_iter()
+        .find(|r| {
+            let tag = &r.tag_name;
+            tag.starts_with('b') && tag.len() > 1 && tag[1..].chars().all(|c| c.is_ascii_digit())
+        })
+        .ok_or_else(|| "no nightly release (b[NUM] tag) found".to_string())
 }
 
 /// 获取最新 release 的 tag_name（如 "b10549"），供"检查更新"使用
@@ -509,13 +486,15 @@ fn run_download(
         None => official_url.clone(),
     };
     let mut last_err = String::new();
-    for url in [official_url, mirror] {
+    for (i, url) in [official_url, mirror].iter().enumerate() {
         if cancel.load(Ordering::SeqCst) {
             let _ = fs::remove_file(&partial);
             return Err("download cancelled".to_string());
         }
         let _ = fs::remove_file(&partial); // 上一源失败的残留
-        match download_to_file(&url, &partial, cancel, status) {
+        // i=0 官方源 16s，i=1 镜像源 32s
+        let timeout = if i == 0 { OFFICIAL_TIMEOUT_SECS } else { MIRROR_TIMEOUT_SECS };
+        match download_to_file(url, &partial, cancel, status, timeout) {
             Ok(()) => {
                 // 下载完整性校验：实际字节应与资产声明一致
                 let actual_size = fs::metadata(&partial).map(|m| m.len()).unwrap_or(0);
@@ -594,8 +573,9 @@ fn download_to_file(
     out: &Path,
     cancel: &AtomicBool,
     status: &Arc<Mutex<DownloadStatus>>,
+    timeout_secs: u64,
 ) -> Result<(), DlError> {
-    let ag = agent();
+    let ag = agent(timeout_secs);
     let response = ag
         .get(url)
         .set("User-Agent", USER_AGENT)
