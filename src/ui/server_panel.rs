@@ -563,8 +563,28 @@ fn get_local_llama_version(server_path: &std::path::Path) -> String {
     }
 }
 
-/// 从版本字符串中提取 build 标签（如 "b10549"）
+/// 从版本字符串中提取 build 标签（如 "b10549" 或 "build 10621"）
 fn extract_build_tag(version: &str) -> Option<String> {
+    // 先尝试匹配 "build 10621" 格式
+    if let Some(pos) = version.find("build ") {
+        let start = pos + 6; // "build " 长度
+        let bytes = version.as_bytes();
+        if start < bytes.len()
+            && bytes[start..]
+                .iter()
+                .take_while(|c| c.is_ascii_digit())
+                .count()
+                > 0
+        {
+            let end = start
+                + bytes[start..]
+                    .iter()
+                    .take_while(|c| c.is_ascii_digit())
+                    .count();
+            return Some(format!("b{}", &version[start..end]));
+        }
+    }
+    // 再尝试匹配 "b10621" 格式
     let bytes = version.as_bytes();
     let mut i = 0;
     while i + 1 < bytes.len() {
