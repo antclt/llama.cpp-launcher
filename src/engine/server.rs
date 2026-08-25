@@ -427,20 +427,10 @@ impl ServerManager {
         if !settings.cache_type_v.is_empty() {
             cmd.arg("--cache-type-v").arg(&settings.cache_type_v);
         }
-        // 模型加载模式（新版 --load-mode 替代 --mmap/--mlock）
-        // 指定非 auto 模式时不再拼接已废弃的 --mmap/--mlock，避免冲突；
-        // auto 时保持旧版行为（按 kv_mmap/kv_mlock 开关拼接）
+        // 模型加载模式（--load-mode 替代已废弃的 --mmap/--mlock）
+        // 仅非 auto 时拼接；auto 不拼接任何参数，由 llama-server 使用默认行为
         if !settings.load_mode.is_empty() && settings.load_mode != "auto" {
             cmd.arg("--load-mode").arg(&settings.load_mode);
-        } else {
-            if settings.kv_mlock {
-                cmd.arg("--mlock");
-            }
-            if settings.kv_mmap {
-                cmd.arg("--mmap");
-            } else {
-                cmd.arg("--no-mmap");
-            }
         }
         if settings.kv_unified {
             cmd.arg("--kv-unified");

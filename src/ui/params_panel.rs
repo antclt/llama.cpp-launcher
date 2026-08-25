@@ -718,21 +718,6 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             }
         });
 
-        // KV 缓存开关统一样式（与「手动指定 GPU 层数」一致）：标签 + ❓提示框 + 开关
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::CheckboxKvMlock, lang));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpKvMlock, lang));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                widgets::toggle(ui, &mut settings.kv_mlock, "", accent);
-            });
-        });
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::CheckboxKvMmap, lang));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpKvMmap, lang));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                widgets::toggle(ui, &mut settings.kv_mmap, "", accent);
-            });
-        });
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::CheckboxKvUnified, lang));
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpKvUnified, lang));
