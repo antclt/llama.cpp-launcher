@@ -137,17 +137,17 @@ pub fn ui(
                         "cuda133".to_string(),
                         i18n::t(i18n::Key::VariantGpuCuda133, lang),
                     );
-                    ui.selectable_value(
-                        &mut settings.download_variant,
-                        "rocm_lemonade".to_string(),
-                        i18n::t(i18n::Key::VariantGpuRocmLemonade, lang),
-                    );
-                    ui.selectable_value(
-                        &mut settings.download_variant,
-                        "rocm7".to_string(),
-                        i18n::t(i18n::Key::VariantGpuRocm7, lang),
-                    );
                 }
+                ui.selectable_value(
+                    &mut settings.download_variant,
+                    "rocm_lemonade".to_string(),
+                    i18n::t(i18n::Key::VariantGpuRocmLemonade, lang),
+                );
+                ui.selectable_value(
+                    &mut settings.download_variant,
+                    "rocm7".to_string(),
+                    i18n::t(i18n::Key::VariantGpuRocm7, lang),
+                );
                 ui.selectable_value(
                     &mut settings.download_variant,
                     "vulkan".to_string(),
