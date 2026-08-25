@@ -336,8 +336,12 @@ fn run_download(cancel: &AtomicBool, status: &Arc<Mutex<UpdateStatus>>) -> Resul
             return Err("download cancelled".to_string());
         }
         let _ = fs::remove_file(&partial); // 上一源失败的残留
-        // i=0 官方源 16s，i=1 镜像源 32s
-        let timeout = if i == 0 { OFFICIAL_TIMEOUT_SECS } else { MIRROR_TIMEOUT_SECS };
+                                           // i=0 官方源 16s，i=1 镜像源 32s
+        let timeout = if i == 0 {
+            OFFICIAL_TIMEOUT_SECS
+        } else {
+            MIRROR_TIMEOUT_SECS
+        };
         let ag = agent(timeout);
         let response = match ag.get(url).set("User-Agent", USER_AGENT).call() {
             Ok(r) => r,

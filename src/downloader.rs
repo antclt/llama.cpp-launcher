@@ -391,8 +391,7 @@ fn fetch_latest_nightly_release(variant: &DownloadVariant) -> Result<ReleaseInfo
     let official_url = format!("{}/releases?per_page=10", api_base(variant));
     let mirror = mirror_url(&official_url);
     let body = fetch_with_fallback(&official_url, &mirror)?;
-    let releases: Vec<ReleaseInfo> =
-        serde_json::from_str(&body).map_err(|e| e.to_string())?;
+    let releases: Vec<ReleaseInfo> = serde_json::from_str(&body).map_err(|e| e.to_string())?;
     // 找到第一个 tag 匹配 b[NUM] 格式的 release（最新的 nightly）
     releases
         .into_iter()
@@ -492,8 +491,12 @@ fn run_download(
             return Err("download cancelled".to_string());
         }
         let _ = fs::remove_file(&partial); // 上一源失败的残留
-        // i=0 官方源 16s，i=1 镜像源 32s
-        let timeout = if i == 0 { OFFICIAL_TIMEOUT_SECS } else { MIRROR_TIMEOUT_SECS };
+                                           // i=0 官方源 16s，i=1 镜像源 32s
+        let timeout = if i == 0 {
+            OFFICIAL_TIMEOUT_SECS
+        } else {
+            MIRROR_TIMEOUT_SECS
+        };
         match download_to_file(url, &partial, cancel, status, timeout) {
             Ok(()) => {
                 // 下载完整性校验：实际字节应与资产声明一致
