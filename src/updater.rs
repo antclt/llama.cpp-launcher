@@ -18,7 +18,7 @@
 //! 应用关闭时无需额外取消（下载线程持有 Arc 克隆，不阻塞退出）。
 
 use std::fs::{self, File};
-use std::io::{BufWriter, Read, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -44,6 +44,18 @@ pub const ERR_NETWORK: &str = "network-error";
 const USER_AGENT: &str = "llama-cpp-launcher";
 /// 下载块大小（字节）
 const CHUNK_SIZE: usize = 8192;
+
+/// 获取当前 CPU 架构标识（用于匹配 Linux 资产）
+fn get_arch() -> &'static str {
+    if cfg!(target_arch = "aarch64") {
+        "aarch64"
+    } else if cfg!(target_arch = "x86_64") {
+        "x86_64"
+    } else {
+        // 兜底：未知架构返回空字符串，后续匹配会失败
+        ""
+    }
+}
 
 /// 带超时与 User-Agent 的共享 Agent
 fn agent(timeout_secs: u64) -> ureq::Agent {
@@ -221,11 +233,25 @@ fn fetch_release() -> Result<ReleaseInfo, String> {
     serde_json::from_str::<ReleaseInfo>(&body).map_err(|e| e.to_string())
 }
 
-/// 匹配 Windows exe 资产（llama_cpp_launcher_v*.exe）
+/// 匹配当前平台的 launcher 资产
+/// - Windows: llama_cpp_launcher_v*.exe
+/// - Linux: llama_cpp_launcher_v*_linux_{arch}.tar.gz
 fn pick_launcher_asset(assets: &[ReleaseAsset]) -> Option<&ReleaseAsset> {
-    assets
-        .iter()
-        .find(|a| a.name.starts_with("llama_cpp_launcher_v") && a.name.ends_with(".exe"))
+    let is_linux = cfg!(target_os = "linux");
+    let arch = get_arch();
+
+    assets.iter().find(|a| {
+        if is_linux {
+            // Linux: 匹配 llama_cpp_launcher_v*_linux_{arch}.tar.gz
+            a.name.starts_with("llama_cpp_launcher_v")
+                && a.name.contains("_linux_")
+                && a.name.contains(arch)
+                && a.name.ends_with(".tar.gz")
+        } else {
+            // Windows: 匹配 llama_cpp_launcher_v*.exe
+            a.name.starts_with("llama_cpp_launcher_v") && a.name.ends_with(".exe")
+        }
+    })
 }
 
 /// 版本号比较："v0.1.20" vs "0.1.19" → 新版本存在（按点分数字比较）
@@ -298,7 +324,8 @@ fn worker_download(cancel: Arc<AtomicBool>, status: Arc<Mutex<UpdateStatus>>) {
     }
 }
 
-/// 下载新 exe 到 exe 同目录 update/ 子目录；成功返回新 exe 完整路径。
+/// 下载新版本到 exe 同目录 update/ 子目录；成功返回新二进制完整路径。
+/// Windows 下载 .exe；Linux 下载 .tar.gz 并解压得到二进制。
 /// 官方下载源失败（超时/网络错误）时自动尝试镜像；全部失败返回 ERR_NETWORK。
 fn run_download(cancel: &AtomicBool, status: &Arc<Mutex<UpdateStatus>>) -> Result<PathBuf, String> {
     // 1) 获取 release 信息与资产
@@ -311,7 +338,13 @@ fn run_download(cancel: &AtomicBool, status: &Arc<Mutex<UpdateStatus>>) -> Resul
     let exe_dir = exe_path.parent().ok_or("no exe parent dir")?.to_path_buf();
     let update_dir = exe_dir.join("update");
     fs::create_dir_all(&update_dir).map_err(|e| format!("create update dir failed: {}", e))?;
-    let new_exe = update_dir.join("llama_cpp_launcher_new.exe");
+
+    let is_linux = cfg!(target_os = "linux");
+    let new_binary = if is_linux {
+        update_dir.join("llama_cpp_launcher_new")
+    } else {
+        update_dir.join("llama_cpp_launcher_new.exe")
+    };
 
     // 3) 流式下载（partial + rename 原子落盘）；官方/镜像两源依次尝试
     {
@@ -320,7 +353,8 @@ fn run_download(cancel: &AtomicBool, status: &Arc<Mutex<UpdateStatus>>) -> Resul
         st.done = 0;
         st.total = asset.size;
     }
-    let partial = update_dir.join(".partial.new.exe");
+    let partial_ext = if is_linux { ".tar.gz" } else { ".exe" };
+    let partial = update_dir.join(format!(".partial.new{}", partial_ext));
 
     // asset.browser_download_url 形如 https://github.com/.../releases/download/...
     // 官方源直接使用；镜像源去掉 github.com 前缀后接在 DOWNLOAD_MIRROR 之后
@@ -391,42 +425,89 @@ fn run_download(cancel: &AtomicBool, status: &Arc<Mutex<UpdateStatus>>) -> Resul
         if done != asset.size {
             continue; // 该源数据不完整，尝试下一个
         }
-        fs::rename(&partial, &new_exe).map_err(|e| format!("rename temp file failed: {}", e))?;
-        return Ok(new_exe);
+        fs::rename(&partial, &new_binary).map_err(|e| format!("rename temp file failed: {}", e))?;
+
+        // Linux: 需要从 .tar.gz 解压出二进制文件
+        if is_linux {
+            return extract_linux_binary(&new_binary, &update_dir);
+        }
+        return Ok(new_binary);
     }
     let _ = fs::remove_file(&partial);
     Err(ERR_NETWORK.to_string()) // 官方 + 镜像均失败
 }
 
-// ======================= 自替换（Windows） =======================
+/// 从 .tar.gz 解压出 launcher 二进制文件
+fn extract_linux_binary(archive: &Path, dest_dir: &Path) -> Result<PathBuf, String> {
+    let file = File::open(archive).map_err(|e| format!("open archive failed: {}", e))?;
+    let decoder = flate2::bufread::GzDecoder::new(BufReader::new(file));
+    let mut tar = tar::Archive::new(decoder);
 
-/// 启动独立 cmd 脚本完成替换并重启：
-///   等待主进程退出 → 当前 exe 改名为 .old → 新 exe 移入正式名 → 删除 .old → 启动新 exe。
-/// 脚本通过进程参数传递（UTF-16），中英文路径均安全；主进程随后自行退出。
-fn replace_and_restart(new_exe: &Path) {
+    // 解压到目标目录
+    tar.unpack(dest_dir)
+        .map_err(|e| format!("extract tar.gz failed: {}", e))?;
+
+    // 查找解压出的二进制文件（llama_cpp_launcher 或 llama_cpp_launcher.exe）
+    let entries = fs::read_dir(dest_dir).map_err(|e| format!("read dir failed: {}", e))?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_file() {
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            // 匹配 launcher 二进制（排除压缩包本身）
+            if (name.starts_with("llama_cpp_launcher") || name == "llama-cpp-launcher")
+                && !name.ends_with(".tar.gz")
+                && !name.ends_with(".partial")
+            {
+                // 确保文件可执行
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let _ = fs::set_permissions(&path, fs::Permissions::from_mode(0o755));
+                }
+                return Ok(path);
+            }
+        }
+    }
+
+    Err("launcher binary not found in archive".to_string())
+}
+
+// ======================= 自替换 =======================
+
+/// 启动独立脚本完成替换并重启：
+///   等待主进程退出 → 当前二进制改名为 .old → 新二进制移入正式名 → 删除 .old → 启动新二进制。
+/// 脚本通过进程参数传递，中英文路径均安全；主进程随后自行退出。
+fn replace_and_restart(new_binary: &Path) {
     let Ok(exe_path) = std::env::current_exe() else {
         return;
     };
-    let old_exe = exe_path.with_extension("exe.old");
-    let script = format!(
-        "ping -n 4 127.0.0.1 >nul & \
-         move /Y \"{}\" \"{}\" & \
-         move /Y \"{}\" \"{}\" & \
-         del /Q \"{}\" & \
-         start \"\" \"{}\"",
-        exe_path.display(),
-        old_exe.display(),
-        new_exe.display(),
-        exe_path.display(),
-        old_exe.display(),
-        exe_path.display(),
-    );
+    let old_binary = exe_path.with_extension("old");
 
     #[cfg(target_os = "windows")]
     {
+        // Windows: 使用 cmd /d /c 启动脚本
+        // timeout /t 8 /nobreak >nul 等待8秒，确保主进程完全退出
+        let update_dir = exe_path
+            .parent()
+            .map(|p| p.join("update"))
+            .unwrap_or_default();
+        let script = format!(
+            "timeout /t 8 /nobreak >nul & \
+             move /Y \"{}\" \"{}\" & \
+             move /Y \"{}\" \"{}\" & \
+             del /Q \"{}\" & \
+             rmdir /Q /S \"{}\" & \
+             start \"\" \"{}\"",
+            exe_path.display(),
+            old_binary.display(),
+            new_binary.display(),
+            exe_path.display(),
+            old_binary.display(),
+            update_dir.display(),
+            exe_path.display(),
+        );
         let mut cmd = std::process::Command::new("cmd");
         cmd.args(["/d", "/c", &script]);
-        #[cfg(target_os = "windows")]
         {
             use std::os::windows::process::CommandExt;
             // CREATE_NO_WINDOW | DETACHED_PROCESS
@@ -434,16 +515,23 @@ fn replace_and_restart(new_exe: &Path) {
         }
         let _ = cmd.spawn();
     }
+
     #[cfg(not(target_os = "windows"))]
     {
-        // Linux/macOS：sh 后台执行，sleep 等主进程退出后替换并重启
+        // Linux/macOS: sh 后台执行，sleep 等主进程退出后替换并重启
+        let update_dir = exe_path
+            .parent()
+            .map(|p| p.join("update"))
+            .unwrap_or_default();
         let script = format!(
-            "(sleep 3; mv \"{}\" \"{}\"; mv \"{}\" \"{}\"; rm -f \"{}\"; \"{}\" &) >/dev/null 2>&1 &",
+            "(sleep 8; mv \"{}\" \"{}\"; mv \"{}\" \"{}\"; rm -f \"{}\"; rm -rf \"{}\"; chmod +x \"{}\"; \"{}\" &) >/dev/null 2>&1 &",
             exe_path.display(),
-            old_exe.display(),
-            new_exe.display(),
+            old_binary.display(),
+            new_binary.display(),
             exe_path.display(),
-            old_exe.display(),
+            old_binary.display(),
+            update_dir.display(),
+            exe_path.display(),
             exe_path.display(),
         );
         let _ = std::process::Command::new("sh")
