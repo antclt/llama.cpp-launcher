@@ -155,8 +155,12 @@ pub fn ui(
                 );
             });
 
-            // 当选择 ROCm 7.14 时显示 GPU 目标选择（新行）
+            // 当选择 ROCm 7.14 时：固定发布通道为 preview + 显示 GPU 目标选择（新行）
             if settings.download_variant == "rocm_lemonade" {
+                // Lemonade ROCm 7 只有 preview 通道，强制设置
+                if settings.release_channel != "preview" {
+                    settings.release_channel = "preview".to_string();
+                }
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
                     ui.label(i18n::t(i18n::Key::GpuTargetLabel, lang));
