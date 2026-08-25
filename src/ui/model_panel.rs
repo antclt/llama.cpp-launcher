@@ -698,7 +698,11 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     } else {
                         // 异步任务进行中，显示加载指示器
                         ui.horizontal(|ui| {
-                            ui.spinner();
+                            if settings.dark_mode {
+                                ui.spinner();
+                            } else {
+                                ui.add(egui::Spinner::new().color(egui::Color32::BLACK));
+                            }
                             ui.label(i18n::t(i18n::Key::Loading, lang));
                         });
                     }
