@@ -187,20 +187,22 @@ pub fn ui(
                 &settings.rocm_gpu_target,
             );
 
-            // 发布通道选择（stable/preview）
-            ui.horizontal(|ui| {
-                ui.label(i18n::t(i18n::Key::ReleaseChannelLabel, lang));
-                ui.selectable_value(
-                    &mut settings.release_channel,
-                    "stable".to_string(),
-                    i18n::t(i18n::Key::ReleaseChannelStable, lang),
-                );
-                ui.selectable_value(
-                    &mut settings.release_channel,
-                    "preview".to_string(),
-                    i18n::t(i18n::Key::ReleaseChannelPreview, lang),
-                );
-            });
+            // 发布通道选择（stable/preview）— Lemonade ROCm 7 不需要（发布通道无作用）
+            if settings.download_variant != "rocm_lemonade" {
+                ui.horizontal(|ui| {
+                    ui.label(i18n::t(i18n::Key::ReleaseChannelLabel, lang));
+                    ui.selectable_value(
+                        &mut settings.release_channel,
+                        "stable".to_string(),
+                        i18n::t(i18n::Key::ReleaseChannelStable, lang),
+                    );
+                    ui.selectable_value(
+                        &mut settings.release_channel,
+                        "preview".to_string(),
+                        i18n::t(i18n::Key::ReleaseChannelPreview, lang),
+                    );
+                });
+            }
 
             // 下载 llama.cpp + 检查更新：单独一行
             ui.horizontal(|ui| {
