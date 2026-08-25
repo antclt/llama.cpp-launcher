@@ -1200,7 +1200,7 @@ pub struct AppSettings {
     pub language: String,
 
     // llama.cpp 下载变体偏好：
-    // "cpu" | "cuda124" | "cuda133" | "rocm714" | "vulkan"
+    // "cpu" | "cuda124" | "cuda133" | "rocm_lemonade" | "rocm7" | "vulkan"
     // （兼容旧值 "gpu"：Windows→cuda124, Linux→vulkan）
     #[serde(default = "default_download_variant")]
     pub download_variant: String,
@@ -1211,7 +1211,7 @@ pub struct AppSettings {
     #[serde(default = "default_release_channel")]
     pub release_channel: String,
 
-    // ROCm GPU 目标型号（仅当 download_variant 为 rocm714 时生效）
+    // ROCm GPU 目标型号（仅当 download_variant 为 rocm_lemonade 时生效）
     // 可选值："gfx103X" | "gfx110X" | "gfx1150" | "gfx1151" | "gfx120X" | "gfx908" | "gfx90a"
     #[serde(default = "default_rocm_gpu_target")]
     pub rocm_gpu_target: String,

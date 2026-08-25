@@ -108,8 +108,10 @@ pub enum DownloadVariant {
     WinCuda124,
     /// Windows x64 CUDA 13.3
     WinCuda133,
-    /// Windows x64 ROCm 7.14（携带 GPU 目标数据，如 "gfx103X"）
-    WinRocm714(String),
+    /// Windows x64 ROCm 7.14 Lemonade（携带 GPU 目标数据，如 "gfx103X"）
+    WinRocmLemonade(String),
+    /// Windows x64 ROCm 7.14（官方 ggml-org 版本）
+    WinRocm7,
     /// Windows x64 Vulkan
     WinVulkan,
     /// Windows arm64 CPU
@@ -128,9 +130,11 @@ impl DownloadVariant {
             DownloadVariant::WinCpu => "bin-win-cpu-x64".to_string(),
             DownloadVariant::WinCuda124 => "bin-win-cuda-12.4-x64".to_string(),
             DownloadVariant::WinCuda133 => "bin-win-cuda-13.3-x64".to_string(),
-            DownloadVariant::WinRocm714(gpu_target) => {
+            DownloadVariant::WinRocmLemonade(gpu_target) => {
                 format!("llama-.*-windows-rocm-{}-x64\\.zip", gpu_target)
             }
+            // 官方 ggml-org ROCm 7.14（无 GPU 目标后缀）
+            DownloadVariant::WinRocm7 => "llama-.*-bin-win-rocm-7.14-x64\\.zip".to_string(),
             DownloadVariant::WinVulkan => "bin-win-vulkan-x64".to_string(),
             DownloadVariant::WinCpuArm64 => "bin-win-cpu-arm64".to_string(),
             DownloadVariant::LinuxCpu => "bin-ubuntu-x64".to_string(),
@@ -140,7 +144,7 @@ impl DownloadVariant {
 
     /// 判断是否使用 lemonade-sdk API（ROCm 7.14 变体使用）
     pub fn is_rocm_lemonade(&self) -> bool {
-        matches!(self, DownloadVariant::WinRocm714(_))
+        matches!(self, DownloadVariant::WinRocmLemonade(_))
     }
 
     /// 资产文件扩展名（用于判断解压方式）
@@ -153,8 +157,8 @@ impl DownloadVariant {
 
     /// 根据配置中的 download_variant 值与当前平台解析出实际下载变体
     ///
-    /// - 配置值（与 UI 选项一致）：`cpu` / `cuda124` / `cuda133` / `rocm714` / `vulkan`
-    /// - GPU 变体仅在对应平台有效：cuda124/cuda133/rocm714 仅 Windows；vulkan 全平台
+    /// - 配置值（与 UI 选项一致）：`cpu` / `cuda124` / `cuda133` / `rocm714` / `rocm7` / `vulkan`
+    /// - GPU 变体仅在对应平台有效：cuda124/cuda133/rocm714/rocm7 仅 Windows；vulkan 全平台
     /// - 兼容旧版 `"gpu"`：Windows → CUDA 12.4，Linux → Vulkan
     /// - 兜底：CPU（Linux x64 / Windows arm64 / Windows x64）
     pub fn from_settings_value(value: &str) -> Self {
@@ -162,7 +166,8 @@ impl DownloadVariant {
         match value {
             "cuda124" if !is_linux => DownloadVariant::WinCuda124,
             "cuda133" if !is_linux => DownloadVariant::WinCuda133,
-            "rocm714" if !is_linux => DownloadVariant::WinRocm714("gfx103X".to_string()),
+            "rocm_lemonade" if !is_linux => DownloadVariant::WinRocmLemonade("gfx103X".to_string()),
+            "rocm7" if !is_linux => DownloadVariant::WinRocm7,
             "vulkan" => {
                 if is_linux {
                     DownloadVariant::LinuxVulkan
@@ -873,7 +878,7 @@ mod tests {
             asset("llama-b10549-bin-win-vulkan-x64.zip"),
             asset("llama-b10549-bin-win-cuda-13.3-x64.zip"),
         ];
-        let rocm_variant = DownloadVariant::WinRocm714("gfx1030".to_string());
+        let rocm_variant = DownloadVariant::WinRocmLemonade("gfx1030".to_string());
         let rocm = pick_asset(&assets, &rocm_variant).expect("应匹配 ROCm 7.14 资产");
         assert_eq!(rocm.name, "llama-b10549-windows-rocm-gfx1030-x64.zip");
         let vulkan =
@@ -919,8 +924,8 @@ mod tests {
                 DownloadVariant::WinCuda133
             );
             assert_eq!(
-                DownloadVariant::from_settings_value("rocm714"),
-                DownloadVariant::WinRocm714("gfx103X".to_string())
+                DownloadVariant::from_settings_value("rocm_lemonade"),
+                DownloadVariant::WinRocmLemonade("gfx103X".to_string())
             );
             assert_eq!(
                 DownloadVariant::from_settings_value("vulkan"),
@@ -968,25 +973,25 @@ mod tests {
     }
 
     #[test]
-    fn test_win_rocm714_asset_name() {
-        let variant = DownloadVariant::WinRocm714("gfx103X".to_string());
+    fn test_win_rocm_lemonade_asset_name() {
+        let variant = DownloadVariant::WinRocmLemonade("gfx103X".to_string());
         let asset_name = variant.asset_name();
         assert!(asset_name.contains("llama-.*-windows-rocm-gfx103X-x64\\.zip"));
     }
 
     #[test]
-    fn test_from_settings_value_rocm714() {
-        let variant = DownloadVariant::from_settings_value("rocm714");
+    fn test_from_settings_value_rocm_lemonade() {
+        let variant = DownloadVariant::from_settings_value("rocm_lemonade");
         match variant {
-            DownloadVariant::WinRocm714(gpu_target) => {
+            DownloadVariant::WinRocmLemonade(gpu_target) => {
                 assert_eq!(gpu_target, "gfx103X");
             }
-            _ => panic!("Expected WinRocm714 variant"),
+            _ => panic!("Expected WinRocmLemonade variant"),
         }
     }
 
     #[test]
-    fn test_pick_asset_rocm714() {
+    fn test_pick_asset_rocm_lemonade() {
         let assets = vec![
             Asset {
                 name: "llama-b1313-windows-rocm-gfx103X-x64.zip".to_string(),
@@ -1001,7 +1006,7 @@ mod tests {
                     "https://example.com/llama-b1313-windows-rocm-gfx110X-x64.zip".to_string(),
             },
         ];
-        let variant = DownloadVariant::WinRocm714("gfx103X".to_string());
+        let variant = DownloadVariant::WinRocmLemonade("gfx103X".to_string());
         let picked = pick_asset(&assets, &variant);
         assert!(picked.is_some());
         assert_eq!(

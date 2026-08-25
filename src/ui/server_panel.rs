@@ -139,8 +139,13 @@ pub fn ui(
                     );
                     ui.selectable_value(
                         &mut settings.download_variant,
-                        "rocm714".to_string(),
-                        i18n::t(i18n::Key::VariantGpuRocm714, lang),
+                        "rocm_lemonade".to_string(),
+                        i18n::t(i18n::Key::VariantGpuRocmLemonade, lang),
+                    );
+                    ui.selectable_value(
+                        &mut settings.download_variant,
+                        "rocm7".to_string(),
+                        i18n::t(i18n::Key::VariantGpuRocm7, lang),
                     );
                 }
                 ui.selectable_value(
@@ -151,7 +156,7 @@ pub fn ui(
             });
 
             // 当选择 ROCm 7.14 时显示 GPU 目标选择（新行）
-            if settings.download_variant == "rocm714" {
+            if settings.download_variant == "rocm_lemonade" {
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
                     ui.label(i18n::t(i18n::Key::GpuTargetLabel, lang));
