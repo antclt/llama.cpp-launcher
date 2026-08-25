@@ -181,9 +181,11 @@ pub fn ui(
                 });
             }
 
-            // 解析当前选中配置对应的下载变体（平台感知 + 兜底）
-            let variant =
-                crate::downloader::DownloadVariant::from_settings_value(&settings.download_variant);
+            // 解析当前选中配置对应的下载变体（平台感知 + 兜底，使用用户选择的 GPU 目标）
+            let variant = crate::downloader::DownloadVariant::from_settings_with_gpu_target(
+                &settings.download_variant,
+                &settings.rocm_gpu_target,
+            );
 
             // 发布通道选择（stable/preview）
             ui.horizontal(|ui| {
@@ -229,8 +231,9 @@ pub fn ui(
                     )
                     .clicked()
                 {
-                    let variant = crate::downloader::DownloadVariant::from_settings_value(
+                    let variant = crate::downloader::DownloadVariant::from_settings_with_gpu_target(
                         &settings.download_variant,
+                        &settings.rocm_gpu_target,
                     );
                     let server_path = settings.server_path.clone();
                     let release_channel = settings.release_channel.clone();

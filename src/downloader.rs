@@ -162,11 +162,18 @@ impl DownloadVariant {
     /// - 兼容旧版 `"gpu"`：Windows → CUDA 12.4，Linux → Vulkan
     /// - 兜底：CPU（Linux x64 / Windows arm64 / Windows x64）
     pub fn from_settings_value(value: &str) -> Self {
+        Self::from_settings_with_gpu_target(value, "gfx103X")
+    }
+
+    /// 根据配置值与 GPU 目标解析出实际下载变体（ROCm Lemonade 使用用户选择的 GPU 目标）
+    pub fn from_settings_with_gpu_target(value: &str, gpu_target: &str) -> Self {
         let is_linux = cfg!(target_os = "linux");
         match value {
             "cuda124" if !is_linux => DownloadVariant::WinCuda124,
             "cuda133" if !is_linux => DownloadVariant::WinCuda133,
-            "rocm_lemonade" if !is_linux => DownloadVariant::WinRocmLemonade("gfx103X".to_string()),
+            "rocm_lemonade" if !is_linux => {
+                DownloadVariant::WinRocmLemonade(gpu_target.to_string())
+            }
             "rocm7" if !is_linux => DownloadVariant::WinRocm7,
             "vulkan" => {
                 if is_linux {
