@@ -10,6 +10,17 @@
 
 A lightweight llama.cpp launcher built with Rust, providing a graphical interface to manage and run llama.cpp servers. Supports visual configuration, RPC mode, preset management, real-time logs, and multilingual UI.
 
+📸 **Screenshots**
+
+**Server Configuration Panel**
+![Server Panel](screenshot/screenshot_server_en.png)
+
+**Server Log Panel**
+![Server Log Panel](screenshot/screenshot_server_log_en.png)
+
+**Model Management Panel**
+![Model Panel](screenshot/screenshot_model_en.png)
+
 ✨ **Features**
 
 - 🖥️ Cross-platform GUI based on eframe/egui

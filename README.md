@@ -10,6 +10,17 @@
 
 这是一个用 Rust 构建的轻量级 llama.cpp 启动器，提供图形界面来管理和运行 llama.cpp 服务器。支持可视化配置、RPC模式、预设管理、实时日志和多语言界面。
 
+📸 **屏幕截图**
+
+**服务器配置面板**
+![Server Panel](screenshot/screenshot_server.png)
+
+**服务器日志面板**
+![Server Log Panel](screenshot/screenshot_server_log.png)
+
+**模型管理面板**
+![Model Panel](screenshot/screenshot_model.png)
+
 ✨ **有什么特点？**
 
 - 🖥️ 基于 eframe/egui 的跨平台 GUI 界面
