@@ -143,9 +143,9 @@ impl DownloadVariant {
             DownloadVariant::WinCpuArm64 => "bin-win-cpu-arm64".to_string(),
             DownloadVariant::LinuxCpu => "bin-ubuntu-x64".to_string(),
             DownloadVariant::LinuxVulkan => "bin-ubuntu-vulkan-x64".to_string(),
-            // Linux ROCm 7.14 Lemonade（携带 GPU 目标数据）
+            // Linux ROCm 7.14 Lemonade（携带 GPU 目标数据，使用 zip 格式）
             DownloadVariant::LinuxRocmLemonade(gpu_target) => {
-                format!("llama-.*-ubuntu-rocm-{}-x64\\.tar\\.gz", gpu_target)
+                format!("llama-.*-ubuntu-rocm-{}-x64\\.zip", gpu_target)
             }
             // 官方 ggml-org ROCm 7.14 Linux 版本（无 GPU 目标后缀）
             DownloadVariant::LinuxRocm7 => {
@@ -167,8 +167,9 @@ impl DownloadVariant {
         match self {
             DownloadVariant::LinuxCpu
             | DownloadVariant::LinuxVulkan
-            | DownloadVariant::LinuxRocmLemonade(_)
             | DownloadVariant::LinuxRocm7 => ".tar.gz",
+            // lemonade-sdk 的 Linux 版本也使用 zip 格式
+            DownloadVariant::LinuxRocmLemonade(_) => ".zip",
             _ => ".zip",
         }
     }
@@ -1084,34 +1085,36 @@ mod tests {
     fn test_pick_asset_linux_rocm() {
         let assets = vec![
             Asset {
-                name: "llama-b1313-ubuntu-rocm-gfx103X-x64.tar.gz".to_string(),
+                // lemonade-sdk 使用 zip 格式
+                name: "llama-b1313-ubuntu-rocm-gfx103X-x64.zip".to_string(),
                 size: 1000,
-                browser_download_url:
-                    "https://example.com/llama-b1313-ubuntu-rocm-gfx103X-x64.tar.gz".to_string(),
+                browser_download_url: "https://example.com/llama-b1313-ubuntu-rocm-gfx103X-x64.zip"
+                    .to_string(),
             },
             Asset {
-                name: "llama-b1313-ubuntu-rocm-gfx110X-x64.tar.gz".to_string(),
+                name: "llama-b1313-ubuntu-rocm-gfx110X-x64.zip".to_string(),
                 size: 1000,
-                browser_download_url:
-                    "https://example.com/llama-b1313-ubuntu-rocm-gfx110X-x64.tar.gz".to_string(),
+                browser_download_url: "https://example.com/llama-b1313-ubuntu-rocm-gfx110X-x64.zip"
+                    .to_string(),
             },
             Asset {
+                // ggml-org 使用 tar.gz 格式
                 name: "llama-b1313-bin-ubuntu-rocm-7.14-x64.tar.gz".to_string(),
                 size: 1000,
                 browser_download_url:
                     "https://example.com/llama-b1313-bin-ubuntu-rocm-7.14-x64.tar.gz".to_string(),
             },
         ];
-        // 测试 Linux ROCm Lemonade 变体
+        // 测试 Linux ROCm Lemonade 变体（zip 格式）
         let variant_lemonade = DownloadVariant::LinuxRocmLemonade("gfx103X".to_string());
         let picked_lemonade = pick_asset(&assets, &variant_lemonade);
         assert!(picked_lemonade.is_some());
         assert_eq!(
             picked_lemonade.unwrap().name,
-            "llama-b1313-ubuntu-rocm-gfx103X-x64.tar.gz"
+            "llama-b1313-ubuntu-rocm-gfx103X-x64.zip"
         );
 
-        // 测试 Linux ROCm 7 官方变体
+        // 测试 Linux ROCm 7 官方变体（tar.gz 格式）
         let variant_rocm7 = DownloadVariant::LinuxRocm7;
         let picked_rocm7 = pick_asset(&assets, &variant_rocm7);
         assert!(picked_rocm7.is_some());
@@ -1123,13 +1126,13 @@ mod tests {
 
     #[test]
     fn test_linux_rocm_variant_asset_name() {
-        // 测试 Linux ROCm Lemonade 资产名模式
+        // 测试 Linux ROCm Lemonade 资产名模式（zip 格式）
         let variant_lemonade = DownloadVariant::LinuxRocmLemonade("gfx103X".to_string());
         let asset_name_lemonade = variant_lemonade.asset_name();
         assert!(asset_name_lemonade.contains("ubuntu-rocm-gfx103X"));
-        assert!(asset_name_lemonade.contains(".tar\\.gz"));
+        assert!(asset_name_lemonade.contains(".zip"));
 
-        // 测试 Linux ROCm 7 资产名模式
+        // 测试 Linux ROCm 7 资产名模式（tar.gz 格式）
         let variant_rocm7 = DownloadVariant::LinuxRocm7;
         let asset_name_rocm7 = variant_rocm7.asset_name();
         assert!(asset_name_rocm7.contains("ubuntu-rocm-7.14"));
@@ -1138,10 +1141,11 @@ mod tests {
 
     #[test]
     fn test_linux_rocm_variant_extension() {
-        // 测试 Linux ROCm 变体扩展名
+        // 测试 Linux ROCm Lemonade 变体扩展名（zip 格式）
         let variant_lemonade = DownloadVariant::LinuxRocmLemonade("gfx103X".to_string());
-        assert_eq!(variant_lemonade.extension(), ".tar.gz");
+        assert_eq!(variant_lemonade.extension(), ".zip");
 
+        // 测试 Linux ROCm 7 变体扩展名（tar.gz 格式）
         let variant_rocm7 = DownloadVariant::LinuxRocm7;
         assert_eq!(variant_rocm7.extension(), ".tar.gz");
     }
