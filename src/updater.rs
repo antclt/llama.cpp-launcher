@@ -485,56 +485,61 @@ fn replace_and_restart(new_binary: &Path) {
 
     #[cfg(target_os = "windows")]
     {
-        // Windows: 使用 cmd /d /c 启动脚本
-        // timeout /t 3 /nobreak >nul 等待3秒，确保主进程完全退出
+        // Windows: 写入临时 .bat 脚本，轮询等待旧进程退出后替换
+        // 旧进程需要完成 Drop（停止 server/RPC、保存设置）后窗口才会关闭
         let update_dir = exe_path
             .parent()
             .map(|p| p.join("update"))
             .unwrap_or_default();
 
-        // 路径转为字符串
         let exe_str = exe_path.display().to_string();
         let old_str = old_binary.display().to_string();
         let new_str = new_binary.display().to_string();
         let update_str = update_dir.display().to_string();
+        let pid = std::process::id();
 
-        // 检查路径是否包含空格，决定是否使用引号转义
+        // 路径含空格时使用引号包裹
         let has_space = exe_str.contains(' ')
             || old_str.contains(' ')
             || new_str.contains(' ')
             || update_str.contains(' ');
+        let (ql, qr) = if has_space { ("\"", "\"") } else { ("", "") };
 
-        // 添加 echo 调试日志
-        let script = if has_space {
-            // 路径含空格：使用 ^" 转义引号
-            format!(
-                "echo [1/7] 开始执行脚本 & \
-                 timeout /t 3 /nobreak >nul & echo [2/7] 超时完成 & \
-                 move /Y ^\"{}^\" ^\"{}^\" & echo [3/7] move1完成 & \
-                 move /Y ^\"{}^\" ^\"{}^\" & echo [4/7] move2完成 & \
-                 del /Q ^\"{}^\" & echo [5/7] del完成 & \
-                 rmdir /Q /S ^\"{}^\" & echo [6/7] rmdir完成 & \
-                 start ^\"{}^\" & echo [7/7] start完成",
-                exe_str, old_str, new_str, exe_str, old_str, update_str, exe_str
-            )
-        } else {
-            // 路径无空格：不用引号
-            format!(
-                "echo [1/7] 开始执行脚本 & \
-                 timeout /t 3 /nobreak >nul & echo [2/7] 超时完成 & \
-                 move /Y {} {} & echo [3/7] move1完成 & \
-                 move /Y {} {} & echo [4/7] move2完成 & \
-                 del /Q {} & echo [5/7] del完成 & \
-                 rmdir /Q /S {} & echo [6/7] rmdir完成 & \
-                 start {} & echo [7/7] start完成",
-                exe_str, old_str, new_str, exe_str, old_str, update_str, exe_str
-            )
-        };
+        // 写入临时批处理脚本
+        // 脚本逻辑：轮询 tasklist 检测旧进程 PID，退出后才执行替换和启动
+        let bat_path = update_dir.join("_replace.bat");
+        let bat_content = format!(
+            "@echo off\r\n\
+             set \"OLD_PID={pid}\"\r\n\
+             echo [1/7] 等待旧进程 PID %OLD_PID% 退出...\r\n\
+             :waitloop\r\n\
+             tasklist /FI \"PID eq %OLD_PID%\" /NH 2>nul | findstr /I \"%OLD_PID%\" >nul\r\n\
+             if %errorlevel%==0 (\r\n\
+                 timeout /t 1 /nobreak >nul\r\n\
+                 goto waitloop\r\n\
+             )\r\n\
+             echo [2/7] 旧进程已退出\r\n\
+             move /Y {ql}{exe_str}{qr} {ql}{old_str}{qr} >nul 2>&1\r\n\
+             echo [3/7] move1完成\r\n\
+             move /Y {ql}{new_str}{qr} {ql}{exe_str}{qr} >nul 2>&1\r\n\
+             echo [4/7] move2完成\r\n\
+             del /Q {ql}{old_str}{qr} >nul 2>&1\r\n\
+             echo [5/7] del完成\r\n\
+             rmdir /Q /S {ql}{update_str}{qr} >nul 2>&1\r\n\
+             echo [6/7] rmdir完成\r\n\
+             start \"\" {ql}{exe_str}{qr}\r\n\
+             echo [7/7] 新进程已启动\r\n"
+        );
 
-        log::info!("自替换脚本: {}", script);
+        if let Err(e) = std::fs::write(&bat_path, &bat_content) {
+            log::error!("写入替换脚本失败: {}", e);
+            return;
+        }
+
+        log::info!("自替换脚本: {} (等待 PID {} 退出)", bat_path.display(), pid);
 
         let mut cmd = std::process::Command::new("cmd");
-        cmd.args(["/d", "/c", &script]);
+        cmd.args(["/d", "/c", bat_path.to_str().unwrap_or("")]);
         {
             use std::os::windows::process::CommandExt;
             // 只使用 CREATE_NO_WINDOW，不使用 DETACHED_PROCESS
