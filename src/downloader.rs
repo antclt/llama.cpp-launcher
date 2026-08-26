@@ -583,21 +583,39 @@ fn run_download(
             .map_err(|e| format!("extract tar.gz failed: {}", e))?;
     }
 
-    // 5) 定位 llama-server 二进制
+    // 5) Linux：将 build/bin/* 提升到 llama/ 根目录（简化目录结构）
+    if !cfg!(target_os = "windows") {
+        let stem = asset_stem(&asset.name);
+        let build_bin = llama_dir.join(&stem).join("build").join("bin");
+        if build_bin.is_dir() {
+            // 移动 build/bin/ 下所有文件到 llama_dir
+            if let Ok(entries) = fs::read_dir(&build_bin) {
+                for entry in entries.flatten() {
+                    let src = entry.path();
+                    if src.is_file() {
+                        let dst = llama_dir.join(entry.file_name());
+                        let _ = fs::rename(&src, &dst);
+                    }
+                }
+            }
+            // 删除空的 asset_stem 目录（best-effort，递归删除）
+            let _ = fs::remove_dir_all(llama_dir.join(&stem));
+        }
+    }
+
+    // 6) 定位 llama-server 二进制
     set_running(status, Phase::LocatingServer, 0, None);
     let windows = cfg!(target_os = "windows");
     let stem = asset_stem(&asset.name);
     let binary = find_server_binary(&llama_dir, &stem, windows)
         .ok_or_else(|| "llama-server binary not found in extracted files".to_string())?;
 
-    // 6) Linux：确保 bin 目录内文件可执行（best-effort）
+    // 7) Linux：确保文件可执行（best-effort）
     if !windows {
-        if let Some(bin_dir) = binary.parent() {
-            chmod_all(bin_dir);
-        }
+        chmod_all(&llama_dir);
     }
 
-    // 7) 删除压缩包（best-effort，失败忽略）
+    // 8) 删除压缩包（best-effort，失败忽略）
     let _ = fs::remove_file(&archive_path);
 
     Ok(binary.to_string_lossy().to_string())
