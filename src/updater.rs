@@ -486,34 +486,78 @@ fn replace_and_restart(new_binary: &Path) {
     #[cfg(target_os = "windows")]
     {
         // Windows: 使用 cmd /d /c 启动脚本
-        // timeout /t 8 /nobreak >nul 等待8秒，确保主进程完全退出
+        // timeout /t 3 /nobreak >nul 等待3秒，确保主进程完全退出
         let update_dir = exe_path
             .parent()
             .map(|p| p.join("update"))
             .unwrap_or_default();
-        let script = format!(
-            "timeout /t 8 /nobreak >nul & \
-             move /Y \"{}\" \"{}\" & \
-             move /Y \"{}\" \"{}\" & \
-             del /Q \"{}\" & \
-             rmdir /Q /S \"{}\" & \
-             start \"\" \"{}\"",
-            exe_path.display(),
-            old_binary.display(),
-            new_binary.display(),
-            exe_path.display(),
-            old_binary.display(),
-            update_dir.display(),
-            exe_path.display(),
-        );
+
+        // 路径转为字符串
+        let exe_str = exe_path.display().to_string();
+        let old_str = old_binary.display().to_string();
+        let new_str = new_binary.display().to_string();
+        let update_str = update_dir.display().to_string();
+
+        // 检查路径是否包含空格，决定是否使用引号转义
+        let has_space = exe_str.contains(' ')
+            || old_str.contains(' ')
+            || new_str.contains(' ')
+            || update_str.contains(' ');
+
+        // 添加 echo 调试日志
+        let script = if has_space {
+            // 路径含空格：使用 ^" 转义引号
+            format!(
+                "echo [1/7] 开始执行脚本 & \
+                 timeout /t 3 /nobreak >nul & echo [2/7] 超时完成 & \
+                 move /Y ^\"{}^\" ^\"{}^\" & echo [3/7] move1完成 & \
+                 move /Y ^\"{}^\" ^\"{}^\" & echo [4/7] move2完成 & \
+                 del /Q ^\"{}^\" & echo [5/7] del完成 & \
+                 rmdir /Q /S ^\"{}^\" & echo [6/7] rmdir完成 & \
+                 start ^\"{}^\" & echo [7/7] start完成",
+                exe_str, old_str, new_str, exe_str, old_str, update_str, exe_str
+            )
+        } else {
+            // 路径无空格：不用引号
+            format!(
+                "echo [1/7] 开始执行脚本 & \
+                 timeout /t 3 /nobreak >nul & echo [2/7] 超时完成 & \
+                 move /Y {} {} & echo [3/7] move1完成 & \
+                 move /Y {} {} & echo [4/7] move2完成 & \
+                 del /Q {} & echo [5/7] del完成 & \
+                 rmdir /Q /S {} & echo [6/7] rmdir完成 & \
+                 start {} & echo [7/7] start完成",
+                exe_str, old_str, new_str, exe_str, old_str, update_str, exe_str
+            )
+        };
+
+        log::info!("自替换脚本: {}", script);
+
         let mut cmd = std::process::Command::new("cmd");
         cmd.args(["/d", "/c", &script]);
         {
             use std::os::windows::process::CommandExt;
-            // CREATE_NO_WINDOW | DETACHED_PROCESS
-            cmd.creation_flags(0x0800_0000 | 0x0000_0008);
+            // 只使用 CREATE_NO_WINDOW，不使用 DETACHED_PROCESS
+            cmd.creation_flags(0x0800_0000);
         }
-        let _ = cmd.spawn();
+
+        match cmd.spawn() {
+            Ok(mut child) => {
+                log::info!("自替换脚本已启动, PID: {}", child.id());
+                // 等待脚本执行完成
+                match child.wait() {
+                    Ok(status) => {
+                        log::info!("脚本退出码: {:?}", status);
+                    }
+                    Err(e) => {
+                        log::error!("等待脚本执行失败: {}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                log::error!("自替换脚本启动失败: {}", e);
+            }
+        }
     }
 
     #[cfg(not(target_os = "windows"))]
