@@ -65,15 +65,37 @@ fn agent(timeout_secs: u64) -> ureq::Agent {
 }
 
 /// 官方 + 镜像依次尝试，带不同超时；返回 Response body 字符串
+///
+/// 优先级策略：
+/// - 中国大陆：镜像源（32秒超时）→ 官方源（16秒超时）
+/// - 其他地区：官方源（16秒超时）→ 镜像源（32秒超时）
 fn fetch_with_fallback(official_url: &str, mirror_url: &str) -> Result<String, String> {
-    let official_agent = agent(OFFICIAL_TIMEOUT_SECS);
-    if let Ok(body) = fetch_body(&official_agent, official_url) {
-        return Ok(body);
+    let mirror_first = crate::geo::should_use_mirror_first();
+
+    if mirror_first {
+        // 中国大陆：优先使用镜像源
+        let mirror_agent = agent(MIRROR_TIMEOUT_SECS);
+        if let Ok(body) = fetch_body(&mirror_agent, mirror_url) {
+            return Ok(body);
+        }
+        // 镜像失败，回退到官方源
+        let official_agent = agent(OFFICIAL_TIMEOUT_SECS);
+        if let Ok(body) = fetch_body(&official_agent, official_url) {
+            return Ok(body);
+        }
+    } else {
+        // 其他地区：优先使用官方源
+        let official_agent = agent(OFFICIAL_TIMEOUT_SECS);
+        if let Ok(body) = fetch_body(&official_agent, official_url) {
+            return Ok(body);
+        }
+        // 官方失败，回退到镜像源
+        let mirror_agent = agent(MIRROR_TIMEOUT_SECS);
+        if let Ok(body) = fetch_body(&mirror_agent, mirror_url) {
+            return Ok(body);
+        }
     }
-    let mirror_agent = agent(MIRROR_TIMEOUT_SECS);
-    if let Ok(body) = fetch_body(&mirror_agent, mirror_url) {
-        return Ok(body);
-    }
+
     Err(ERR_NETWORK.to_string())
 }
 
