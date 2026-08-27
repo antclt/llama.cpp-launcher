@@ -601,19 +601,46 @@ fn run_download(
         Some(rest) => format!("{}{}", DOWNLOAD_MIRROR_BASE, rest),
         None => official_url.clone(),
     };
+    // 智能镜像：根据地理位置决定下载优先级
+    let mirror_first = crate::geo::should_use_mirror_first();
+    log::info!(
+        "[download] 智能镜像选择: 地理位置检测 = {}",
+        if mirror_first {
+            "中国大陆"
+        } else {
+            "其他地区"
+        }
+    );
+    log::info!(
+        "[download] 下载优先级: {}",
+        if mirror_first {
+            "镜像源 → 官方源"
+        } else {
+            "官方源 → 镜像源"
+        }
+    );
+    // 根据地理位置决定下载顺序
+    let urls = if mirror_first {
+        [mirror, official_url]
+    } else {
+        [official_url, mirror]
+    };
     let mut last_err = String::new();
-    for (i, url) in [official_url, mirror].iter().enumerate() {
+    for (i, url) in urls.iter().enumerate() {
         if cancel.load(Ordering::SeqCst) {
             let _ = fs::remove_file(&partial);
             return Err("download cancelled".to_string());
         }
         let _ = fs::remove_file(&partial); // 上一源失败的残留
-                                           // i=0 官方源，i=1 镜像源
-        let source = if i == 0 { "官方源" } else { "镜像源" };
-        let timeout = if i == 0 {
-            OFFICIAL_TIMEOUT_SECS
+        let source = if (i == 0 && mirror_first) || (i == 1 && !mirror_first) {
+            "镜像源"
         } else {
+            "官方源"
+        };
+        let timeout = if source == "镜像源" {
             MIRROR_TIMEOUT_SECS
+        } else {
+            OFFICIAL_TIMEOUT_SECS
         };
         log::info!("[download] 尝试{} (超时 {}s): {}", source, timeout, url);
         match download_to_file(url, &partial, cancel, status, timeout) {
