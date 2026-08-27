@@ -448,16 +448,21 @@ fn run_download(cancel: &AtomicBool, status: &Arc<Mutex<UpdateStatus>>) -> Resul
             return Err("download cancelled".to_string());
         }
         let _ = fs::remove_file(&partial); // 上一源失败的残留
-                                           // i=0 官方源 16s，i=1 镜像源 32s
+                                           // i=0 官方源，i=1 镜像源
+        let source = if i == 0 { "官方源" } else { "镜像源" };
         let timeout = if i == 0 {
             OFFICIAL_TIMEOUT_SECS
         } else {
             MIRROR_TIMEOUT_SECS
         };
+        log::info!("[update] 尝试{} (超时 {}s): {}", source, timeout, url);
         let ag = agent(timeout);
         let response = match ag.get(url).set("User-Agent", USER_AGENT).call() {
             Ok(r) => r,
-            Err(_) => continue, // 该源失败，尝试下一个
+            Err(e) => {
+                log::warn!("[update] ✗ {} 失败: {}", source, e);
+                continue; // 该源失败，尝试下一个
+            }
         };
         // 流式写入
         let result = (|| -> Result<u64, String> {
@@ -501,8 +506,10 @@ fn run_download(cancel: &AtomicBool, status: &Arc<Mutex<UpdateStatus>>) -> Resul
         }
         // 下载完整性校验：实际字节应与资产声明一致
         if done != asset.size {
+            log::warn!("[update] ✗ {} 数据不完整: 期望 {} 字节，实际 {} 字节", source, asset.size, done);
             continue; // 该源数据不完整，尝试下一个
         }
+        log::info!("[update] ✓ 下载成功: {}", url);
         fs::rename(&partial, &new_binary).map_err(|e| format!("rename temp file failed: {}", e))?;
 
         // Linux: 需要从 .tar.gz 解压出二进制文件

@@ -608,12 +608,14 @@ fn run_download(
             return Err("download cancelled".to_string());
         }
         let _ = fs::remove_file(&partial); // 上一源失败的残留
-                                           // i=0 官方源 16s，i=1 镜像源 32s
+                                           // i=0 官方源，i=1 镜像源
+        let source = if i == 0 { "官方源" } else { "镜像源" };
         let timeout = if i == 0 {
             OFFICIAL_TIMEOUT_SECS
         } else {
             MIRROR_TIMEOUT_SECS
         };
+        log::info!("[download] 尝试{} (超时 {}s): {}", source, timeout, url);
         match download_to_file(url, &partial, cancel, status, timeout) {
             Ok(()) => {
                 // 下载完整性校验：实际字节应与资产声明一致
@@ -625,6 +627,7 @@ fn run_download(
                     );
                     continue; // 数据不完整，尝试下一个源
                 }
+                log::info!("[download] ✓ 下载成功: {}", url);
                 last_err.clear();
                 break;
             }
@@ -633,6 +636,7 @@ fn run_download(
                 return Err("download cancelled".to_string());
             }
             Err(DlError::Failed(e)) => {
+                log::warn!("[download] ✗ {} 失败: {}", source, e);
                 last_err = e;
                 continue; // 该源失败，尝试下一个
             }
