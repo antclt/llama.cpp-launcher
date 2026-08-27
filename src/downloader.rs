@@ -54,13 +54,31 @@ fn agent(timeout_secs: u64) -> ureq::Agent {
 fn fetch_with_fallback(official_url: &str, mirror_url: &str) -> Result<String, String> {
     let mirror_first = crate::geo::should_use_mirror_first();
 
-    log::info!("[network] 智能镜像选择: 地理位置检测 = {}", if mirror_first { "中国大陆" } else { "其他地区" });
-    log::info!("[network] 网络请求优先级: {}", if mirror_first { "镜像源 → 官方源" } else { "官方源 → 镜像源" });
+    log::info!(
+        "[network] 智能镜像选择: 地理位置检测 = {}",
+        if mirror_first {
+            "中国大陆"
+        } else {
+            "其他地区"
+        }
+    );
+    log::info!(
+        "[network] 网络请求优先级: {}",
+        if mirror_first {
+            "镜像源 → 官方源"
+        } else {
+            "官方源 → 镜像源"
+        }
+    );
 
     if mirror_first {
         // 中国大陆：优先使用镜像源
         let mirror_agent = agent(MIRROR_TIMEOUT_SECS);
-        log::info!("[network] 尝试镜像源 (超时 {}s): {}", MIRROR_TIMEOUT_SECS, mirror_url);
+        log::info!(
+            "[network] 尝试镜像源 (超时 {}s): {}",
+            MIRROR_TIMEOUT_SECS,
+            mirror_url
+        );
         if let Ok(body) = fetch_body(&mirror_agent, mirror_url) {
             log::info!("[network] ✓ 镜像源请求成功");
             return Ok(body);
@@ -68,7 +86,11 @@ fn fetch_with_fallback(official_url: &str, mirror_url: &str) -> Result<String, S
         log::warn!("[network] ✗ 镜像源请求失败，回退到官方源");
         // 镜像失败，回退到官方源
         let official_agent = agent(OFFICIAL_TIMEOUT_SECS);
-        log::info!("[network] 尝试官方源 (超时 {}s): {}", OFFICIAL_TIMEOUT_SECS, official_url);
+        log::info!(
+            "[network] 尝试官方源 (超时 {}s): {}",
+            OFFICIAL_TIMEOUT_SECS,
+            official_url
+        );
         if let Ok(body) = fetch_body(&official_agent, official_url) {
             log::info!("[network] ✓ 官方源请求成功");
             return Ok(body);
@@ -77,7 +99,11 @@ fn fetch_with_fallback(official_url: &str, mirror_url: &str) -> Result<String, S
     } else {
         // 其他地区：优先使用官方源
         let official_agent = agent(OFFICIAL_TIMEOUT_SECS);
-        log::info!("[network] 尝试官方源 (超时 {}s): {}", OFFICIAL_TIMEOUT_SECS, official_url);
+        log::info!(
+            "[network] 尝试官方源 (超时 {}s): {}",
+            OFFICIAL_TIMEOUT_SECS,
+            official_url
+        );
         if let Ok(body) = fetch_body(&official_agent, official_url) {
             log::info!("[network] ✓ 官方源请求成功");
             return Ok(body);
@@ -85,7 +111,11 @@ fn fetch_with_fallback(official_url: &str, mirror_url: &str) -> Result<String, S
         log::warn!("[network] ✗ 官方源请求失败，回退到镜像源");
         // 官方失败，回退到镜像源
         let mirror_agent = agent(MIRROR_TIMEOUT_SECS);
-        log::info!("[network] 尝试镜像源 (超时 {}s): {}", MIRROR_TIMEOUT_SECS, mirror_url);
+        log::info!(
+            "[network] 尝试镜像源 (超时 {}s): {}",
+            MIRROR_TIMEOUT_SECS,
+            mirror_url
+        );
         if let Ok(body) = fetch_body(&mirror_agent, mirror_url) {
             log::info!("[network] ✓ 镜像源请求成功");
             return Ok(body);
