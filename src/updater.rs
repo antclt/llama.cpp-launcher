@@ -443,17 +443,38 @@ fn run_download(cancel: &AtomicBool, status: &Arc<Mutex<UpdateStatus>>) -> Resul
         None => official_url.clone(),
     };
 
-    for (i, url) in [official_url, mirror_url].iter().enumerate() {
+    // 智能镜像：根据地理位置决定下载优先级
+    let mirror_first = crate::geo::should_use_mirror_first();
+    log::info!(
+        "[update] 智能镜像选择: 地理位置检测 = {}",
+        if mirror_first { "中国大陆" } else { "其他地区" }
+    );
+    log::info!(
+        "[update] 下载优先级: {}",
+        if mirror_first { "镜像源 → 官方源" } else { "官方源 → 镜像源" }
+    );
+
+    // 根据地理位置决定下载顺序
+    let urls = if mirror_first {
+        [mirror_url, official_url]
+    } else {
+        [official_url, mirror_url]
+    };
+
+    for (i, url) in urls.iter().enumerate() {
         if cancel.load(Ordering::SeqCst) {
             return Err("download cancelled".to_string());
         }
         let _ = fs::remove_file(&partial); // 上一源失败的残留
-                                           // i=0 官方源，i=1 镜像源
-        let source = if i == 0 { "官方源" } else { "镜像源" };
-        let timeout = if i == 0 {
-            OFFICIAL_TIMEOUT_SECS
+        let source = if (i == 0 && mirror_first) || (i == 1 && !mirror_first) {
+            "镜像源"
         } else {
+            "官方源"
+        };
+        let timeout = if source == "镜像源" {
             MIRROR_TIMEOUT_SECS
+        } else {
+            OFFICIAL_TIMEOUT_SECS
         };
         log::info!("[update] 尝试{} (超时 {}s): {}", source, timeout, url);
         let ag = agent(timeout);
@@ -506,7 +527,12 @@ fn run_download(cancel: &AtomicBool, status: &Arc<Mutex<UpdateStatus>>) -> Resul
         }
         // 下载完整性校验：实际字节应与资产声明一致
         if done != asset.size {
-            log::warn!("[update] ✗ {} 数据不完整: 期望 {} 字节，实际 {} 字节", source, asset.size, done);
+            log::warn!(
+                "[update] ✗ {} 数据不完整: 期望 {} 字节，实际 {} 字节",
+                source,
+                asset.size,
+                done
+            );
             continue; // 该源数据不完整，尝试下一个
         }
         log::info!("[update] ✓ 下载成功: {}", url);
