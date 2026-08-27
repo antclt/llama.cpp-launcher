@@ -49,27 +49,37 @@ fn agent(timeout_secs: u64) -> ureq::Agent {
 /// 官方 + 镜像依次尝试，带不同超时；返回 Response body 字符串
 ///
 /// 优先级策略：
-/// - 中国大陆：镜像源（500秒超时）→ 官方源（300秒超时）
-/// - 其他地区：官方源（300秒超时）→ 镜像源（500秒超时）
-fn fetch_with_fallback(official_url: &str, mirror_url: &str) -> Result<String, String> {
-    let mirror_first = crate::geo::should_use_mirror_first();
+/// - `smart_mirror = true`（下载文件）：根据地理位置智能选择优先级
+///   - 中国大陆：镜像源（500秒超时）→ 官方源（300秒超时）
+///   - 其他地区：官方源（300秒超时）→ 镜像源（500秒超时）
+/// - `smart_mirror = false`（API 调用）：始终使用官方源，失败后回退镜像
+fn fetch_with_fallback(
+    official_url: &str,
+    mirror_url: &str,
+    smart_mirror: bool,
+) -> Result<String, String> {
+    let mirror_first = smart_mirror && crate::geo::should_use_mirror_first();
 
-    log::info!(
-        "[network] 智能镜像选择: 地理位置检测 = {}",
-        if mirror_first {
-            "中国大陆"
-        } else {
-            "其他地区"
-        }
-    );
-    log::info!(
-        "[network] 网络请求优先级: {}",
-        if mirror_first {
-            "镜像源 → 官方源"
-        } else {
-            "官方源 → 镜像源"
-        }
-    );
+    if smart_mirror {
+        log::info!(
+            "[network] 智能镜像选择: 地理位置检测 = {}",
+            if mirror_first {
+                "中国大陆"
+            } else {
+                "其他地区"
+            }
+        );
+        log::info!(
+            "[network] 网络请求优先级: {}",
+            if mirror_first {
+                "镜像源 → 官方源"
+            } else {
+                "官方源 → 镜像源"
+            }
+        );
+    } else {
+        log::info!("[network] API 调用: 始终使用官方源");
+    }
 
     if mirror_first {
         // 中国大陆：优先使用镜像源
@@ -97,7 +107,7 @@ fn fetch_with_fallback(official_url: &str, mirror_url: &str) -> Result<String, S
         }
         log::warn!("[network] ✗ 官方源请求也失败");
     } else {
-        // 其他地区：优先使用官方源
+        // 其他地区或 API 调用：优先使用官方源
         let official_agent = agent(OFFICIAL_TIMEOUT_SECS);
         log::info!(
             "[network] 尝试官方源 (超时 {}s): {}",
@@ -448,7 +458,7 @@ fn mirror_url(official: &str) -> String {
 fn fetch_release(variant: &DownloadVariant) -> Result<ReleaseInfo, String> {
     let official_url = format!("{}/releases/latest", api_base(variant));
     let mirror_url = mirror_url(&official_url);
-    let body = fetch_with_fallback(&official_url, &mirror_url)?;
+    let body = fetch_with_fallback(&official_url, &mirror_url, false)?;
     serde_json::from_str::<ReleaseInfo>(&body).map_err(|e| e.to_string())
 }
 
@@ -462,7 +472,7 @@ fn fetch_release_by_tag(tag: &str, is_rocm: bool) -> Result<ReleaseInfo, String>
     };
     let official_url = format!("{}/releases/tags/{}", variant_base, tag);
     let mirror = mirror_url(&official_url);
-    let body = fetch_with_fallback(&official_url, &mirror)?;
+    let body = fetch_with_fallback(&official_url, &mirror, false)?;
     serde_json::from_str::<ReleaseInfo>(&body).map_err(|e| e.to_string())
 }
 
@@ -477,13 +487,13 @@ fn fetch_nightly_tag_from_latest(variant: &DownloadVariant) -> Result<String, St
         .iter()
         .find(|a| a.name == "nightly-tag.txt")
         .ok_or_else(|| format!("no nightly-tag.txt asset in release {}", release.tag_name))?;
-    // 下载 nightly-tag.txt 内容（官方直连 → gh-proxy 镜像依次尝试）
+    // 下载 nightly-tag.txt 内容（官方直连 → gh-proxy 镜像依次尝试，使用智能镜像）
     let official_url = &asset.browser_download_url;
     let mirror = match official_url.strip_prefix("https://github.com") {
         Some(rest) => format!("{}{}", DOWNLOAD_MIRROR_BASE, rest),
         None => official_url.clone(),
     };
-    let body = fetch_with_fallback(official_url, &mirror)?;
+    let body = fetch_with_fallback(official_url, &mirror, true)?;
     let tag = body.trim().to_string();
     if tag.is_empty() {
         return Err("empty nightly-tag.txt".to_string());
@@ -497,7 +507,7 @@ fn fetch_nightly_tag_from_latest(variant: &DownloadVariant) -> Result<String, St
 fn fetch_latest_nightly_release(variant: &DownloadVariant) -> Result<ReleaseInfo, String> {
     let official_url = format!("{}/releases?per_page=10", api_base(variant));
     let mirror = mirror_url(&official_url);
-    let body = fetch_with_fallback(&official_url, &mirror)?;
+    let body = fetch_with_fallback(&official_url, &mirror, false)?;
     let releases: Vec<ReleaseInfo> = serde_json::from_str(&body).map_err(|e| e.to_string())?;
     // 找到第一个 tag 匹配 b[NUM] 格式的 release（最新的 nightly）
     releases

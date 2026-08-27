@@ -67,27 +67,37 @@ fn agent(timeout_secs: u64) -> ureq::Agent {
 /// 官方 + 镜像依次尝试，带不同超时；返回 Response body 字符串
 ///
 /// 优先级策略：
-/// - 中国大陆：镜像源（500秒超时）→ 官方源（300秒超时）
-/// - 其他地区：官方源（300秒超时）→ 镜像源（500秒超时）
-fn fetch_with_fallback(official_url: &str, mirror_url: &str) -> Result<String, String> {
-    let mirror_first = crate::geo::should_use_mirror_first();
+/// - `smart_mirror = true`（下载文件）：根据地理位置智能选择优先级
+///   - 中国大陆：镜像源（500秒超时）→ 官方源（300秒超时）
+///   - 其他地区：官方源（300秒超时）→ 镜像源（500秒超时）
+/// - `smart_mirror = false`（API 调用）：始终使用官方源，失败后回退镜像
+fn fetch_with_fallback(
+    official_url: &str,
+    mirror_url: &str,
+    smart_mirror: bool,
+) -> Result<String, String> {
+    let mirror_first = smart_mirror && crate::geo::should_use_mirror_first();
 
-    log::info!(
-        "[network] 智能镜像选择: 地理位置检测 = {}",
-        if mirror_first {
-            "中国大陆"
-        } else {
-            "其他地区"
-        }
-    );
-    log::info!(
-        "[network] 网络请求优先级: {}",
-        if mirror_first {
-            "镜像源 → 官方源"
-        } else {
-            "官方源 → 镜像源"
-        }
-    );
+    if smart_mirror {
+        log::info!(
+            "[network] 智能镜像选择: 地理位置检测 = {}",
+            if mirror_first {
+                "中国大陆"
+            } else {
+                "其他地区"
+            }
+        );
+        log::info!(
+            "[network] 网络请求优先级: {}",
+            if mirror_first {
+                "镜像源 → 官方源"
+            } else {
+                "官方源 → 镜像源"
+            }
+        );
+    } else {
+        log::info!("[network] API 调用: 始终使用官方源");
+    }
 
     if mirror_first {
         // 中国大陆：优先使用镜像源
@@ -115,7 +125,7 @@ fn fetch_with_fallback(official_url: &str, mirror_url: &str) -> Result<String, S
         }
         log::warn!("[network] ✗ 官方源请求也失败");
     } else {
-        // 其他地区：优先使用官方源
+        // 其他地区或 API 调用：优先使用官方源
         let official_agent = agent(OFFICIAL_TIMEOUT_SECS);
         log::info!(
             "[network] 尝试官方源 (超时 {}s): {}",
@@ -297,7 +307,7 @@ struct ReleaseAsset {
 /// 请求 GitHub latest release API：官方直连失败（超时/网络错误）时自动尝试镜像。
 /// 全部源失败返回 ERR_NETWORK（固定标记，UI 展示"获取失败：网络错误"）。
 fn fetch_release() -> Result<ReleaseInfo, String> {
-    let body = fetch_with_fallback(API_OFFICIAL, API_MIRROR)?;
+    let body = fetch_with_fallback(API_OFFICIAL, API_MIRROR, false)?;
     serde_json::from_str::<ReleaseInfo>(&body).map_err(|e| e.to_string())
 }
 
