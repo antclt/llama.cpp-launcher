@@ -29,9 +29,9 @@ const CHUNK_SIZE: usize = 8192;
 /// 定位二进制时 BFS 最大深度（相对解压根的子目录深度）
 const MAX_SEARCH_DEPTH: usize = 4;
 /// 官方 GitHub API 超时（秒）
-const OFFICIAL_TIMEOUT_SECS: u64 = 16;
+const OFFICIAL_TIMEOUT_SECS: u64 = 300;
 /// gh-proxy 镜像超时（秒）
-const MIRROR_TIMEOUT_SECS: u64 = 32;
+const MIRROR_TIMEOUT_SECS: u64 = 500;
 /// 全部源都失败时 UI 展示的固定错误消息（网络层）
 pub const ERR_NETWORK: &str = "network-error";
 /// API 镜像基址（gh-proxy 前缀，官方超时/失败时自动回退）
