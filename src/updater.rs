@@ -447,11 +447,19 @@ fn run_download(cancel: &AtomicBool, status: &Arc<Mutex<UpdateStatus>>) -> Resul
     let mirror_first = crate::geo::should_use_mirror_first();
     log::info!(
         "[update] 智能镜像选择: 地理位置检测 = {}",
-        if mirror_first { "中国大陆" } else { "其他地区" }
+        if mirror_first {
+            "中国大陆"
+        } else {
+            "其他地区"
+        }
     );
     log::info!(
         "[update] 下载优先级: {}",
-        if mirror_first { "镜像源 → 官方源" } else { "官方源 → 镜像源" }
+        if mirror_first {
+            "镜像源 → 官方源"
+        } else {
+            "官方源 → 镜像源"
+        }
     );
 
     // 根据地理位置决定下载顺序
