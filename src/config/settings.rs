@@ -46,8 +46,8 @@ impl<'de> serde::Deserialize<'de> for GpuLayersMode {
             where
                 E: de::Error,
             {
-                let v = value.trim().to_lowercase();
-                if v == "auto" {
+                let v = value.trim();
+                if v == "auto" || v == "-1" {
                     Ok(GpuLayersMode::Auto)
                 } else if v == "all" || v == "999" {
                     Ok(GpuLayersMode::All)
@@ -64,6 +64,19 @@ impl<'de> serde::Deserialize<'de> for GpuLayersMode {
             {
                 Ok(GpuLayersMode::Manual(v as usize))
             }
+
+            fn visit_i64<E>(self, v: i64) -> Result<GpuLayersMode, E>
+            where
+                E: de::Error,
+            {
+                if v == -1 {
+                    Ok(GpuLayersMode::Auto)
+                } else if v == 999 {
+                    Ok(GpuLayersMode::All)
+                } else {
+                    Ok(GpuLayersMode::Manual(v as usize))
+                }
+            }
         }
 
         deserializer.deserialize_any(GpuLayersModeVisitor)
@@ -74,7 +87,7 @@ impl GpuLayersMode {
     /// 生成 --gpu-layers 参数值
     pub fn to_arg(&self) -> String {
         match self {
-            GpuLayersMode::Auto => "auto".to_string(),
+            GpuLayersMode::Auto => "-1".to_string(),
             GpuLayersMode::All => "256".to_string(),
             GpuLayersMode::Manual(n) => n.to_string(),
         }
