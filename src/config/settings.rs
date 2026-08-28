@@ -923,6 +923,26 @@ impl std::fmt::Debug for MaxContextPromiseWrapper {
     }
 }
 
+/// KV 缓存计算 Promise 的包装器（运行时缓存，不序列化）
+/// 实现 Debug 和 Clone 以兼容 AppSettings 的 derive 宏
+#[derive(Default)]
+pub struct KvCachePromiseWrapper(pub Option<poll_promise::Promise<Result<String, String>>>);
+
+impl Clone for KvCachePromiseWrapper {
+    fn clone(&self) -> Self {
+        Self(None)
+    }
+}
+
+impl std::fmt::Debug for KvCachePromiseWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.0 {
+            Some(_) => write!(f, "KvCachePromiseWrapper(Some(...))"),
+            None => write!(f, "KvCachePromiseWrapper(None)"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
     // Server 配置
@@ -1254,6 +1274,10 @@ pub struct AppSettings {
     #[serde(skip, default)]
     pub kv_cache_result: Option<String>,
 
+    // KV 缓存计算 Promise（运行时缓存，不序列化）
+    #[serde(skip, default)]
+    pub kv_cache_promise: KvCachePromiseWrapper,
+
     // 最大上下文计算 Promise（运行时缓存，不序列化）
     #[serde(skip, default)]
     pub max_context_promise: MaxContextPromiseWrapper,
@@ -1391,6 +1415,7 @@ impl Default for AppSettings {
             update_available: None,
             new_version_tag: None,
             kv_cache_result: None,
+            kv_cache_promise: KvCachePromiseWrapper::default(),
             max_context_promise: MaxContextPromiseWrapper::default(),
         }
     }

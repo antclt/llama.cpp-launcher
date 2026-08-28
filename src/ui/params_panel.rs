@@ -1,5 +1,5 @@
 use crate::config::settings::{
-    is_server_binary_name, AppSettings, GpuLayersMode, MaxContextPromiseWrapper,
+    is_server_binary_name, AppSettings, GpuLayersMode, KvCachePromiseWrapper, MaxContextPromiseWrapper,
 };
 use crate::i18n;
 use crate::kv_cache;
@@ -117,17 +117,36 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     .button(i18n::t(i18n::Key::BtnCalcKvCache, lang))
                     .clicked()
                     && can_start
+                    && settings.kv_cache_promise.0.is_none()
                 {
-                    settings.kv_cache_result = match kv_cache::calc_and_format(settings, lang) {
-                        Ok(result) => Some(format!(
-                            "{} {}",
-                            i18n::t(i18n::Key::LabelKvCacheResult, lang),
-                            result
-                        )),
-                        Err(e) => Some(format!("⚠ {}", e)),
-                    };
+                    // 克隆设置用于后台线程
+                    let settings_clone = settings.clone();
+                    let lang_clone = lang.clone();
+                    settings.kv_cache_promise = KvCachePromiseWrapper(Some(Promise::spawn_thread(
+                        "calc_kv_cache",
+                        move || kv_cache::calc_and_format(&settings_clone, &lang_clone),
+                    )));
                 }
-                if let Some(ref result) = settings.kv_cache_result {
+                // 检查 Promise 状态并更新结果
+                if let Some(ref promise) = settings.kv_cache_promise.0 {
+                    match promise.ready() {
+                        Some(Ok(result)) => {
+                            settings.kv_cache_result = Some(format!(
+                                "{} {}",
+                                i18n::t(i18n::Key::LabelKvCacheResult, lang),
+                                result
+                            ));
+                            settings.kv_cache_promise = KvCachePromiseWrapper(None);
+                        }
+                        Some(Err(e)) => {
+                            settings.kv_cache_result = Some(format!("⚠ {}", e));
+                            settings.kv_cache_promise = KvCachePromiseWrapper(None);
+                        }
+                        None => {
+                            ui.small(egui::RichText::new("计算中...").weak());
+                        }
+                    }
+                } else if let Some(ref result) = settings.kv_cache_result {
                     ui.small(egui::RichText::new(result).weak());
                 }
             });
