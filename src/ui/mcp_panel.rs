@@ -52,14 +52,17 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     }
                     Ok(_) => {}
                     Err(e) => {
-                        ui.small(
-                            egui::RichText::new(format!(
-                                "{} {}",
-                                i18n::t(i18n::Key::ErrMcpConfigInvalid, lang),
-                                e
-                            ))
-                            .color(ui.visuals().error_fg_color),
-                        );
+                        // 配置为空时不显示错误（用户可能还没填写）
+                        if !settings.mcp_config_json.trim().is_empty() {
+                            ui.small(
+                                egui::RichText::new(format!(
+                                    "{} {}",
+                                    i18n::t(i18n::Key::ErrMcpConfigInvalid, lang),
+                                    e
+                                ))
+                                .color(ui.visuals().error_fg_color),
+                            );
+                        }
                     }
                 }
             });
