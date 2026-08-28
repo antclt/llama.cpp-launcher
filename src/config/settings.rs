@@ -327,7 +327,7 @@ fn default_spec_type() -> String {
 }
 
 fn default_spec_draft_n_max() -> usize {
-    3
+    2
 }
 
 fn default_spec_draft_p_min() -> f32 {
@@ -656,11 +656,11 @@ impl Default for Preset {
             spec_draft_p_min: default_spec_draft_p_min(),
             spec_draft_p_split: default_spec_draft_p_split(),
             kv_offload: true,
-            cache_type_k: "f16".to_string(),
-            cache_type_v: "f16".to_string(),
+            cache_type_k: "q8_0".to_string(),
+            cache_type_v: "q8_0".to_string(),
             kv_mlock: false,
             kv_mmap: true,
-            kv_unified: false,
+            kv_unified: true,
             swa_full: false,
             kv_cache_ratio: default_kv_cache_ratio(),
             ctx_checkpoints: default_ctx_checkpoints(),
@@ -1302,11 +1302,11 @@ impl Default for AppSettings {
             spec_draft_p_min: default_spec_draft_p_min(),
             spec_draft_p_split: default_spec_draft_p_split(),
             kv_offload: true,
-            cache_type_k: "f16".to_string(),
-            cache_type_v: "f16".to_string(),
+            cache_type_k: "q8_0".to_string(),
+            cache_type_v: "q8_0".to_string(),
             kv_mlock: false,
             kv_mmap: true,
-            kv_unified: false,
+            kv_unified: true,
             swa_full: false,
             kv_cache_ratio: default_kv_cache_ratio(),
             ctx_checkpoints: default_ctx_checkpoints(),
