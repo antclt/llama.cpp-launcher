@@ -1,5 +1,6 @@
 use crate::config::settings::{
-    is_server_binary_name, AppSettings, GpuLayersMode, KvCachePromiseWrapper, MaxContextPromiseWrapper,
+    is_server_binary_name, AppSettings, GpuLayersMode, KvCachePromiseWrapper,
+    MaxContextPromiseWrapper,
 };
 use crate::i18n;
 use crate::kv_cache;
