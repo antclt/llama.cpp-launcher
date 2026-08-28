@@ -25,29 +25,11 @@ pub struct GgufInfo {
 }
 
 /// 解析 GGUF 元数据中的 block_count（层数）
-///
-/// 硬覆盖：当 `general.base_model.0.name` 为 Qwen3.8 27B / Qwen3.6 27B 时，
-/// 其 GGUF 中缺失对应的 block_count 字段，直接使用常量值 16，避免读取失败。
-/// 其余情况逐字保留原读取逻辑。
 fn resolve_block_count(
     arch: &str,
     kv: &std::collections::BTreeMap<String, serde_json::Value>,
     lang: &i18n::Language,
 ) -> Result<usize, String> {
-    // 触发条件：general.base_model.0.name 命中 Qwen3.8 27B / Qwen3.6 27B
-    let base_model = kv
-        .get("general.base_model.0.name")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
-
-    if base_model == "Qwen3.8 27B" || base_model == "Qwen3.6 27B" {
-        log::info!(
-            "[read_gguf_info] general.base_model.0.name={}，block_count 使用常量值 16",
-            base_model
-        );
-        return Ok(16);
-    }
-
     let block_key = format!("{}.block_count", arch);
     kv.get(&block_key)
         .and_then(|v| v.as_u64())
@@ -477,32 +459,6 @@ mod tests {
         let text = "No GPU devices found";
         let total = sum_all_free_mib(text);
         assert_eq!(total, None);
-    }
-
-    #[test]
-    fn test_resolve_block_count_qwen38_hardcoded() {
-        // general.base_model.0.name 命中 Qwen3.8 27B 时硬覆盖为 16，
-        // 即使 metadata 中存在其他 block_count 值也不读取
-        let mut kv = std::collections::BTreeMap::new();
-        kv.insert("qwen38.block_count".to_string(), serde_json::json!(99));
-        kv.insert(
-            "general.base_model.0.name".to_string(),
-            serde_json::json!("Qwen3.8 27B"),
-        );
-        let result = resolve_block_count("qwen38", &kv, &i18n::Language::Zh);
-        assert_eq!(result, Ok(16));
-    }
-
-    #[test]
-    fn test_resolve_block_count_qwen36_hardcoded() {
-        // general.base_model.0.name 命中 Qwen3.6 27B 时硬覆盖为 16
-        let mut kv = std::collections::BTreeMap::new();
-        kv.insert(
-            "general.base_model.0.name".to_string(),
-            serde_json::json!("Qwen3.6 27B"),
-        );
-        let result = resolve_block_count("qwen36", &kv, &i18n::Language::Zh);
-        assert_eq!(result, Ok(16));
     }
 
     #[test]
