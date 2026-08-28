@@ -187,7 +187,7 @@ pub enum DownloadVariant {
     /// Windows x64 ROCm 7.14 Lemonade（携带 GPU 目标数据，如 "gfx103X"）
     WinRocmLemonade(String),
     /// Windows x64 ROCm 7.14（官方 ggml-org 版本）
-    WinRocm7,
+    WinRocm714,
     /// Windows x64 Vulkan
     WinVulkan,
     /// Windows arm64 CPU
@@ -199,7 +199,7 @@ pub enum DownloadVariant {
     /// Linux x64 ROCm 7.14 Lemonade（携带 GPU 目标数据，如 "gfx103X"）
     LinuxRocmLemonade(String),
     /// Linux x64 ROCm 7.14（官方 ggml-org 版本）
-    LinuxRocm7,
+    LinuxRocm714,
 }
 
 impl DownloadVariant {
@@ -214,7 +214,7 @@ impl DownloadVariant {
                 format!("llama-.*-windows-rocm-{}-x64\\.zip", gpu_target)
             }
             // 官方 ggml-org ROCm 7.14（无 GPU 目标后缀）
-            DownloadVariant::WinRocm7 => "llama-.*-bin-win-rocm-7.14-x64\\.zip".to_string(),
+            DownloadVariant::WinRocm714 => "llama-.*-bin-win-rocm-7.14-x64\\.zip".to_string(),
             DownloadVariant::WinVulkan => "bin-win-vulkan-x64".to_string(),
             DownloadVariant::WinCpuArm64 => "bin-win-cpu-arm64".to_string(),
             DownloadVariant::LinuxCpu => "bin-ubuntu-x64".to_string(),
@@ -224,7 +224,7 @@ impl DownloadVariant {
                 format!("llama-.*-ubuntu-rocm-{}-x64\\.zip", gpu_target)
             }
             // 官方 ggml-org ROCm 7.14 Linux 版本（无 GPU 目标后缀）
-            DownloadVariant::LinuxRocm7 => {
+            DownloadVariant::LinuxRocm714 => {
                 "llama-.*-bin-ubuntu-rocm-7.14-x64\\.tar\\.gz".to_string()
             }
         }
@@ -243,7 +243,7 @@ impl DownloadVariant {
         match self {
             DownloadVariant::LinuxCpu
             | DownloadVariant::LinuxVulkan
-            | DownloadVariant::LinuxRocm7 => ".tar.gz",
+            | DownloadVariant::LinuxRocm714 => ".tar.gz",
             // lemonade-sdk 的 Linux 版本也使用 zip 格式
             DownloadVariant::LinuxRocmLemonade(_) => ".zip",
             _ => ".zip",
@@ -275,9 +275,9 @@ impl DownloadVariant {
             }
             "rocm7" => {
                 if is_linux {
-                    DownloadVariant::LinuxRocm7
+                    DownloadVariant::LinuxRocm714
                 } else {
-                    DownloadVariant::WinRocm7
+                    DownloadVariant::WinRocm714
                 }
             }
             "vulkan" => {
@@ -1075,7 +1075,7 @@ mod tests {
             );
             assert_eq!(
                 DownloadVariant::from_settings_value("rocm7"),
-                DownloadVariant::LinuxRocm7
+                DownloadVariant::LinuxRocm714
             );
         } else {
             let expected_cpu = if cfg!(target_arch = "aarch64") {
@@ -1098,7 +1098,7 @@ mod tests {
             );
             assert_eq!(
                 DownloadVariant::from_settings_value("rocm7"),
-                DownloadVariant::WinRocm7
+                DownloadVariant::WinRocm714
             );
             assert_eq!(
                 DownloadVariant::from_settings_value("vulkan"),
@@ -1222,7 +1222,7 @@ mod tests {
         );
 
         // 测试 Linux ROCm 7 官方变体（tar.gz 格式）
-        let variant_rocm7 = DownloadVariant::LinuxRocm7;
+        let variant_rocm7 = DownloadVariant::LinuxRocm714;
         let picked_rocm7 = pick_asset(&assets, &variant_rocm7);
         assert!(picked_rocm7.is_some());
         assert_eq!(
@@ -1240,7 +1240,7 @@ mod tests {
         assert!(asset_name_lemonade.contains(".zip"));
 
         // 测试 Linux ROCm 7 资产名模式（tar.gz 格式）
-        let variant_rocm7 = DownloadVariant::LinuxRocm7;
+        let variant_rocm7 = DownloadVariant::LinuxRocm714;
         let asset_name_rocm7 = variant_rocm7.asset_name();
         assert!(asset_name_rocm7.contains("ubuntu-rocm-7.14"));
         assert!(asset_name_rocm7.contains(".tar\\.gz"));
@@ -1253,7 +1253,7 @@ mod tests {
         assert_eq!(variant_lemonade.extension(), ".zip");
 
         // 测试 Linux ROCm 7 变体扩展名（tar.gz 格式）
-        let variant_rocm7 = DownloadVariant::LinuxRocm7;
+        let variant_rocm7 = DownloadVariant::LinuxRocm714;
         assert_eq!(variant_rocm7.extension(), ".tar.gz");
     }
 }
