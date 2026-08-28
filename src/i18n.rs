@@ -190,6 +190,7 @@ pub enum Key {
     FaModeAuto,
     GpuModeAuto,
     GpuModeAll,
+    GpuModeManual,
 
     // 加载模式
     LabelLoadMode,
@@ -844,6 +845,8 @@ impl Key {
             (Key::GpuModeAuto, &Language::En) => "Auto",
             (Key::GpuModeAll, &Language::Zh) => "全部",
             (Key::GpuModeAll, &Language::En) => "All",
+            (Key::GpuModeManual, &Language::Zh) => "手动",
+            (Key::GpuModeManual, &Language::En) => "Manual",
 
             // 思考与会话
             (Key::SectionThinkingConversation, &Language::Zh) => "思考与会话",

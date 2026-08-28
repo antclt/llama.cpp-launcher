@@ -347,8 +347,6 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         i18n::t(i18n::Key::SectionGpuDevice, lang),
         accent,
         |ui| {
-            let mut manual_gpu_layers =
-                matches!(settings.gpu_layers_mode, GpuLayersMode::Manual(_));
             let mut gpu_layers = match settings.gpu_layers_mode {
                 GpuLayersMode::Auto => 0usize,
                 GpuLayersMode::All => 256usize,
@@ -360,30 +358,24 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 let gm_labels = [
                     i18n::t(i18n::Key::GpuModeAuto, lang),
                     i18n::t(i18n::Key::GpuModeAll, lang),
+                    i18n::t(i18n::Key::GpuModeManual, lang),
                 ];
                 let mut gm_idx = match settings.gpu_layers_mode {
                     GpuLayersMode::Auto => 0,
                     GpuLayersMode::All => 1,
-                    GpuLayersMode::Manual(_) => 0,
+                    GpuLayersMode::Manual(_) => 2,
                 };
                 widgets::segmented(ui, &gm_labels, &mut gm_idx, accent);
                 match gm_idx {
                     0 => settings.gpu_layers_mode = GpuLayersMode::Auto,
                     1 => settings.gpu_layers_mode = GpuLayersMode::All,
+                    2 => settings.gpu_layers_mode = GpuLayersMode::Manual(gpu_layers),
                     _ => {}
                 }
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpGpuDevice, lang));
             });
-            // 手动指定 GPU 层数
-            ui.horizontal(|ui| {
-                ui.label(i18n::t(i18n::Key::CheckboxManualGpuLayers, lang));
-                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpGpuDevice, lang));
-                // ★ Toggle 新签名（行首已有标签，开关后不再重复文字）
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    widgets::toggle(ui, &mut manual_gpu_layers, "", accent);
-                });
-            });
-            if manual_gpu_layers {
+            // 手动模式下显示层数输入
+            if let GpuLayersMode::Manual(_) = settings.gpu_layers_mode {
                 ui.indent("manual_gpu_layers_options", |ui| {
                     ui.horizontal(|ui| {
                         ui.label(i18n::t(i18n::Key::LabelGpuDevice, lang));
