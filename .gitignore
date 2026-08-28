@@ -8,3 +8,4 @@
 *.exe.old
 update/
 mcp_servers.json
+Cargo.lock
