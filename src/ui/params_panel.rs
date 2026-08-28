@@ -410,6 +410,22 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ui.small(i18n::t(i18n::Key::HintTensorSplit, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTensorSplit, lang));
             });
+            // 张量拆分快捷参数按钮
+            ui.indent("tensor_split_shortcuts", |ui| {
+                ui.horizontal(|ui| {
+                    let ratios = ["1,1", "1,2", "1,3", "1,4", "1,5", "1,6"];
+                    let labels = ["1:1", "1:2", "1:3", "1:4", "1:5", "1:6"];
+                    for (ratio, label) in ratios.iter().zip(labels.iter()) {
+                        if ui
+                            .add(widgets::rounded_button(label, Some(accent)))
+                            .on_hover_text(*ratio)
+                            .clicked()
+                        {
+                            settings.tensor_split = ratio.to_string();
+                        }
+                    }
+                });
+            });
             // CPU MoE（与 RPC 模式一致的缩进样式）
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::CheckboxCpuMoe, lang));
