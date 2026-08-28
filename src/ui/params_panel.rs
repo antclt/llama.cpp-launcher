@@ -1,8 +1,11 @@
-use crate::config::settings::{is_server_binary_name, AppSettings, GpuLayersMode};
+use crate::config::settings::{
+    is_server_binary_name, AppSettings, GpuLayersMode, MaxContextPromiseWrapper,
+};
 use crate::i18n;
 use crate::kv_cache;
 use crate::ui::helper;
 use crate::ui::widgets;
+use poll_promise::Promise;
 
 pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) {
     let accent = crate::theme::accent_color(&settings.accent_color);
@@ -35,10 +38,31 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 .button(i18n::t(i18n::Key::BtnSetMaxContextVram, lang))
                 .clicked()
                 && can_start
+                && settings.max_context_promise.0.is_none()
             {
-                match kv_cache::calc_max_context_facade(settings, lang) {
-                    Ok(val) => settings.context = val,
-                    Err(e) => log::warn!("[params_panel] calc_max_context 失败: {}", e),
+                // 克隆设置用于后台线程
+                let settings_clone = settings.clone();
+                let lang_clone = lang.clone();
+                settings.max_context_promise = MaxContextPromiseWrapper(Some(
+                    Promise::spawn_thread("calc_max_context", move || {
+                        kv_cache::calc_max_context_facade(&settings_clone, &lang_clone)
+                    }),
+                ));
+            }
+            // 检查 Promise 状态并更新结果
+            if let Some(ref promise) = settings.max_context_promise.0 {
+                match promise.ready() {
+                    Some(Ok(val)) => {
+                        settings.context = *val;
+                        settings.max_context_promise = MaxContextPromiseWrapper(None);
+                    }
+                    Some(Err(e)) => {
+                        log::warn!("[params_panel] calc_max_context 失败: {}", e);
+                        settings.max_context_promise = MaxContextPromiseWrapper(None);
+                    }
+                    None => {
+                        ui.small(egui::RichText::new("计算中...").weak());
+                    }
                 }
             }
             // 批次大小 (--batch-size) (k)

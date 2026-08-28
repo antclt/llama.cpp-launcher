@@ -902,6 +902,27 @@ impl Preset {
     }
 }
 
+/// 最大上下文计算 Promise 的包装器（运行时缓存，不序列化）
+/// 实现 Debug 和 Clone 以兼容 AppSettings 的 derive 宏
+#[derive(Default)]
+pub struct MaxContextPromiseWrapper(pub Option<poll_promise::Promise<Result<usize, String>>>);
+
+impl Clone for MaxContextPromiseWrapper {
+    fn clone(&self) -> Self {
+        // Promise 不能克隆，每次克隆返回 None（新的空状态）
+        Self(None)
+    }
+}
+
+impl std::fmt::Debug for MaxContextPromiseWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.0 {
+            Some(_) => write!(f, "MaxContextPromiseWrapper(Some(...))"),
+            None => write!(f, "MaxContextPromiseWrapper(None)"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
     // Server 配置
@@ -1232,6 +1253,10 @@ pub struct AppSettings {
     // KV 缓存计算结果（运行时缓存，不序列化）
     #[serde(skip, default)]
     pub kv_cache_result: Option<String>,
+
+    // 最大上下文计算 Promise（运行时缓存，不序列化）
+    #[serde(skip, default)]
+    pub max_context_promise: MaxContextPromiseWrapper,
 }
 
 impl Default for AppSettings {
@@ -1366,6 +1391,7 @@ impl Default for AppSettings {
             update_available: None,
             new_version_tag: None,
             kv_cache_result: None,
+            max_context_promise: MaxContextPromiseWrapper::default(),
         }
     }
 }
