@@ -563,6 +563,24 @@ pub struct Preset {
     pub rpc_mode: bool,
     pub rpc_endpoints: String,
 
+    // 模型与 RPC 配置
+    #[serde(default)]
+    pub model_path: PathBuf,
+    #[serde(default)]
+    pub mmproj_path: PathBuf,
+    #[serde(default)]
+    pub dflash_path: PathBuf,
+    #[serde(default)]
+    pub model_dir: PathBuf,
+    #[serde(default)]
+    pub alias: String,
+    #[serde(default)]
+    pub rpc_threads: usize,
+    #[serde(default)]
+    pub rpc_device: String,
+    #[serde(default)]
+    pub rpc_cache: bool,
+
     // 网页客户端开关
     #[serde(default = "default_web_ui_enabled")]
     pub web_ui_enabled: bool,
@@ -688,6 +706,14 @@ impl Default for Preset {
             offline_mode: false,
             rpc_mode: false,
             rpc_endpoints: "127.0.0.1:50052".to_string(),
+            model_path: PathBuf::new(),
+            mmproj_path: PathBuf::new(),
+            dflash_path: PathBuf::new(),
+            model_dir: PathBuf::new(),
+            alias: String::new(),
+            rpc_threads: 8,
+            rpc_device: String::new(),
+            rpc_cache: false,
             web_ui_enabled: default_web_ui_enabled(),
             log_timestamps: default_log_timestamps(),
             log_verbosity: default_log_verbosity(),
@@ -790,6 +816,14 @@ impl Preset {
             offline_mode: settings.offline_mode,
             rpc_mode: settings.rpc_mode,
             rpc_endpoints: settings.rpc_endpoints.clone(),
+            model_path: settings.model_path.clone(),
+            mmproj_path: settings.mmproj_path.clone(),
+            dflash_path: settings.dflash_path.clone(),
+            model_dir: settings.model_dir.clone(),
+            alias: settings.alias.clone(),
+            rpc_threads: settings.rpc_threads,
+            rpc_device: settings.rpc_device.clone(),
+            rpc_cache: settings.rpc_cache,
             web_ui_enabled: settings.web_ui_enabled,
             log_timestamps: settings.log_timestamps,
             log_verbosity: settings.log_verbosity,
@@ -895,6 +929,14 @@ impl Preset {
         settings.offline_mode = self.offline_mode;
         settings.rpc_mode = self.rpc_mode;
         settings.rpc_endpoints = self.rpc_endpoints;
+        settings.model_path = self.model_path;
+        settings.mmproj_path = self.mmproj_path;
+        settings.dflash_path = self.dflash_path;
+        settings.model_dir = self.model_dir;
+        settings.alias = self.alias;
+        settings.rpc_threads = self.rpc_threads;
+        settings.rpc_device = self.rpc_device;
+        settings.rpc_cache = self.rpc_cache;
         settings.web_ui_enabled = self.web_ui_enabled;
         settings.log_timestamps = self.log_timestamps;
         settings.log_verbosity = self.log_verbosity;
