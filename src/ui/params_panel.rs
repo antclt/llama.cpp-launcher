@@ -843,7 +843,8 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     widgets::toggle(ui, &mut settings.cpu_moe, "", accent);
                 });
             });
-            if settings.cpu_moe {
+            // 关闭 cpu_moe 时才显示 n_cpu_moe 输入框
+            if !settings.cpu_moe {
                 ui.indent("cpu_moe_options", |ui| {
                     ui.horizontal(|ui| {
                         ui.label(i18n::t(i18n::Key::LabelNCpuMoe, lang));

@@ -461,7 +461,8 @@ impl ServerManager {
         if settings.cpu_moe {
             cmd.arg("--cpu-moe");
         }
-        if settings.n_cpu_moe > 0 {
+        // 关闭 cpu_moe 时才拼接 --n-cpu-moe
+        if !settings.cpu_moe && settings.n_cpu_moe > 0 {
             cmd.arg("--n-cpu-moe").arg(settings.n_cpu_moe.to_string());
         }
         // 指定特定张量到缓冲区（非空才拼接）
