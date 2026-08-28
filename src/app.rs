@@ -273,7 +273,7 @@ impl LlamaLauncherApp {
             self.spacing_debugger.rects.push(resp.rect);
         }
         if resp.clicked() {
-            open_web_client_url(self.settings.port);
+            open_web_client_url(&self.settings.host, self.settings.port);
         }
     }
 
@@ -914,17 +914,20 @@ mod shell_execute {
     }
 }
 
-// WebClient: 用系统默认浏览器打开 http://127.0.0.1:<port>
+// WebClient: 用系统默认浏览器打开 http://<host>:<port>
+// 当 host 为 0.0.0.0 时，使用 127.0.0.1 代替
 #[cfg(target_os = "windows")]
-fn open_web_client_url(port: u16) {
-    let url = format!("http://127.0.0.1:{}", port);
+fn open_web_client_url(host: &str, port: u16) {
+    let actual_host = if host == "0.0.0.0" { "127.0.0.1" } else { host };
+    let url = format!("http://{}:{}", actual_host, port);
     shell_execute::open_url(&url);
 }
 
 #[cfg(not(target_os = "windows"))]
-fn open_web_client_url(port: u16) {
+fn open_web_client_url(host: &str, port: u16) {
     use std::process::Command;
-    let url = format!("http://127.0.0.1:{}", port);
+    let actual_host = if host == "0.0.0.0" { "127.0.0.1" } else { host };
+    let url = format!("http://{}:{}", actual_host, port);
     let _ = Command::new("xdg-open").arg(&url).spawn();
 }
 
