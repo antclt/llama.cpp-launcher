@@ -364,14 +364,17 @@ pub fn calc_kv_cache_space(
 
     if compute_buffer_mib > usable_mib {
         let over = compute_buffer_mib - usable_mib;
+        let over_gb = over as f64 / 1024.0;
         format!(
-            "{} {} MB",
+            "{} {} MB ({:.1} GB)",
             i18n::t(i18n::Key::KvCacheOverBudget, lang),
-            over
+            over,
+            over_gb
         )
     } else {
         let remaining = usable_mib - compute_buffer_mib;
-        format!("{} MB", remaining)
+        let remaining_gb = remaining as f64 / 1024.0;
+        format!("{} MB ({:.1} GB)", remaining, remaining_gb)
     }
 }
 
