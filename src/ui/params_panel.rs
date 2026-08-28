@@ -35,37 +35,39 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ui.small(i18n::t(i18n::Key::HintKUnit, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpNCtx, lang));
             });
-            if ui
-                .button(i18n::t(i18n::Key::BtnSetMaxContextVram, lang))
-                .clicked()
-                && can_start
-                && settings.max_context_promise.0.is_none()
-            {
-                // 克隆设置用于后台线程
-                let settings_clone = settings.clone();
-                let lang_clone = lang.clone();
-                settings.max_context_promise = MaxContextPromiseWrapper(Some(
-                    Promise::spawn_thread("calc_max_context", move || {
-                        kv_cache::calc_max_context_facade(&settings_clone, &lang_clone)
-                    }),
-                ));
-            }
-            // 检查 Promise 状态并更新结果
-            if let Some(ref promise) = settings.max_context_promise.0 {
-                match promise.ready() {
-                    Some(Ok(val)) => {
-                        settings.context = *val;
-                        settings.max_context_promise = MaxContextPromiseWrapper(None);
-                    }
-                    Some(Err(e)) => {
-                        log::warn!("[params_panel] calc_max_context 失败: {}", e);
-                        settings.max_context_promise = MaxContextPromiseWrapper(None);
-                    }
-                    None => {
-                        ui.small(egui::RichText::new("计算中...").weak());
+            ui.horizontal(|ui| {
+                if ui
+                    .button(i18n::t(i18n::Key::BtnSetMaxContextVram, lang))
+                    .clicked()
+                    && can_start
+                    && settings.max_context_promise.0.is_none()
+                {
+                    // 克隆设置用于后台线程
+                    let settings_clone = settings.clone();
+                    let lang_clone = lang.clone();
+                    settings.max_context_promise = MaxContextPromiseWrapper(Some(
+                        Promise::spawn_thread("calc_max_context", move || {
+                            kv_cache::calc_max_context_facade(&settings_clone, &lang_clone)
+                        }),
+                    ));
+                }
+                // 检查 Promise 状态并更新结果（显示在按钮右侧）
+                if let Some(ref promise) = settings.max_context_promise.0 {
+                    match promise.ready() {
+                        Some(Ok(val)) => {
+                            settings.context = *val;
+                            settings.max_context_promise = MaxContextPromiseWrapper(None);
+                        }
+                        Some(Err(e)) => {
+                            log::warn!("[params_panel] calc_max_context 失败: {}", e);
+                            settings.max_context_promise = MaxContextPromiseWrapper(None);
+                        }
+                        None => {
+                            ui.small(egui::RichText::new("计算中...").weak());
+                        }
                     }
                 }
-            }
+            });
             // 批次大小 (--batch-size) (k)
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelBatchSize, lang));
