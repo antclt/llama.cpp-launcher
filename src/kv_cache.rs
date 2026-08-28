@@ -18,6 +18,10 @@ pub struct GgufInfo {
     pub embedding_length: usize,
     /// 模型文件大小（字节）
     pub file_size: u64,
+    /// 全注意力层比例 (full_attention_interval)
+    /// 混合架构（如 Qwen3.6/3.8）中只有部分层使用 KV 缓存
+    /// None 表示传统架构（所有层都有 KV 缓存）
+    pub full_attention_interval: Option<f64>,
 }
 
 /// 解析 GGUF 元数据中的 block_count（层数）
@@ -133,12 +137,27 @@ pub fn read_gguf_info(file_path: &Path, lang: &i18n::Language) -> Result<GgufInf
         .ok_or_else(|| format!("{} ({})", i18n::t(i18n::Key::ErrKvGgufEmbed, lang), emb_key))?
         as usize;
 
+    // 读取 full_attention_interval（混合架构特有，如 Qwen3.6/3.8）
+    // None 表示传统架构（所有层都有 KV 缓存）
+    // Some(value) 表示混合架构，只有 value 比例的层使用 KV 缓存
+    let full_attention_interval_key = format!("{}.full_attention_interval", arch);
+    let full_attention_interval = kv
+        .get(&full_attention_interval_key)
+        .and_then(|v| v.as_f64());
+
+    log::info!(
+        "[read_gguf_info] full_attention_interval: {:?} (key: {})",
+        full_attention_interval,
+        full_attention_interval_key
+    );
+
     Ok(GgufInfo {
         block_count,
         kv_head_count,
         head_dim,
         embedding_length,
         file_size,
+        full_attention_interval,
     })
 }
 
@@ -254,17 +273,26 @@ fn cache_type_precision_bytes(cache_type: &str) -> f64 {
 /// 计算最大可用上下文（k 为单位）
 ///
 /// 公式：
-///   Compute Buffer = parallel_slots × block_count × embedding_length × batch_size_actual × 3 (f16=2B × 1.5x)
-///   单 token KV 占用 = kv_head_count × head_dim × (precision_k + precision_v) × block_count
+///   Compute Buffer = parallel_slots × block_count × embedding_length × batch_size_actual × coef
+///   coef = 2.5 (Flash Attention 启用) / 3.0 (Flash Attention 禁用)
+///   单 token KV 占用 = kv_head_count × head_dim × (precision_k + precision_v) × kv_cache_layers
+///   kv_cache_layers = block_count (传统架构) / block_count × full_attention_interval (混合架构)
 ///   最大 token 数 = ((GPU 空闲显存 - 模型文件) - Compute Buffer) / 单 token KV 占用 × kv_cache_ratio
 ///   返回值 = 最大 token 数 / 1024 （单位 k）
 pub fn calc_max_context(gguf: &GgufInfo, settings: &AppSettings, free_mib: u64) -> u64 {
-    // Compute Buffer（字节）= parallel_slots * block_count * embedding_length * batch_size_actual × 3 (f16=2B × 1.5x)
-    let compute_buffer_bytes = (settings.parallel_slots as u64)
-        .saturating_mul(gguf.block_count as u64)
-        .saturating_mul(gguf.embedding_length as u64)
-        .saturating_mul(settings.batch_size_actual() as u64)
-        .saturating_mul(3);
+    // Flash Attention 启用时降低 Compute Buffer 系数（f16=2B × 1.25x）
+    // Flash Attention 禁用时保持原始系数（f16=2B × 1.5x）
+    let compute_buffer_coef: f64 = match settings.flash_attn.as_str() {
+        "on" | "auto" => 2.5, // Flash Attention 启用：f16(2B) × 1.25x
+        _ => 3.0,             // Flash Attention 禁用或空：f16(2B) × 1.5x
+    };
+
+    // Compute Buffer（字节）= parallel_slots * block_count * embedding_length * batch_size_actual × coef
+    let compute_buffer_bytes = ((settings.parallel_slots as f64)
+        * (gguf.block_count as f64)
+        * (gguf.embedding_length as f64)
+        * (settings.batch_size_actual() as f64)
+        * compute_buffer_coef) as u64;
 
     // 模型文件占用（MiB）
     let model_mib = gguf.file_size / (1024 * 1024);
@@ -286,11 +314,28 @@ pub fn calc_max_context(gguf: &GgufInfo, settings: &AppSettings, free_mib: u64) 
     let precision_k = cache_type_precision_bytes(&settings.cache_type_k);
     let precision_v = cache_type_precision_bytes(&settings.cache_type_v);
 
-    // 单个 token 的 KV 缓存占用（字节）= kv_head_count × head_dim × (precision_k + precision_v) × block_count
+    // 计算实际需要 KV 缓存的层数
+    // 混合架构（如 Qwen3.5/3.6/3.8）只有部分层使用 KV 缓存
+    // full_attention_interval 是间隔值（如 4 表示每 4 层中有 1 层需要 KV 缓存）
+    let kv_cache_layers = match gguf.full_attention_interval {
+        Some(interval) => {
+            // 混合架构：每 interval 层中有 1 层需要 KV 缓存
+            let layers = (gguf.block_count as f64 / interval).ceil() as usize;
+            log::info!("[calc_max_context] 混合架构: block_count={}, full_attention_interval={}, kv_cache_layers={}",
+                gguf.block_count, interval, layers);
+            layers
+        }
+        None => {
+            // 传统架构：所有层都有 KV 缓存
+            gguf.block_count
+        }
+    };
+
+    // 单个 token 的 KV 缓存占用（字节）= kv_head_count × head_dim × (precision_k + precision_v) × kv_cache_layers
     let per_token_kv_bytes = gguf.kv_head_count as f64
         * gguf.head_dim as f64
         * (precision_k + precision_v)
-        * gguf.block_count as f64;
+        * kv_cache_layers as f64;
 
     if per_token_kv_bytes <= 0.0 {
         return 0;
@@ -304,19 +349,27 @@ pub fn calc_max_context(gguf: &GgufInfo, settings: &AppSettings, free_mib: u64) 
 }
 
 /// 计算 KV 缓存可用空间
-/// 公式: (GPU空闲显存 - 模型文件大小) - (并发数量 × block_count × embedding_length × 物理批次大小 × 3 (f16=2B × 1.5x))
+/// 公式: (GPU空闲显存 - 模型文件大小) - (并发数量 × block_count × embedding_length × 物理批次大小 × coef)
+/// coef = 2.5 (Flash Attention 启用) / 3.0 (Flash Attention 禁用)
 pub fn calc_kv_cache_space(
     gguf: &GgufInfo,
     settings: &AppSettings,
     free_mib: u64,
     lang: &i18n::Language,
 ) -> String {
-    // Compute Buffer（字节）= parallel_slots * block_count * embedding_length * batch_size_actual × 3 (f16=2B × 1.5x)
-    let compute_buffer_bytes = (settings.parallel_slots as u64)
-        .saturating_mul(gguf.block_count as u64)
-        .saturating_mul(gguf.embedding_length as u64)
-        .saturating_mul(settings.batch_size_actual() as u64)
-        .saturating_mul(3);
+    // Flash Attention 启用时降低 Compute Buffer 系数（f16=2B × 1.25x）
+    // Flash Attention 禁用时保持原始系数（f16=2B × 1.5x）
+    let compute_buffer_coef: f64 = match settings.flash_attn.as_str() {
+        "on" | "auto" => 2.5, // Flash Attention 启用：f16(2B) × 1.25x
+        _ => 3.0,             // Flash Attention 禁用或空：f16(2B) × 1.5x
+    };
+
+    // Compute Buffer（字节）= parallel_slots * block_count * embedding_length * batch_size_actual × coef
+    let compute_buffer_bytes = ((settings.parallel_slots as f64)
+        * (gguf.block_count as f64)
+        * (gguf.embedding_length as f64)
+        * (settings.batch_size_actual() as f64)
+        * compute_buffer_coef) as u64;
 
     // 模型文件占用（MiB）
     let model_mib = gguf.file_size / (1024 * 1024);
@@ -348,8 +401,8 @@ pub fn calc_and_format(settings: &AppSettings, lang: &i18n::Language) -> Result<
 
     // 1. 读取 GGUF 模型信息
     let gguf = read_gguf_info(&settings.model_path, lang)?;
-    log::info!("[calc_and_format] GGUF info: block_count={}, kv_head_count={}, head_dim={}, embedding_length={}, file_size={} bytes",
-        gguf.block_count, gguf.kv_head_count, gguf.head_dim, gguf.embedding_length, gguf.file_size);
+    log::info!("[calc_and_format] GGUF info: block_count={}, kv_head_count={}, head_dim={}, embedding_length={}, file_size={} bytes, full_attention_interval={:?}",
+        gguf.block_count, gguf.kv_head_count, gguf.head_dim, gguf.embedding_length, gguf.file_size, gguf.full_attention_interval);
 
     // 2. 获取空闲显存
     let free_mib = get_free_gpu_mib(&settings.server_path, lang)?;
@@ -357,7 +410,11 @@ pub fn calc_and_format(settings: &AppSettings, lang: &i18n::Language) -> Result<
 
     // 3. 计算并格式化
     let result = calc_kv_cache_space(&gguf, settings, free_mib, lang);
-    log::info!("[calc_and_format] KV 缓存计算结果: {}", result);
+    log::info!(
+        "[calc_and_format] flash_attn={}, KV 缓存计算结果: {}",
+        settings.flash_attn,
+        result
+    );
     Ok(result)
 }
 
@@ -370,8 +427,8 @@ pub fn calc_max_context_facade(
 
     // 1. 读取 GGUF 模型信息
     let gguf = read_gguf_info(&settings.model_path, lang)?;
-    log::info!("[calc_max_context_facade] GGUF info: block_count={}, kv_head_count={}, head_dim={}, embedding_length={}, file_size={} bytes",
-        gguf.block_count, gguf.kv_head_count, gguf.head_dim, gguf.embedding_length, gguf.file_size);
+    log::info!("[calc_max_context_facade] GGUF info: block_count={}, kv_head_count={}, head_dim={}, embedding_length={}, file_size={} bytes, full_attention_interval={:?}",
+        gguf.block_count, gguf.kv_head_count, gguf.head_dim, gguf.embedding_length, gguf.file_size, gguf.full_attention_interval);
 
     // 2. 获取空闲显存
     let free_mib = get_free_gpu_mib(&settings.server_path, lang)?;
@@ -380,7 +437,8 @@ pub fn calc_max_context_facade(
     // 3. 计算最大上下文（k 单位）
     let max_ctx_k = calc_max_context(&gguf, settings, free_mib);
     log::info!(
-        "[calc_max_context_facade] cache_type_k={}, cache_type_v={}, kv_cache_ratio={}",
+        "[calc_max_context_facade] flash_attn={}, cache_type_k={}, cache_type_v={}, kv_cache_ratio={}",
+        settings.flash_attn,
         settings.cache_type_k,
         settings.cache_type_v,
         settings.kv_cache_ratio
