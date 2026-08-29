@@ -475,6 +475,16 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 {
                     settings.override_tensor = "per_layer_token_embd.weight=CPU".to_string();
                 }
+                let tensor_empty = settings.override_tensor.is_empty();
+                if ui
+                    .add_enabled(
+                        !tensor_empty,
+                        egui::Button::new(i18n::t(i18n::Key::BtnClearOverrideTensor, lang)),
+                    )
+                    .clicked()
+                {
+                    settings.override_tensor.clear();
+                }
             });
         },
     );
