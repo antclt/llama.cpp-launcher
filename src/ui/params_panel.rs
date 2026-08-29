@@ -465,7 +465,9 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 {
                     settings.override_tensor = ".ffn_(gate|up|down).=CPU".to_string();
                 }
-                let ngram_set = settings.override_tensor.contains("per_layer_token_embd.weight=CPU");
+                let ngram_set = settings
+                    .override_tensor
+                    .contains("per_layer_token_embd.weight=CPU");
                 if ui
                     .add_enabled(
                         !ngram_set,
