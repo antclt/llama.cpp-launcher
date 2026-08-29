@@ -453,25 +453,22 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ui.small(i18n::t(i18n::Key::HintOverrideTensor, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpOverrideTensor, lang));
             });
-            // FFN卸载到CPU按钮
+            // FFN / N-gram 卸载到CPU按钮（同行显示）
             ui.horizontal(|ui| {
-                let already_set = settings.override_tensor == ".ffn_(gate|up|down).=CPU";
+                let ffn_set = settings.override_tensor == ".ffn_(gate|up|down).=CPU";
                 if ui
                     .add_enabled(
-                        !already_set,
+                        !ffn_set,
                         egui::Button::new(i18n::t(i18n::Key::BtnFfnOffloadToCpu, lang)),
                     )
                     .clicked()
                 {
                     settings.override_tensor = ".ffn_(gate|up|down).=CPU".to_string();
                 }
-            });
-            // N-gram层卸载到CPU按钮
-            ui.horizontal(|ui| {
-                let already_set = settings.override_tensor.contains("per_layer_token_embd.weight=CPU");
+                let ngram_set = settings.override_tensor.contains("per_layer_token_embd.weight=CPU");
                 if ui
                     .add_enabled(
-                        !already_set,
+                        !ngram_set,
                         egui::Button::new(i18n::t(i18n::Key::BtnNGramOffloadToCpu, lang)),
                     )
                     .clicked()
