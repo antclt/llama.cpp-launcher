@@ -102,6 +102,10 @@ fn default_load_mode() -> String {
     "auto".to_string() // --load-mode，"auto" = 不拼接并沿用旧版 --mmap/--mlock
 }
 
+fn default_tensor_read_lazy() -> String {
+    "auto".to_string()
+}
+
 // ── 新增参数（llama.cpp b10488+）默认值 ──
 
 // 线程与生成长度
@@ -445,6 +449,8 @@ pub struct Preset {
     // 加载模式（新版 --load-mode；"auto" 时沿用旧版 --mmap/--mlock 行为）
     #[serde(default = "default_load_mode")]
     pub load_mode: String, // --load-mode
+    #[serde(default = "default_tensor_read_lazy")]
+    pub tensor_read_lazy: String, // --tensor-read-lazy
 
     // ── 线程与生成长度（llama.cpp b10488+）──
     #[serde(default = "default_threads")]
@@ -658,6 +664,7 @@ impl Default for Preset {
             enable_presence_penalty: false,
             flash_attn: default_flash_attn(),
             load_mode: default_load_mode(),
+            tensor_read_lazy: default_tensor_read_lazy(),
             threads: default_threads(),
             threads_batch: default_threads_batch(),
             n_predict: default_n_predict(),
@@ -770,6 +777,7 @@ impl Preset {
             enable_presence_penalty: settings.enable_presence_penalty,
             flash_attn: settings.flash_attn.clone(),
             load_mode: settings.load_mode.clone(),
+            tensor_read_lazy: settings.tensor_read_lazy.clone(),
             threads: settings.threads,
             threads_batch: settings.threads_batch,
             n_predict: settings.n_predict,
@@ -879,6 +887,7 @@ impl Preset {
         settings.flash_attn = self.flash_attn;
         // 加载模式
         settings.load_mode = self.load_mode;
+        settings.tensor_read_lazy = self.tensor_read_lazy;
         // 线程与生成长度
         settings.threads = self.threads;
         settings.threads_batch = self.threads_batch;
@@ -1072,6 +1081,8 @@ pub struct AppSettings {
     // 加载模式（新版 --load-mode；"auto" 时沿用旧版 --mmap/--mlock 行为）
     #[serde(default = "default_load_mode")]
     pub load_mode: String, // --load-mode
+    #[serde(default = "default_tensor_read_lazy")]
+    pub tensor_read_lazy: String, // --tensor-read-lazy
 
     // ── 线程与生成长度（llama.cpp b10488+）──
     #[serde(default = "default_threads")]
@@ -1387,6 +1398,7 @@ impl Default for AppSettings {
             enable_presence_penalty: false,
             flash_attn: default_flash_attn(),
             load_mode: default_load_mode(),
+            tensor_read_lazy: default_tensor_read_lazy(),
             threads: default_threads(),
             threads_batch: default_threads_batch(),
             n_predict: default_n_predict(),

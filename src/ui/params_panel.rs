@@ -513,6 +513,18 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             settings.load_mode = lm_vals[lm_idx].to_string();
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpLoadMode, lang));
         });
+        // 延迟加载大型张量
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelTensorReadLazy, lang));
+            let trl_vals = ["auto", "on", "off"];
+            let mut trl_idx = trl_vals
+                .iter()
+                .position(|v| *v == settings.tensor_read_lazy)
+                .unwrap_or(0);
+            widgets::segmented(ui, &trl_vals, &mut trl_idx, accent);
+            settings.tensor_read_lazy = trl_vals[trl_idx].to_string();
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpTensorReadLazy, lang));
+        });
 
         // 长上下文 / 提示缓存（标签 + ❓提示框 + 行右侧开关）
         ui.horizontal(|ui| {

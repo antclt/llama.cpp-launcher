@@ -196,6 +196,8 @@ pub enum Key {
     LabelLoadMode,
     LoadModeAuto,
     LoadModeNone,
+    LabelTensorReadLazy,
+    HelpTensorReadLazy,
 
     // ── 线程与生成长度 ──
     SectionThreads,
@@ -938,6 +940,10 @@ impl Key {
             (Key::LoadModeAuto, &Language::En) => "Auto",
             (Key::LoadModeNone, &Language::Zh) => "无",
             (Key::LoadModeNone, &Language::En) => "none",
+            (Key::LabelTensorReadLazy, &Language::Zh) => "延迟加载大型张量 (--tensor-read-lazy):",
+            (Key::LabelTensorReadLazy, &Language::En) => "Lazy Tensor Loading (--tensor-read-lazy):",
+            (Key::HelpTensorReadLazy, &Language::Zh) => "延迟加载大型张量以减少内存占用",
+            (Key::HelpTensorReadLazy, &Language::En) => "Delay loading large tensors to reduce memory usage",
 
             // ── 线程与生成长度 ──
             (Key::SectionThreads, &Language::Zh) => "线程与生成长度",

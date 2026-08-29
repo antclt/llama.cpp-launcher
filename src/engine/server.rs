@@ -440,6 +440,9 @@ impl ServerManager {
         if !settings.load_mode.is_empty() && settings.load_mode != "auto" {
             cmd.arg("--load-mode").arg(&settings.load_mode);
         }
+        if !settings.tensor_read_lazy.is_empty() && settings.tensor_read_lazy != "auto" {
+            cmd.arg("--tensor-read-lazy").arg(&settings.tensor_read_lazy);
+        }
         if settings.kv_unified {
             cmd.arg("--kv-unified");
         }
