@@ -351,6 +351,14 @@ fn default_spec_draft_p_split() -> f32 {
     1.0
 }
 
+fn default_spec_draft_type_k() -> String {
+    "f16".to_string()
+}
+
+fn default_spec_draft_type_v() -> String {
+    "f16".to_string()
+}
+
 // KV 缓存比例默认值
 fn default_kv_cache_ratio() -> f32 {
     0.95
@@ -529,6 +537,10 @@ pub struct Preset {
     pub spec_draft_p_min: f32, // --spec-draft-p-min
     #[serde(default = "default_spec_draft_p_split")]
     pub spec_draft_p_split: f32, // --spec-draft-p-split
+    #[serde(default = "default_spec_draft_type_k")]
+    pub spec_draft_type_k: String, // --spec-draft-type-k
+    #[serde(default = "default_spec_draft_type_v")]
+    pub spec_draft_type_v: String, // --spec-draft-type-v
 
     // KV 缓存配置
     pub kv_offload: bool,
@@ -686,6 +698,8 @@ impl Default for Preset {
             spec_draft_n_min: 0,
             spec_draft_p_min: default_spec_draft_p_min(),
             spec_draft_p_split: default_spec_draft_p_split(),
+            spec_draft_type_k: default_spec_draft_type_k(),
+            spec_draft_type_v: default_spec_draft_type_v(),
             kv_offload: true,
             cache_type_k: "q8_0".to_string(),
             cache_type_v: "q8_0".to_string(),
@@ -796,6 +810,8 @@ impl Preset {
             spec_draft_n_min: settings.spec_draft_n_min,
             spec_draft_p_min: settings.spec_draft_p_min,
             spec_draft_p_split: settings.spec_draft_p_split,
+            spec_draft_type_k: settings.spec_draft_type_k.clone(),
+            spec_draft_type_v: settings.spec_draft_type_v.clone(),
             kv_offload: settings.kv_offload,
             cache_type_k: settings.cache_type_k.clone(),
             cache_type_v: settings.cache_type_v.clone(),
@@ -909,6 +925,8 @@ impl Preset {
         settings.spec_draft_n_min = self.spec_draft_n_min;
         settings.spec_draft_p_min = self.spec_draft_p_min;
         settings.spec_draft_p_split = self.spec_draft_p_split;
+        settings.spec_draft_type_k = self.spec_draft_type_k;
+        settings.spec_draft_type_v = self.spec_draft_type_v;
         settings.kv_offload = self.kv_offload;
         settings.cache_type_k = self.cache_type_k;
         settings.cache_type_v = self.cache_type_v;
@@ -1146,6 +1164,10 @@ pub struct AppSettings {
     pub spec_draft_p_min: f32, // --spec-draft-p-min
     #[serde(default = "default_spec_draft_p_split")]
     pub spec_draft_p_split: f32, // --spec-draft-p-split
+    #[serde(default = "default_spec_draft_type_k")]
+    pub spec_draft_type_k: String, // --spec-draft-type-k
+    #[serde(default = "default_spec_draft_type_v")]
+    pub spec_draft_type_v: String, // --spec-draft-type-v
 
     // KV 缓存配置
     pub kv_offload: bool,
@@ -1405,6 +1427,8 @@ impl Default for AppSettings {
             spec_draft_n_min: 0,
             spec_draft_p_min: default_spec_draft_p_min(),
             spec_draft_p_split: default_spec_draft_p_split(),
+            spec_draft_type_k: default_spec_draft_type_k(),
+            spec_draft_type_v: default_spec_draft_type_v(),
             kv_offload: true,
             cache_type_k: "q8_0".to_string(),
             cache_type_v: "q8_0".to_string(),

@@ -617,25 +617,37 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             });
 
             let spec_options = [
-                "none",
-                "draft-simple",
-                "draft-eagle3",
-                "draft-mtp",
-                "ngram-simple",
-                "ngram-map-k",
-                "ngram-map-k4v",
-                "ngram-mod",
-                "ngram-cache",
-                "dflash",
+                ("none", i18n::t(i18n::Key::SpecTypeNone, lang)),
+                (
+                    "draft-simple",
+                    i18n::t(i18n::Key::SpecTypeDraftSimple, lang),
+                ),
+                (
+                    "draft-eagle3",
+                    i18n::t(i18n::Key::SpecTypeDraftEagle3, lang),
+                ),
+                ("draft-mtp", i18n::t(i18n::Key::SpecTypeDraftMtp, lang)),
+                (
+                    "ngram-simple",
+                    i18n::t(i18n::Key::SpecTypeNgramSimple, lang),
+                ),
+                ("ngram-map-k", i18n::t(i18n::Key::SpecTypeNgramMapK, lang)),
+                (
+                    "ngram-map-k4v",
+                    i18n::t(i18n::Key::SpecTypeNgramMapK4V, lang),
+                ),
+                ("ngram-mod", i18n::t(i18n::Key::SpecTypeNgramMod, lang)),
+                ("ngram-cache", i18n::t(i18n::Key::SpecTypeNgramCache, lang)),
+                ("dflash", i18n::t(i18n::Key::SpecTypeDflash, lang)),
             ];
 
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 6.0;
 
-                for opt in &spec_options[..] {
-                    let selected = settings.spec_type == *opt;
-                    if ui.selectable_label(selected, *opt).clicked() {
-                        settings.spec_type = opt.to_string();
+                for (value, label) in &spec_options {
+                    let selected = settings.spec_type == *value;
+                    if ui.selectable_label(selected, *label).clicked() {
+                        settings.spec_type = value.to_string();
                     }
                 }
             });
@@ -672,6 +684,40 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 );
                 ui.label(format!("{:.2}", settings.spec_draft_p_split));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftPSplit, lang));
+            });
+            // 推测解码 KV 类型 K
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelSpecDraftTypeK, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftTypeK, lang));
+            });
+            let spec_k_types = [
+                "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1",
+            ];
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing.x = 6.0;
+                for k_type in &spec_k_types {
+                    let selected = settings.spec_draft_type_k == *k_type;
+                    if ui.selectable_label(selected, *k_type).clicked() {
+                        settings.spec_draft_type_k = k_type.to_string();
+                    }
+                }
+            });
+            // 推测解码 KV 类型 V
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelSpecDraftTypeV, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftTypeV, lang));
+            });
+            let spec_v_types = [
+                "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1",
+            ];
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing.x = 6.0;
+                for v_type in &spec_v_types {
+                    let selected = settings.spec_draft_type_v == *v_type;
+                    if ui.selectable_label(selected, *v_type).clicked() {
+                        settings.spec_draft_type_v = v_type.to_string();
+                    }
+                }
             });
         },
     );

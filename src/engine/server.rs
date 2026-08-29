@@ -413,6 +413,14 @@ impl ServerManager {
                 .arg(format!("{}", settings.spec_draft_p_min));
             cmd.arg("--spec-draft-p-split")
                 .arg(format!("{}", settings.spec_draft_p_split));
+            if !settings.spec_draft_type_k.is_empty() {
+                cmd.arg("--spec-draft-type-k")
+                    .arg(&settings.spec_draft_type_k);
+            }
+            if !settings.spec_draft_type_v.is_empty() {
+                cmd.arg("--spec-draft-type-v")
+                    .arg(&settings.spec_draft_type_v);
+            }
         }
 
         // KV 缓存配置
