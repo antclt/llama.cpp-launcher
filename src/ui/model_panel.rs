@@ -3,6 +3,9 @@ use crate::i18n;
 use crate::ui::widgets;
 use poll_promise::Promise;
 use std::cell::RefCell;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use egui::Id;
 
 // 跨帧持有的异步加载任务（Promise 不实现 Clone/Sync，无法存入 egui 临时数据）
 thread_local! {
@@ -140,14 +143,27 @@ fn is_dflash_file(filename: &str) -> bool {
     filename.to_lowercase().contains("dflash")
 }
 
-/// 使用正则表达式匹配分片文件（.partNofM 模式）
+/// 使用正则表达式匹配分片文件（.partNofM 或 .partNofM.gguf 模式）
 fn is_shard_file(filename: &str) -> bool {
-    regex::Regex::new(r"\.part\d+of\d+").is_ok_and(|re| re.is_match(filename))
+    // 匹配 "model.gguf.part1of3" 或 "model.gguf.part1of3.gguf"
+    // 匹配 .partNofM 后缀（前面可以是任意字符）
+    regex::Regex::new(r"\.part\d+of\d+(?:\.gguf)?$").is_ok_and(|re| re.is_match(filename))
+}
+
+/// 提取分片文件的组名（.part 部分，不带数量）
+/// 用于分片合并：part1of3, part2of3, part3of3 → "part"
+fn extract_shard_group(filename: &str) -> Option<String> {
+    // 匹配 .partNofM 或 .partNofM.gguf
+    regex::Regex::new(r"\.part(\d+)of(\d+)").ok()?.captures(filename).and_then(|_caps| {
+        let before_part = filename[..filename.find(".part").unwrap_or(filename.len())].to_string();
+        Some(format!("{}.part", before_part))
+    })
 }
 
 /// 递归收集模型文件。选中的目录及其所有子目录都会被扫描，
 /// 并跳过符号链接目录，避免循环引用导致界面卡住。
-/// 支持普通 .gguf 文件和分片文件（如 model.gguf.part1of3.gguf）。
+/// 返回所有模型相关文件（普通 .gguf + 分片文件 .partNofM.gguf），
+/// 合并显示逻辑由 render_file_list 处理。
 fn collect_model_files(dir: &std::path::Path, mode: FileMode) -> Vec<std::path::PathBuf> {
     let mut files = Vec::new();
     let Ok(entries) = std::fs::read_dir(dir) else {
@@ -173,8 +189,8 @@ fn collect_model_files(dir: &std::path::Path, mode: FileMode) -> Vec<std::path::
             .to_string_lossy()
             .to_string()
             .to_lowercase();
-        // 支持分片文件（.partNofM.gguf）和普通 .gguf 文件
-        if is_shard_file(&name) || name.ends_with(".gguf") {
+        // 收集所有模型相关文件：普通 .gguf 和分片文件
+        if name.ends_with(".gguf") || is_shard_file(&name) {
             let include = match mode {
                 FileMode::Main => !is_mmproj_file(&name) && !is_dflash_file(&name),
                 FileMode::Mmproj => is_mmproj_file(&name),
@@ -270,6 +286,84 @@ mod tests {
     fn test_collect_model_files_nonexistent_dir() {
         let collected = collect_model_files(std::path::Path::new("/nonexistent/path"), FileMode::Main);
         assert!(collected.is_empty());
+    }
+
+    #[test]
+    fn test_shard_merge_display_logic() {
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path();
+
+        // 创建分片文件
+        fs::write(path.join("model.gguf.part1of3"), b"part1").unwrap();
+        fs::write(path.join("model.gguf.part2of3"), b"part2").unwrap();
+        fs::write(path.join("model.gguf.part3of3"), b"part3").unwrap();
+        // 创建普通 gguf 文件
+        fs::write(path.join("another.gguf"), b"data").unwrap();
+
+        let entries = collect_model_files(path, FileMode::Main);
+        // collect_model_files 现在返回所有文件（包括分片），共 4 个
+        assert_eq!(entries.len(), 4);
+
+        // 验证 collect_model_files 返回了所有文件（包括分片）
+        let filenames: Vec<_> = entries.iter().map(|e| e.file_name().unwrap().to_string_lossy().to_string()).collect();
+        assert!(filenames.contains(&"model.gguf.part1of3".to_string()));
+        assert!(filenames.contains(&"model.gguf.part2of3".to_string()));
+        assert!(filenames.contains(&"model.gguf.part3of3".to_string()));
+        assert!(filenames.contains(&"another.gguf".to_string()));
+
+        // 验证 render_file_list 中的分片合并逻辑：
+        // 分片文件会被合并，普通文件单独显示
+        // 验证 group 名提取逻辑
+        let mut shard_map: HashMap<String, Vec<&PathBuf>> = HashMap::new();
+        for entry in &entries {
+            let filename = entry.file_name().unwrap().to_string_lossy().to_string();
+            if is_shard_file(&filename) {
+                let shard_group = extract_shard_group(&filename).unwrap_or(filename.clone());
+                shard_map
+                    .entry(shard_group)
+                    .or_default()
+                    .push(entry);
+            }
+        }
+
+        // 分片文件被分组到 "model.gguf.part"
+        assert_eq!(shard_map.len(), 1);
+        assert!(shard_map.contains_key("model.gguf.part"));
+        assert_eq!(shard_map.get("model.gguf.part").unwrap().len(), 3);
+
+        // 普通文件未被分组
+        assert!(!shard_map.contains_key("another.gguf"));
+    }
+
+    #[test]
+    fn test_shard_merge_total_size() {
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path();
+
+        fs::write(path.join("model.gguf.part1of3"), vec![0u8; 1024]).unwrap();
+        fs::write(path.join("model.gguf.part2of3"), vec![0u8; 2048]).unwrap();
+        fs::write(path.join("model.gguf.part3of3"), vec![0u8; 512]).unwrap();
+
+        let entries = collect_model_files(path, FileMode::Main);
+
+        let mut shard_map: HashMap<String, Vec<&PathBuf>> = HashMap::new();
+        for entry in &entries {
+            let filename = entry.file_name().unwrap().to_string_lossy().to_string();
+            if is_shard_file(&filename) {
+                let shard_group = extract_shard_group(&filename).unwrap_or(filename.clone());
+                shard_map
+                    .entry(shard_group)
+                    .or_default()
+                    .push(entry);
+            }
+        }
+
+        let shards = shard_map.get("model.gguf.part").unwrap();
+        let total_size: u64 = shards
+            .iter()
+            .map(|p| std::fs::metadata(p).map(|m| m.len()).unwrap_or(0))
+            .sum();
+        assert_eq!(total_size, 3584); // 1024 + 2048 + 512
     }
 }
 
@@ -411,7 +505,28 @@ fn render_file_list(
     let mut entries = collect_model_files(dir, mode);
     entries.sort_by(|a, b| a.to_string_lossy().cmp(&b.to_string_lossy()));
 
-    if entries.is_empty() {
+    // ── 分片合并逻辑 ──
+    // 将分片文件按 base 名分组（model.gguf.part1of3 → model.gguf.part1of3）
+    let mut shard_groups: HashMap<String, Vec<PathBuf>> = HashMap::new();
+    let mut normal_entries: Vec<PathBuf> = Vec::new();
+
+    for entry in entries {
+        let filename = entry
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+        if is_shard_file(&filename) {
+            let shard_group = extract_shard_group(&filename).unwrap_or(filename.clone());
+            shard_groups
+                .entry(shard_group)
+                .or_default()
+                .push(entry);
+        } else if filename.ends_with(".gguf") {
+            normal_entries.push(entry);
+        }
+    }
+
+    if shard_groups.is_empty() && normal_entries.is_empty() {
         ui.colored_label(
             egui::Color32::GRAY,
             match mode {
@@ -431,27 +546,30 @@ fn render_file_list(
     egui::ScrollArea::horizontal()
         .id_salt(scroll_id)
         .show(ui, |ui| {
-            // 禁用系统自动行距，全部用显式间距控制分组关系：
-            //   上一模型 ──GROUP_GAP──▶ 文件夹标题 ──HEADER_GAP──▶ 下属模型 ──ITEM_GAP──▶ …
-            const GROUP_GAP: f32 = 16.0; // 文件夹分组之间的间距（模型 ↔ 文件夹标题）
-            const HEADER_GAP: f32 = 6.0; // 文件夹标题与其下属首个模型之间的间距
-            const ITEM_GAP: f32 = 8.0; // 同文件夹内模型之间的间距
-            const HEADER_LINE_LEN: f32 = 24.0; // 文件夹标题后的短分隔线长度
+            const GROUP_GAP: f32 = 16.0;
+            const HEADER_GAP: f32 = 6.0;
+            const ITEM_GAP: f32 = 8.0;
+            const HEADER_LINE_LEN: f32 = 24.0;
             ui.spacing_mut().item_spacing.y = 0.0;
-            let mut last_parent_dir: Option<std::path::PathBuf> = None;
+            let mut last_parent_dir: Option<PathBuf> = None;
             let mut first_item = true;
             let mut pending_space = 0.0_f32;
-            for entry in entries {
-                let file_path = entry.clone();
-                let filename = file_path
-                    .file_name()
-                    .map(|name| name.to_string_lossy().to_string())
-                    .unwrap_or_default();
-                let selected = selected_path == file_path;
 
-                // 若模型位于子文件夹且为新的文件夹，先输出文件夹标题（主题色提亮文字 +
-                // 短横线分区）
-                let parent_dir = file_path
+            // 渲染分片合并条目
+            for (base_name, shards) in shard_groups {
+                let total_size = shards
+                    .iter()
+                    .map(|p| std::fs::metadata(p).map(|m| m.len()).unwrap_or(0))
+                    .sum();
+                let total_count = shards.len();
+                let first_shard = shards.first().cloned().unwrap_or_default();
+                let filename = first_shard
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
+
+                // 文件夹分组处理
+                let parent_dir = Path::new(&base_name)
                     .parent()
                     .filter(|p| *p != dir)
                     .map(ToOwned::to_owned);
@@ -460,10 +578,8 @@ fn render_file_list(
                     if parent_changed {
                         last_parent_dir = Some(pdir.clone());
                         if !first_item && pending_space > 0.0 {
-                            ui.add_space(GROUP_GAP); // 标题前：与上一个模型拉开分组间距
+                            ui.add_space(GROUP_GAP);
                         }
-                        // 文件夹标题：比主题色提亮一档（加白 25%），柔和不刺眼；
-                        // 文字后跟一条短横线作分组连接符
                         let header_color = crate::theme::lighten_accent(accent, 0.25);
                         ui.horizontal(|ui| {
                             ui.label(
@@ -474,7 +590,6 @@ fn render_file_list(
                                 )
                                 .color(header_color),
                             );
-                            // 短分隔线：与主题色同色、较淡，垂直居中于标题文字
                             let (rect, _) = ui.allocate_exact_size(
                                 egui::vec2(HEADER_LINE_LEN, 2.0),
                                 egui::Sense::hover(),
@@ -488,17 +603,130 @@ fn render_file_list(
                                 egui::Stroke::new(1.0_f32, header_color.gamma_multiply(0.6_f32)),
                             );
                         });
-                        pending_space = HEADER_GAP; // 标题后：与下属首个模型贴近
+                        pending_space = HEADER_GAP;
                     }
                 } else {
                     last_parent_dir = None;
                 }
 
-                // 模型行前间距
+                // 合并条目显示
                 if pending_space > 0.0 {
                     ui.add_space(pending_space);
                 }
+                ui.horizontal(|ui| {
+                    // 聚合按钮：点击后展开/收起分片列表
+                    let expanded_id = Id::new(format!("shard_{}", base_name));
+                    let mut expanded = ui.data(|data| data.get_temp::<bool>(expanded_id)).unwrap_or(false);
+                    if ui
+                        .add(
+                            egui::Button::new(egui::RichText::new("📦").size(14.0))
+                                .fill(egui::Color32::TRANSPARENT)
+                                .corner_radius(4.0),
+                        )
+                        .clicked()
+                    {
+                        expanded = !expanded;
+                        ui.data_mut(|data| data.insert_temp(expanded_id, expanded));
+                    }
+                    // 普通单选按钮（仅在未展开时显示）
+                    if !expanded {
+                        if ui.add(egui::RadioButton::new(selected_path == shards[0], "")).clicked() {
+                            on_select(shards[0].clone());
+                        }
+                    }
+                    // 标签（基于第一个分片生成）
+                    let tags = parse_tags(&filename);
+                    for (text, color) in &tags {
+                        ui.add(
+                            egui::Button::new(
+                                egui::RichText::new(text).color(widgets::contrast_text(*color)),
+                            )
+                            .fill(*color)
+                            .corner_radius(4.0),
+                        );
+                    }
+                    ui.separator();
+                    // 显示完整文件名（base 名 + partNofM）
+                    let relative = first_shard
+                        .strip_prefix(dir)
+                        .unwrap_or(&first_shard)
+                        .to_string_lossy();
+                    ui.label(
+                        egui::RichText::new(relative.as_ref()).color(ui.visuals().weak_text_color()),
+                    );
+                    // 显示分片数量和总大小
+                    ui.label(
+                        egui::RichText::new(format!("({}/{})", total_count, format_file_size(total_size)))
+                            .color(egui::Color32::from_rgb(180, 180, 180)),
+                    );
+                    // 详情按钮（点击第一个分片）
+                    if ui
+                        .add(
+                            egui::Button::new(egui::RichText::new("📋").size(12.0))
+                                .fill(egui::Color32::TRANSPARENT)
+                                .corner_radius(4.0),
+                        )
+                        .clicked()
+                    {
+                        on_show_details(shards[0].clone());
+                    }
+                });
+                first_item = false;
+                pending_space = ITEM_GAP;
+            }
 
+            // 渲染普通文件
+            for entry in normal_entries {
+                let file_path = entry.clone();
+                let filename = file_path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                let selected = selected_path == file_path;
+
+                let parent_dir = file_path
+                    .parent()
+                    .filter(|p| *p != dir)
+                    .map(ToOwned::to_owned);
+                let parent_changed = parent_dir.as_ref() != last_parent_dir.as_ref();
+                if let Some(ref pdir) = parent_dir {
+                    if parent_changed {
+                        last_parent_dir = Some(pdir.clone());
+                        if !first_item && pending_space > 0.0 {
+                            ui.add_space(GROUP_GAP);
+                        }
+                        let header_color = crate::theme::lighten_accent(accent, 0.25);
+                        ui.horizontal(|ui| {
+                            ui.label(
+                                egui::RichText::new(
+                                    pdir.file_name()
+                                        .map(|n| n.to_string_lossy().to_string())
+                                        .unwrap_or_default(),
+                                )
+                                .color(header_color),
+                            );
+                            let (rect, _) = ui.allocate_exact_size(
+                                egui::vec2(HEADER_LINE_LEN, 2.0),
+                                egui::Sense::hover(),
+                            );
+                            let y = rect.center().y;
+                            ui.painter().line_segment(
+                                [
+                                    egui::Pos2::new(rect.left(), y),
+                                    egui::Pos2::new(rect.right(), y),
+                                ],
+                                egui::Stroke::new(1.0_f32, header_color.gamma_multiply(0.6_f32)),
+                            );
+                        });
+                        pending_space = HEADER_GAP;
+                    }
+                } else {
+                    last_parent_dir = None;
+                }
+
+                if pending_space > 0.0 {
+                    ui.add_space(pending_space);
+                }
                 ui.horizontal(|ui| {
                     if ui.add(egui::RadioButton::new(selected, "")).clicked() {
                         on_select(file_path.clone());
@@ -522,7 +750,6 @@ fn render_file_list(
                         egui::RichText::new(relative.as_ref())
                             .color(ui.visuals().weak_text_color()),
                     );
-                    // 模型详情按钮
                     if ui
                         .add(
                             egui::Button::new(egui::RichText::new("📋").size(12.0))
@@ -536,7 +763,7 @@ fn render_file_list(
                     }
                 });
                 first_item = false;
-                pending_space = ITEM_GAP; // 模型后：与下一个模型/标题分隔
+                pending_space = ITEM_GAP;
             }
         });
 }
