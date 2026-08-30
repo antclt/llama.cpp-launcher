@@ -36,7 +36,7 @@ jobs:
           Write-Host "检测到版本号: $version"
 
           New-Item -ItemType Directory -Path "dist" -Force
-          $exeName = "llama_cpp_launcher_v${version}_win_x64.exe"
+          $exeName = "llama_cpp_launcher_v${version}.exe"
           Copy-Item "target/release/llama_cpp_launcher.exe" -Destination "dist/$exeName"
           Write-Host "已重命名为: $exeName"
 
@@ -73,7 +73,7 @@ jobs:
           Write-Host "检测到版本号: $version"
 
           New-Item -ItemType Directory -Path "dist" -Force
-          $exeName = "llama_cpp_launcher_v${version}_win_arm64.exe"
+          $exeName = "llama_cpp_launcher_v${version}_arm64.exe"
           Copy-Item "target/aarch64-pc-windows-msvc/release/llama_cpp_launcher.exe" -Destination "dist/$exeName"
           Write-Host "已重命名为: $exeName"
 
