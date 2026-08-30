@@ -145,21 +145,9 @@ fn is_shard_file(filename: &str) -> bool {
     regex::Regex::new(r"\.part\d+of\d+").is_ok_and(|re| re.is_match(filename))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_is_shard_file() {
-        assert!(is_shard_file("model.gguf.part1of3"));
-        assert!(is_shard_file("model.gguf.part2of3"));
-        assert!(!is_shard_file("model.gguf"));
-        assert!(!is_shard_file("model.gguf.part-1"));
-    }
-}
-
 /// 递归收集模型文件。选中的目录及其所有子目录都会被扫描，
 /// 并跳过符号链接目录，避免循环引用导致界面卡住。
+/// 支持普通 .gguf 文件和分片文件（如 model.gguf.part1of3.gguf）。
 fn collect_model_files(dir: &std::path::Path, mode: FileMode) -> Vec<std::path::PathBuf> {
     let mut files = Vec::new();
     let Ok(entries) = std::fs::read_dir(dir) else {
@@ -185,19 +173,104 @@ fn collect_model_files(dir: &std::path::Path, mode: FileMode) -> Vec<std::path::
             .to_string_lossy()
             .to_string()
             .to_lowercase();
-        if !name.ends_with(".gguf") {
-            continue;
-        }
-        let include = match mode {
-            FileMode::Main => !is_mmproj_file(&name) && !is_dflash_file(&name),
-            FileMode::Mmproj => is_mmproj_file(&name),
-            FileMode::Dflash => is_dflash_file(&name),
-        };
-        if include {
-            files.push(path);
+        // 支持分片文件（.partNofM.gguf）和普通 .gguf 文件
+        if is_shard_file(&name) || name.ends_with(".gguf") {
+            let include = match mode {
+                FileMode::Main => !is_mmproj_file(&name) && !is_dflash_file(&name),
+                FileMode::Mmproj => is_mmproj_file(&name),
+                FileMode::Dflash => is_dflash_file(&name),
+            };
+            if include {
+                files.push(path);
+            }
         }
     }
     files
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_is_shard_file() {
+        assert!(is_shard_file("model.gguf.part1of3"));
+        assert!(is_shard_file("model.gguf.part2of3"));
+        assert!(!is_shard_file("model.gguf"));
+        assert!(!is_shard_file("model.gguf.part-1"));
+    }
+
+    #[test]
+    fn test_collect_model_files_shard_and_gguf() {
+        // 创建临时目录并写入测试文件
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path();
+
+        // 创建普通 .gguf 文件
+        fs::write(path.join("model1.gguf"), b"test").unwrap();
+        fs::write(path.join("model2.gguf"), b"test").unwrap();
+
+        // 创建分片文件
+        fs::write(path.join("model.gguf.part1of3"), b"part1").unwrap();
+        fs::write(path.join("model.gguf.part2of3"), b"part2").unwrap();
+        fs::write(path.join("model.gguf.part3of3"), b"part3").unwrap();
+
+        // 创建 mmproj 文件（Main 模式下应被过滤）
+        fs::write(path.join("proj.gguf.mmproj"), b"test").unwrap();
+
+        let collected = collect_model_files(path, FileMode::Main);
+
+        // 验证：应该收集到 5 个文件（2 个普通 .gguf + 3 个分片文件）
+        assert_eq!(collected.len(), 5);
+
+        // 验证分片文件被正确收集
+        assert!(collected.iter().any(|p| p.file_name().unwrap().to_string_lossy().ends_with("part1of3")));
+        assert!(collected.iter().any(|p| p.file_name().unwrap().to_string_lossy().ends_with("part2of3")));
+        assert!(collected.iter().any(|p| p.file_name().unwrap().to_string_lossy().ends_with("part3of3")));
+
+        // 验证普通 .gguf 文件被正确收集
+        assert!(collected.iter().any(|p| p.file_name().unwrap().to_string_lossy().ends_with("model1.gguf")));
+        assert!(collected.iter().any(|p| p.file_name().unwrap().to_string_lossy().ends_with("model2.gguf")));
+
+        // mmproj 文件不应被收集
+        assert!(!collected.iter().any(|p| p.file_name().unwrap().to_string_lossy().ends_with(".mmproj")));
+    }
+
+    #[test]
+    fn test_collect_model_files_subdir() {
+        let temp_dir = TempDir::new().unwrap();
+        let path = temp_dir.path();
+
+        // 创建子目录
+        let subdir = path.join("subdir");
+        fs::create_dir(&subdir).unwrap();
+
+        // 在子目录中创建 .gguf 文件
+        fs::write(subdir.join("sub_model.gguf"), b"test").unwrap();
+        fs::write(subdir.join("sub_part1of2.gguf"), b"part1").unwrap();
+
+        let collected = collect_model_files(path, FileMode::Main);
+
+        // 子目录中的文件也应该被收集
+        assert_eq!(collected.len(), 2);
+        assert!(collected.iter().any(|p| p.file_name().unwrap().to_string_lossy().contains("sub_model")));
+        assert!(collected.iter().any(|p| p.file_name().unwrap().to_string_lossy().contains("part1of2")));
+    }
+
+    #[test]
+    fn test_collect_model_files_empty_dir() {
+        let temp_dir = TempDir::new().unwrap();
+        let collected = collect_model_files(temp_dir.path(), FileMode::Main);
+        assert!(collected.is_empty());
+    }
+
+    #[test]
+    fn test_collect_model_files_nonexistent_dir() {
+        let collected = collect_model_files(std::path::Path::new("/nonexistent/path"), FileMode::Main);
+        assert!(collected.is_empty());
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]
