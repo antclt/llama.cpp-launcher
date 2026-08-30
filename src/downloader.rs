@@ -276,13 +276,11 @@ impl DownloadVariant {
         let is_linux = cfg!(target_os = "linux");
         match value {
             "cuda124" if !is_linux => DownloadVariant::WinCuda124,
-            "cuda133" if !is_linux => DownloadVariant::WinCuda133,
-            // CUDA 13.4：仅 Windows，根据架构自动选择
-            "cuda134" if !is_linux => {
+            // CUDA 13：Windows 根据架构自动选择（arm64 → 13.4，x64 → 13.3）
+            "cuda133" if !is_linux => {
                 if cfg!(target_arch = "aarch64") {
                     DownloadVariant::WinCuda134Arm64
                 } else {
-                    // x64 回退到 CUDA 13.3
                     DownloadVariant::WinCuda133
                 }
             }
@@ -1226,19 +1224,13 @@ mod tests {
             } else {
                 DownloadVariant::LinuxVulkan
             };
-            assert_eq!(
-                DownloadVariant::from_settings_value("cpu"),
-                expected_cpu
-            );
+            assert_eq!(DownloadVariant::from_settings_value("cpu"), expected_cpu);
             assert_eq!(
                 DownloadVariant::from_settings_value("vulkan"),
                 expected_vulkan
             );
             // 兼容旧版 "gpu"
-            assert_eq!(
-                DownloadVariant::from_settings_value("gpu"),
-                expected_vulkan
-            );
+            assert_eq!(DownloadVariant::from_settings_value("gpu"), expected_vulkan);
             // Linux 现在支持 CUDA/ROCm 变体
             assert_eq!(
                 DownloadVariant::from_settings_value("cuda133"),
@@ -1263,9 +1255,15 @@ mod tests {
                 DownloadVariant::from_settings_value("cuda124"),
                 DownloadVariant::WinCuda124
             );
+            // CUDA 13：Windows arm64 → 13.4，x64 → 13.3
+            let expected_cuda133 = if cfg!(target_arch = "aarch64") {
+                DownloadVariant::WinCuda134Arm64
+            } else {
+                DownloadVariant::WinCuda133
+            };
             assert_eq!(
                 DownloadVariant::from_settings_value("cuda133"),
-                DownloadVariant::WinCuda133
+                expected_cuda133
             );
             assert_eq!(
                 DownloadVariant::from_settings_value("rocm_lemonade"),
@@ -1296,7 +1294,10 @@ mod tests {
         ];
         let cuda134_arm64 = pick_asset(&assets, &DownloadVariant::WinCuda134Arm64)
             .expect("应匹配 Win CUDA 13.4 ARM64 资产");
-        assert_eq!(cuda134_arm64.name, "llama-b10690-bin-win-cuda-13.4-arm64.zip");
+        assert_eq!(
+            cuda134_arm64.name,
+            "llama-b10690-bin-win-cuda-13.4-arm64.zip"
+        );
         // x64 变体不应命中 arm64 资产
         assert!(pick_asset(&[assets[0].clone()], &DownloadVariant::WinCuda133).is_none());
     }
@@ -1317,16 +1318,15 @@ mod tests {
     }
 
     #[test]
-    fn from_settings_value_cuda134() {
-        // Windows 平台根据架构自动选择
+    fn from_settings_value_cuda133_arch_auto_select() {
+        // Windows 平台根据架构自动选择 CUDA 13 变体
         if !cfg!(target_os = "linux") {
             let expected = if cfg!(target_arch = "aarch64") {
                 DownloadVariant::WinCuda134Arm64
             } else {
-                // x64 回退到 CUDA 13.3
                 DownloadVariant::WinCuda133
             };
-            assert_eq!(DownloadVariant::from_settings_value("cuda134"), expected);
+            assert_eq!(DownloadVariant::from_settings_value("cuda133"), expected);
         } else {
             // Linux 回退到 CPU
             let expected = if cfg!(target_arch = "aarch64") {
@@ -1334,7 +1334,7 @@ mod tests {
             } else {
                 DownloadVariant::LinuxCpu
             };
-            assert_eq!(DownloadVariant::from_settings_value("cuda134"), expected);
+            assert_eq!(DownloadVariant::from_settings_value("cuda133"), expected);
         }
     }
 
