@@ -164,7 +164,7 @@ impl LlamaLauncherApp {
         let server_state = self.server_manager.state();
         let start_fill = egui::Color32::from_rgb(40, 120, 40);
         let stop_fill = egui::Color32::from_rgb(180, 50, 50);
-        match server_state {
+        match &server_state {
             ServerState::Idle | ServerState::Error(_) => {
                 let server_path_valid = self
                     .settings
@@ -186,6 +186,14 @@ impl LlamaLauncherApp {
                 }
                 if resp.clicked() {
                     self.server_manager.start(&self.settings);
+                }
+                // Error 状态时显示错误信息
+                if let ServerState::Error(err) = &server_state {
+                    ui.label(
+                        egui::RichText::new(err.text(&self.lang))
+                            .color(egui::Color32::from_rgb(255, 80, 80))
+                            .small(),
+                    );
                 }
             }
             ServerState::Running => {
@@ -213,7 +221,7 @@ impl LlamaLauncherApp {
         let rpc_state = self.rpc_manager.state();
         let rpc_start_fill = egui::Color32::from_rgb(40, 100, 140);
         let rpc_stop_fill = egui::Color32::from_rgb(180, 50, 50);
-        match rpc_state {
+        match &rpc_state {
             RpcState::Idle | RpcState::Error(_) => {
                 let rpc_path_valid = self
                     .settings
@@ -233,6 +241,14 @@ impl LlamaLauncherApp {
                 }
                 if resp.clicked() {
                     self.rpc_manager.start(&self.settings);
+                }
+                // Error 状态时显示错误信息
+                if let RpcState::Error(err) = &rpc_state {
+                    ui.label(
+                        egui::RichText::new(err.text(&self.lang))
+                            .color(egui::Color32::from_rgb(255, 80, 80))
+                            .small(),
+                    );
                 }
             }
             RpcState::Running => {
@@ -457,23 +473,35 @@ impl LlamaLauncherApp {
                         self.render_rpc_controls(ui);
                         self.render_server_controls(ui);
 
-                        let rpc_running = self.rpc_manager.is_running();
-                        let r_color = if rpc_running {
-                            egui::Color32::from_rgb(110, 200, 255)
-                        } else {
-                            egui::Color32::GRAY
+                        let rpc_state = self.rpc_manager.state();
+                        let (r_color, rpc_error_text) = match &rpc_state {
+                            RpcState::Running => (egui::Color32::from_rgb(110, 200, 255), None),
+                            RpcState::Error(err) => (
+                                egui::Color32::from_rgb(255, 80, 80),
+                                Some(err.text(&self.lang)),
+                            ),
+                            _ => (egui::Color32::GRAY, None),
                         };
-                        ui.label(i18n::t(i18n::Key::TabRpc, &self.lang)); // 放大（原 small）
-                        widgets::status_dot(ui, r_color); // 尺寸在 widget 内放大
+                        ui.label(i18n::t(i18n::Key::TabRpc, &self.lang));
+                        let r_resp = widgets::status_dot(ui, r_color);
+                        if let Some(text) = &rpc_error_text {
+                            r_resp.on_hover_text(text);
+                        }
 
-                        let server_running = self.server_manager.is_running();
-                        let s_color = if server_running {
-                            egui::Color32::from_rgb(110, 255, 140)
-                        } else {
-                            egui::Color32::GRAY
+                        let server_state = self.server_manager.state();
+                        let (s_color, server_error_text) = match &server_state {
+                            ServerState::Running => (egui::Color32::from_rgb(110, 255, 140), None),
+                            ServerState::Error(err) => (
+                                egui::Color32::from_rgb(255, 80, 80),
+                                Some(err.text(&self.lang)),
+                            ),
+                            _ => (egui::Color32::GRAY, None),
                         };
-                        ui.label(i18n::t(i18n::Key::TabServer, &self.lang)); // 放大（原 small）
-                        widgets::status_dot(ui, s_color); // 尺寸在 widget 内放大
+                        ui.label(i18n::t(i18n::Key::TabServer, &self.lang));
+                        let s_resp = widgets::status_dot(ui, s_color);
+                        if let Some(text) = &server_error_text {
+                            s_resp.on_hover_text(text);
+                        }
                     });
                 });
             });

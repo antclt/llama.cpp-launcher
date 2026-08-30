@@ -157,8 +157,7 @@ pub fn ui(
         if settings.show_device_list {
             ui.label(i18n::t(i18n::Key::LabelDeviceListTitle, lang));
             if settings.device_list_output.is_empty()
-                || settings.device_list_output
-                    == i18n::t(i18n::Key::HintDeviceListEmpty, lang)
+                || settings.device_list_output == i18n::t(i18n::Key::HintDeviceListEmpty, lang)
             {
                 ui.label(i18n::t(i18n::Key::HintDeviceListEmpty, lang));
             } else {
@@ -178,11 +177,7 @@ pub fn ui(
                                     accent // 其他使用主题色
                                 };
                                 ui.horizontal(|ui| {
-                                    ui.label(
-                                        egui::RichText::new("●")
-                                            .color(dot_color)
-                                            .size(10.0),
-                                    );
+                                    ui.label(egui::RichText::new("●").color(dot_color).size(10.0));
                                     ui.label(
                                         egui::RichText::new(line)
                                             .color(ui.visuals().text_color())

@@ -234,10 +234,11 @@ pub fn segmented(ui: &mut Ui, options: &[&str], selected: &mut usize, _accent: C
 
 // ──── 状态点 ────
 
-pub fn status_dot(ui: &mut Ui, color: Color32) {
+pub fn status_dot(ui: &mut Ui, color: Color32) -> egui::Response {
     // 放大：14×14（原 10×10），更醒目
     let (resp, painter) = ui.allocate_painter(Vec2::new(14.0, 14.0), Sense::hover());
     painter.circle_filled(resp.rect.center(), 7.0, color);
+    resp
 }
 
 // ──── 侧边栏导航行 ────
