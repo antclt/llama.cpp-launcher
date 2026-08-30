@@ -543,7 +543,9 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                             let devices: Vec<String> = raw
                                 .lines()
                                 .filter(|line| {
-                                    line.starts_with(char::is_whitespace) && line.trim().contains(':')
+                                    line.starts_with(char::is_whitespace)
+                                        && line.trim().contains(':')
+                                        && !line.contains("Available devices")
                                 })
                                 .map(|line| line.trim().to_string())
                                 .collect();
