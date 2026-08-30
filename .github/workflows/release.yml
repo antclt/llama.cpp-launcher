@@ -36,7 +36,7 @@ jobs:
           Write-Host "检测到版本号: $version"
 
           New-Item -ItemType Directory -Path "dist" -Force
-          $exeName = "llama_cpp_launcher_v${version}.exe"
+          $exeName = "llama_cpp_launcher_v${version}_win_x64.exe"
           Copy-Item "target/release/llama_cpp_launcher.exe" -Destination "dist/$exeName"
           Write-Host "已重命名为: $exeName"
 
@@ -44,6 +44,43 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: llama-cpp-launcher-windows
+          path: dist/
+
+  build-windows-arm64:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-pc-windows-msvc
+
+      - name: Build release
+        run: cargo build --release --target aarch64-pc-windows-msvc
+
+      - name: Prepare artifacts
+        shell: pwsh
+        run: |
+          # 从 Cargo.toml 读取版本号
+          $toml = Get-Content "Cargo.toml" -Raw
+          if ($toml -match 'version\s*=\s*"([^"]+)"') {
+            $version = $Matches[1]
+          } else {
+            Write-Error "无法从 Cargo.toml 读取版本号"
+            exit 1
+          }
+          Write-Host "检测到版本号: $version"
+
+          New-Item -ItemType Directory -Path "dist" -Force
+          $exeName = "llama_cpp_launcher_v${version}_win_arm64.exe"
+          Copy-Item "target/aarch64-pc-windows-msvc/release/llama_cpp_launcher.exe" -Destination "dist/$exeName"
+          Write-Host "已重命名为: $exeName"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llama-cpp-launcher-windows-arm64
           path: dist/
 
   build-linux:
@@ -104,7 +141,7 @@ jobs:
           
           # 复制图标到 AppDir 根目录（解决 appimagetool 的报错）
           cp llama-cpp-launcher.png ${APPDIR}/llama-cpp-launcher.png
-  
+          
           # 复制图标到 Linux 标准图标目录（让系统能正确显示图标）
           cp llama-cpp-launcher.png ${APPDIR}/usr/share/icons/hicolor/256x256/apps/llama-cpp-launcher.png
           
@@ -173,7 +210,7 @@ jobs:
           path: dist/*.AppImage
 
   release:
-    needs: [ build-windows, build-linux ]
+    needs: [ build-windows, build-windows-arm64, build-linux ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -184,6 +221,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: llama-cpp-launcher-windows
+          path: dist/
+
+      - name: Download Windows ARM64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: llama-cpp-launcher-windows-arm64
           path: dist/
 
       - name: Download Linux x86_64 artifact
@@ -228,10 +271,10 @@ jobs:
           else
             # 获取两个 tag 之间的 commits
             echo "获取 $PREVIOUS_TAG 到 $CURRENT_TAG 之间的变更..."
-            
+          
             # 获取所有 commits
             COMMITS=$(git log ${PREVIOUS_TAG}..${CURRENT_TAG} --pretty=format:"- %s (%h)")
-            
+          
             # 按类型分类 commits
             FEATURES=$(echo "$COMMITS" | grep -i "^- feat" || true)
             FIXES=$(echo "$COMMITS" | grep -i "^- fix" || true)
@@ -241,40 +284,40 @@ jobs:
             TEST=$(echo "$COMMITS" | grep -i "^- test" || true)
             CHORE=$(echo "$COMMITS" | grep -i "^- chore\|^- build\|^- ci" || true)
             OTHER=$(echo "$COMMITS" | grep -vi "^- feat\|^- fix\|^- docs\|^- refactor\|^- perf\|^- test\|^- chore\|^- build\|^- ci" || true)
-            
+          
             # 构建 changelog
             if [ -n "$FEATURES" ]; then
               CHANGELOG+="### 🚀 Features\n${FEATURES}\n\n"
             fi
-            
+          
             if [ -n "$FIXES" ]; then
               CHANGELOG+="### 🐛 Bug Fixes\n${FIXES}\n\n"
             fi
-            
+          
             if [ -n "$DOCS" ]; then
               CHANGELOG+="### 📚 Documentation\n${DOCS}\n\n"
             fi
-            
+          
             if [ -n "$REFACTOR" ]; then
               CHANGELOG+="### ♻️ Refactoring\n${REFACTOR}\n\n"
             fi
-            
+          
             if [ -n "$PERF" ]; then
               CHANGELOG+="### ⚡ Performance\n${PERF}\n\n"
             fi
-            
+          
             if [ -n "$TEST" ]; then
               CHANGELOG+="### ✅ Tests\n${TEST}\n\n"
             fi
-            
+          
             if [ -n "$CHORE" ]; then
               CHANGELOG+="### 🔧 Maintenance\n${CHORE}\n\n"
             fi
-            
+          
             if [ -n "$OTHER" ]; then
               CHANGELOG+="### 📦 Other Changes\n${OTHER}\n\n"
             fi
-            
+          
             # 添加贡献者列表
             CHANGELOG+="### 👥 Contributors\n\n"
             CONTRIBUTORS=$(git log ${PREVIOUS_TAG}..${CURRENT_TAG} --pretty=format:"- @%an" | sort -u)
