@@ -1278,6 +1278,12 @@ pub struct AppSettings {
     #[serde(skip, default)]
     pub mcp_editor_error: String,
 
+    // RPC 设备列表 UI 状态（不序列化）
+    #[serde(skip, default)]
+    pub show_device_list: bool,
+    #[serde(skip, default)]
+    pub device_list_output: String,
+
     // 预设
     #[serde(default)]
     pub presets: Vec<Preset>,
@@ -1485,6 +1491,8 @@ impl Default for AppSettings {
             mcp_editor_open: false,
             mcp_editor_text: String::new(),
             mcp_editor_error: String::new(),
+            show_device_list: false,
+            device_list_output: String::new(),
             presets: Vec::new(),
             new_preset_name: String::new(),
             rename_preset_index: None,

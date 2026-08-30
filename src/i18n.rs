@@ -524,6 +524,9 @@ pub enum Key {
     ReleaseChannelLabel,
     ReleaseChannelStable,
     ReleaseChannelPreview,
+    BtnViewDeviceList,
+    LabelDeviceListTitle,
+    HintDeviceListEmpty,
 }
 
 impl Key {
@@ -1487,6 +1490,12 @@ impl Key {
             (Key::ReleaseChannelStable, &Language::En) => "Stable",
             (Key::ReleaseChannelPreview, &Language::Zh) => "预览版",
             (Key::ReleaseChannelPreview, &Language::En) => "Preview",
+            (Key::BtnViewDeviceList, &Language::Zh) => "查看设备列表",
+            (Key::BtnViewDeviceList, &Language::En) => "View Device List",
+            (Key::LabelDeviceListTitle, &Language::Zh) => "设备列表:",
+            (Key::LabelDeviceListTitle, &Language::En) => "Device List:",
+            (Key::HintDeviceListEmpty, &Language::Zh) => "暂无设备信息，请先配置 RPC Server 路径",
+            (Key::HintDeviceListEmpty, &Language::En) => "No device info. Configure RPC Server path first.",
         }
     }
 }
