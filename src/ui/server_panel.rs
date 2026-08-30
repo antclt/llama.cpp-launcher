@@ -398,10 +398,10 @@ pub fn ui(
                         .map(|s| s.trim())
                         .any(|s| s == local_addr);
                     if ui
-                        .add_enabled_ui(!already_added, |ui| {
-                            ui.button(i18n::t(i18n::Key::BtnAddLocalRpcClient, lang))
-                        })
-                        .response
+                        .add_enabled(
+                            !already_added,
+                            egui::Button::new(i18n::t(i18n::Key::BtnAddLocalRpcClient, lang)),
+                        )
                         .clicked()
                     {
                         let existing = settings.rpc_endpoints.trim().to_string();
