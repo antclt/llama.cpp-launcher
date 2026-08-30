@@ -488,6 +488,24 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     settings.override_tensor.clear();
                 }
             });
+            // NUMA 模式
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelNuma, lang));
+                let numa_vals = ["", "distribute", "isolate", "numactl"];
+                let numa_labels = [
+                    i18n::t(i18n::Key::LoadModeAuto, lang),
+                    numa_vals[1],
+                    numa_vals[2],
+                    numa_vals[3],
+                ];
+                let mut numa_idx = numa_vals
+                    .iter()
+                    .position(|v| *v == settings.numa)
+                    .unwrap_or(0);
+                widgets::segmented(ui, &numa_labels, &mut numa_idx, accent);
+                settings.numa = numa_vals[numa_idx].to_string();
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpNuma, lang));
+            });
             // 主 GPU（多卡时指定）
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelMainGpu, lang));
