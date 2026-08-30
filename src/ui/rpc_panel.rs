@@ -278,9 +278,7 @@ pub fn ui(
             i18n::t(i18n::Key::BtnRpcCacheSize, lang),
             format_size(cache_size)
         );
-        let btn_cache_size = egui::Button::new(
-            egui::RichText::new(&size_text).small(),
-        );
+        let btn_cache_size = egui::Button::new(egui::RichText::new(&size_text).small());
         ui.add(btn_cache_size);
 
         ui.add_space(4.0);

@@ -142,24 +142,23 @@ fn is_dflash_file(filename: &str) -> bool {
     filename.to_lowercase().contains("dflash")
 }
 
-/// 使用正则表达式匹配分片文件（.partNofM 或 .partNofM.gguf 模式）
+/// 使用正则表达式匹配分片文件（标准格式：name-NNNNN-of-NNNNN.gguf）
 fn is_shard_file(filename: &str) -> bool {
-    // 匹配 "model.gguf.part1of3" 或 "model.gguf.part1of3.gguf"
-    // 匹配 .partNofM 后缀（前面可以是任意字符）
-    regex::Regex::new(r"\.part\d+of\d+(?:\.gguf)?$").is_ok_and(|re| re.is_match(filename))
+    // 匹配 "my-model-00001-of-00003.gguf" 格式
+    // 标准命名：<name>-%05d-of-%05d.gguf
+    regex::Regex::new(r"-\d{5}-of-\d{5}\.gguf$").is_ok_and(|re| re.is_match(filename))
 }
 
-/// 提取分片文件的组名（.part 部分，不带数量）
-/// 用于分片合并：part1of3, part2of3, part3of3 → "part"
+/// 提取分片文件的组名（基础名称部分）
+/// 用于分片合并：my-model-00001-of-00003.gguf → "my-model"
 fn extract_shard_group(filename: &str) -> Option<String> {
-    // 匹配 .partNofM 或 .partNofM.gguf
-    regex::Regex::new(r"\.part(\d+)of(\d+)")
+    // 匹配标准格式：name-NNNNN-of-NNNNN.gguf
+    regex::Regex::new(r"-(\d{5})-of-(\d{5})\.gguf$")
         .ok()?
-        .captures(filename)
-        .and_then(|_caps| {
-            let before_part =
-                filename[..filename.find(".part").unwrap_or(filename.len())].to_string();
-            Some(format!("{}.part", before_part))
+        .find(filename)
+        .and_then(|m| {
+            let before_shard = &filename[..m.start()];
+            Some(before_shard.to_string())
         })
 }
 
@@ -215,10 +214,12 @@ mod tests {
 
     #[test]
     fn test_is_shard_file() {
-        assert!(is_shard_file("model.gguf.part1of3"));
-        assert!(is_shard_file("model.gguf.part2of3"));
+        // 标准格式：name-NNNNN-of-NNNNN.gguf
+        assert!(is_shard_file("my-model-00001-of-00003.gguf"));
+        assert!(is_shard_file("model-00002-of-00003.gguf"));
         assert!(!is_shard_file("model.gguf"));
         assert!(!is_shard_file("model.gguf.part-1"));
+        assert!(!is_shard_file("model-001-of-003.gguf")); // 非 5 位数
     }
 
     #[test]
@@ -231,10 +232,10 @@ mod tests {
         fs::write(path.join("model1.gguf"), b"test").unwrap();
         fs::write(path.join("model2.gguf"), b"test").unwrap();
 
-        // 创建分片文件
-        fs::write(path.join("model.gguf.part1of3"), b"part1").unwrap();
-        fs::write(path.join("model.gguf.part2of3"), b"part2").unwrap();
-        fs::write(path.join("model.gguf.part3of3"), b"part3").unwrap();
+        // 创建分片文件（标准格式）
+        fs::write(path.join("my-model-00001-of-00003.gguf"), b"part1").unwrap();
+        fs::write(path.join("my-model-00002-of-00003.gguf"), b"part2").unwrap();
+        fs::write(path.join("my-model-00003-of-00003.gguf"), b"part3").unwrap();
 
         // 创建 mmproj 文件（Main 模式下应被过滤）
         fs::write(path.join("proj.gguf.mmproj"), b"test").unwrap();
@@ -249,17 +250,17 @@ mod tests {
             .file_name()
             .unwrap()
             .to_string_lossy()
-            .ends_with("part1of3")));
+            .ends_with("00001-of-00003.gguf")));
         assert!(collected.iter().any(|p| p
             .file_name()
             .unwrap()
             .to_string_lossy()
-            .ends_with("part2of3")));
+            .ends_with("00002-of-00003.gguf")));
         assert!(collected.iter().any(|p| p
             .file_name()
             .unwrap()
             .to_string_lossy()
-            .ends_with("part3of3")));
+            .ends_with("00003-of-00003.gguf")));
 
         // 验证普通 .gguf 文件被正确收集
         assert!(collected.iter().any(|p| p
@@ -292,7 +293,7 @@ mod tests {
 
         // 在子目录中创建 .gguf 文件
         fs::write(subdir.join("sub_model.gguf"), b"test").unwrap();
-        fs::write(subdir.join("sub_part1of2.gguf"), b"part1").unwrap();
+        fs::write(subdir.join("sub_model-00001-of-00002.gguf"), b"part1").unwrap();
 
         let collected = collect_model_files(path, FileMode::Main);
 
@@ -307,7 +308,7 @@ mod tests {
             .file_name()
             .unwrap()
             .to_string_lossy()
-            .contains("part1of2")));
+            .contains("00001-of-00002")));
     }
 
     #[test]
@@ -329,10 +330,10 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let path = temp_dir.path();
 
-        // 创建分片文件
-        fs::write(path.join("model.gguf.part1of3"), b"part1").unwrap();
-        fs::write(path.join("model.gguf.part2of3"), b"part2").unwrap();
-        fs::write(path.join("model.gguf.part3of3"), b"part3").unwrap();
+        // 创建分片文件（标准格式）
+        fs::write(path.join("my-model-00001-of-00003.gguf"), b"part1").unwrap();
+        fs::write(path.join("my-model-00002-of-00003.gguf"), b"part2").unwrap();
+        fs::write(path.join("my-model-00003-of-00003.gguf"), b"part3").unwrap();
         // 创建普通 gguf 文件
         fs::write(path.join("another.gguf"), b"data").unwrap();
 
@@ -345,9 +346,9 @@ mod tests {
             .iter()
             .map(|e| e.file_name().unwrap().to_string_lossy().to_string())
             .collect();
-        assert!(filenames.contains(&"model.gguf.part1of3".to_string()));
-        assert!(filenames.contains(&"model.gguf.part2of3".to_string()));
-        assert!(filenames.contains(&"model.gguf.part3of3".to_string()));
+        assert!(filenames.contains(&"my-model-00001-of-00003.gguf".to_string()));
+        assert!(filenames.contains(&"my-model-00002-of-00003.gguf".to_string()));
+        assert!(filenames.contains(&"my-model-00003-of-00003.gguf".to_string()));
         assert!(filenames.contains(&"another.gguf".to_string()));
 
         // 验证 render_file_list 中的分片合并逻辑：
@@ -362,10 +363,10 @@ mod tests {
             }
         }
 
-        // 分片文件被分组到 "model.gguf.part"
+        // 分片文件被分组到 "my-model"
         assert_eq!(shard_map.len(), 1);
-        assert!(shard_map.contains_key("model.gguf.part"));
-        assert_eq!(shard_map.get("model.gguf.part").unwrap().len(), 3);
+        assert!(shard_map.contains_key("my-model"));
+        assert_eq!(shard_map.get("my-model").unwrap().len(), 3);
 
         // 普通文件未被分组
         assert!(!shard_map.contains_key("another.gguf"));
@@ -376,9 +377,9 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let path = temp_dir.path();
 
-        fs::write(path.join("model.gguf.part1of3"), vec![0u8; 1024]).unwrap();
-        fs::write(path.join("model.gguf.part2of3"), vec![0u8; 2048]).unwrap();
-        fs::write(path.join("model.gguf.part3of3"), vec![0u8; 512]).unwrap();
+        fs::write(path.join("my-model-00001-of-00003.gguf"), vec![0u8; 1024]).unwrap();
+        fs::write(path.join("my-model-00002-of-00003.gguf"), vec![0u8; 2048]).unwrap();
+        fs::write(path.join("my-model-00003-of-00003.gguf"), vec![0u8; 512]).unwrap();
 
         let entries = collect_model_files(path, FileMode::Main);
 
@@ -391,7 +392,7 @@ mod tests {
             }
         }
 
-        let shards = shard_map.get("model.gguf.part").unwrap();
+        let shards = shard_map.get("my-model").unwrap();
         let total_size: u64 = shards
             .iter()
             .map(|p| std::fs::metadata(p).map(|m| m.len()).unwrap_or(0))
@@ -589,8 +590,8 @@ fn render_file_list(
             for (base_name, shards) in shard_groups {
                 let total_count = shards.len();
                 let first_shard = shards.first().cloned().unwrap_or_default();
-                // 从文件名中提取总分片数（如 model.gguf.part1of3 → 3）
-                let total_shards = regex::Regex::new(r"\.part(\d+)of(\d+)")
+                // 从文件名中提取总分片数（如 my-model-00001-of-00003.gguf → 3）
+                let total_shards = regex::Regex::new(r"-\d{5}-of-(\d{5})\.gguf$")
                     .ok()
                     .and_then(|re| {
                         let fname = first_shard
@@ -598,7 +599,7 @@ fn render_file_list(
                             .map(|n| n.to_string_lossy().to_string())
                             .unwrap_or_default();
                         re.captures(&fname)
-                            .and_then(|caps| caps.get(2)?.as_str().parse::<usize>().ok())
+                            .and_then(|caps| caps.get(1)?.as_str().parse::<usize>().ok())
                     })
                     .unwrap_or(total_count);
 
@@ -655,12 +656,12 @@ fn render_file_list(
                     {
                         on_select(shards[0].clone());
                     }
-                    // 先计算显示名称（去掉 .partNofM 后缀）
+                    // 先计算显示名称（去掉 -NNNNN-of-NNNNN.gguf 后缀）
                     let relative = first_shard
                         .strip_prefix(dir)
                         .unwrap_or(&first_shard)
                         .to_string_lossy();
-                    let display_name = regex::Regex::new(r"\.part\d+of\d+(?:\.gguf)?$")
+                    let display_name = regex::Regex::new(r"-\d{5}-of-\d{5}\.gguf$")
                         .ok()
                         .and_then(|re| re.replace(&relative, "").into_owned().into())
                         .unwrap_or_else(|| relative.to_string());
