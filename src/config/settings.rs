@@ -647,7 +647,7 @@ impl Default for Preset {
         Self {
             name: String::new(),
             host: "127.0.0.1".to_string(),
-            port: 8080,
+            port: 9931,
             parallel_slots: 1,
             context: 4,       // 4k = 4096
             batch_size: 2,    // 2k = 2048
@@ -1382,7 +1382,7 @@ impl Default for AppSettings {
         Self {
             server_path: PathBuf::new(),
             host: "127.0.0.1".to_string(),
-            port: 8080,
+            port: 9931,
             parallel_slots: 1,
             model_path: PathBuf::new(),
             mmproj_path: PathBuf::new(),
@@ -1878,7 +1878,7 @@ mod tests {
     #[test]
     fn app_settings_download_variant_default() {
         assert_eq!(default_download_variant(), "cpu");
-        let json = r#"{"server_path":"","host":"127.0.0.1","port":8080,"parallel_slots":1,"model_path":"","mmproj_path":"","temperature":0.8,"top_p":0.95,"top_k":40,"repeat_penalty":1.1,"presence_penalty":0.0,"kv_offload":false,"cache_type_k":"f16","cache_type_v":"f16","kv_mlock":false,"kv_mmap":true,"kv_unified":false,"gpu_layers_mode":"auto","split_mode":"none","tensor_split":"","cpu_moe":false,"n_cpu_moe":0,"rpc_server_path":"","rpc_host":"127.0.0.1","rpc_port":50052,"rpc_threads":8,"rpc_device":"","rpc_cache":false,"verbose":false}"#;
+        let json = r#"{"server_path":"","host":"127.0.0.1","port":9931,"parallel_slots":1,"model_path":"","mmproj_path":"","temperature":0.8,"top_p":0.95,"top_k":40,"repeat_penalty":1.1,"presence_penalty":0.0,"kv_offload":false,"cache_type_k":"f16","cache_type_v":"f16","kv_mlock":false,"kv_mmap":true,"kv_unified":false,"gpu_layers_mode":"auto","split_mode":"none","tensor_split":"","cpu_moe":false,"n_cpu_moe":0,"rpc_server_path":"","rpc_host":"127.0.0.1","rpc_port":50052,"rpc_threads":8,"rpc_device":"","rpc_cache":false,"verbose":false}"#;
         let settings: AppSettings = serde_json::from_str(json).expect("旧格式配置应可反序列化");
         assert_eq!(settings.download_variant, "cpu");
     }
@@ -1962,7 +1962,7 @@ mod tests {
     /// 旧配置兼容：缺少 MCP 字段的配置反序列化后为默认值
     #[test]
     fn mcp_settings_default_compat() {
-        let json = r#"{"server_path":"","host":"127.0.0.1","port":8080,"parallel_slots":1,"model_path":"","mmproj_path":"","temperature":0.8,"top_p":0.95,"top_k":40,"repeat_penalty":1.1,"presence_penalty":0.0,"kv_offload":false,"cache_type_k":"f16","cache_type_v":"f16","kv_mlock":false,"kv_mmap":true,"kv_unified":false,"gpu_layers_mode":"auto","split_mode":"none","tensor_split":"","cpu_moe":false,"n_cpu_moe":0,"rpc_server_path":"","rpc_host":"127.0.0.1","rpc_port":50052,"rpc_threads":8,"rpc_device":"","rpc_cache":false,"verbose":false}"#;
+        let json = r#"{"server_path":"","host":"127.0.0.1","port":9931,"parallel_slots":1,"model_path":"","mmproj_path":"","temperature":0.8,"top_p":0.95,"top_k":40,"repeat_penalty":1.1,"presence_penalty":0.0,"kv_offload":false,"cache_type_k":"f16","cache_type_v":"f16","kv_mlock":false,"kv_mmap":true,"kv_unified":false,"gpu_layers_mode":"auto","split_mode":"none","tensor_split":"","cpu_moe":false,"n_cpu_moe":0,"rpc_server_path":"","rpc_host":"127.0.0.1","rpc_port":50052,"rpc_threads":8,"rpc_device":"","rpc_cache":false,"verbose":false}"#;
         let settings: AppSettings = serde_json::from_str(json).expect("旧格式配置应可反序列化");
         assert!(!settings.mcp_enabled);
         assert!(settings.mcp_config_json.is_empty());
