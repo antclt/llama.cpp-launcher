@@ -5,7 +5,6 @@ use poll_promise::Promise;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use egui::Id;
 
 // 跨帧持有的异步加载任务（Promise 不实现 Clone/Sync，无法存入 egui 临时数据）
 thread_local! {
@@ -154,10 +153,14 @@ fn is_shard_file(filename: &str) -> bool {
 /// 用于分片合并：part1of3, part2of3, part3of3 → "part"
 fn extract_shard_group(filename: &str) -> Option<String> {
     // 匹配 .partNofM 或 .partNofM.gguf
-    regex::Regex::new(r"\.part(\d+)of(\d+)").ok()?.captures(filename).and_then(|_caps| {
-        let before_part = filename[..filename.find(".part").unwrap_or(filename.len())].to_string();
-        Some(format!("{}.part", before_part))
-    })
+    regex::Regex::new(r"\.part(\d+)of(\d+)")
+        .ok()?
+        .captures(filename)
+        .and_then(|_caps| {
+            let before_part =
+                filename[..filename.find(".part").unwrap_or(filename.len())].to_string();
+            Some(format!("{}.part", before_part))
+        })
 }
 
 /// 递归收集模型文件。选中的目录及其所有子目录都会被扫描，
@@ -242,16 +245,40 @@ mod tests {
         assert_eq!(collected.len(), 5);
 
         // 验证分片文件被正确收集
-        assert!(collected.iter().any(|p| p.file_name().unwrap().to_string_lossy().ends_with("part1of3")));
-        assert!(collected.iter().any(|p| p.file_name().unwrap().to_string_lossy().ends_with("part2of3")));
-        assert!(collected.iter().any(|p| p.file_name().unwrap().to_string_lossy().ends_with("part3of3")));
+        assert!(collected.iter().any(|p| p
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .ends_with("part1of3")));
+        assert!(collected.iter().any(|p| p
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .ends_with("part2of3")));
+        assert!(collected.iter().any(|p| p
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .ends_with("part3of3")));
 
         // 验证普通 .gguf 文件被正确收集
-        assert!(collected.iter().any(|p| p.file_name().unwrap().to_string_lossy().ends_with("model1.gguf")));
-        assert!(collected.iter().any(|p| p.file_name().unwrap().to_string_lossy().ends_with("model2.gguf")));
+        assert!(collected.iter().any(|p| p
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .ends_with("model1.gguf")));
+        assert!(collected.iter().any(|p| p
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .ends_with("model2.gguf")));
 
         // mmproj 文件不应被收集
-        assert!(!collected.iter().any(|p| p.file_name().unwrap().to_string_lossy().ends_with(".mmproj")));
+        assert!(!collected.iter().any(|p| p
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .ends_with(".mmproj")));
     }
 
     #[test]
@@ -271,8 +298,16 @@ mod tests {
 
         // 子目录中的文件也应该被收集
         assert_eq!(collected.len(), 2);
-        assert!(collected.iter().any(|p| p.file_name().unwrap().to_string_lossy().contains("sub_model")));
-        assert!(collected.iter().any(|p| p.file_name().unwrap().to_string_lossy().contains("part1of2")));
+        assert!(collected.iter().any(|p| p
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .contains("sub_model")));
+        assert!(collected.iter().any(|p| p
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .contains("part1of2")));
     }
 
     #[test]
@@ -284,7 +319,8 @@ mod tests {
 
     #[test]
     fn test_collect_model_files_nonexistent_dir() {
-        let collected = collect_model_files(std::path::Path::new("/nonexistent/path"), FileMode::Main);
+        let collected =
+            collect_model_files(std::path::Path::new("/nonexistent/path"), FileMode::Main);
         assert!(collected.is_empty());
     }
 
@@ -305,7 +341,10 @@ mod tests {
         assert_eq!(entries.len(), 4);
 
         // 验证 collect_model_files 返回了所有文件（包括分片）
-        let filenames: Vec<_> = entries.iter().map(|e| e.file_name().unwrap().to_string_lossy().to_string()).collect();
+        let filenames: Vec<_> = entries
+            .iter()
+            .map(|e| e.file_name().unwrap().to_string_lossy().to_string())
+            .collect();
         assert!(filenames.contains(&"model.gguf.part1of3".to_string()));
         assert!(filenames.contains(&"model.gguf.part2of3".to_string()));
         assert!(filenames.contains(&"model.gguf.part3of3".to_string()));
@@ -319,10 +358,7 @@ mod tests {
             let filename = entry.file_name().unwrap().to_string_lossy().to_string();
             if is_shard_file(&filename) {
                 let shard_group = extract_shard_group(&filename).unwrap_or(filename.clone());
-                shard_map
-                    .entry(shard_group)
-                    .or_default()
-                    .push(entry);
+                shard_map.entry(shard_group).or_default().push(entry);
             }
         }
 
@@ -351,10 +387,7 @@ mod tests {
             let filename = entry.file_name().unwrap().to_string_lossy().to_string();
             if is_shard_file(&filename) {
                 let shard_group = extract_shard_group(&filename).unwrap_or(filename.clone());
-                shard_map
-                    .entry(shard_group)
-                    .or_default()
-                    .push(entry);
+                shard_map.entry(shard_group).or_default().push(entry);
             }
         }
 
@@ -517,10 +550,7 @@ fn render_file_list(
             .unwrap_or_default();
         if is_shard_file(&filename) {
             let shard_group = extract_shard_group(&filename).unwrap_or(filename.clone());
-            shard_groups
-                .entry(shard_group)
-                .or_default()
-                .push(entry);
+            shard_groups.entry(shard_group).or_default().push(entry);
         } else if filename.ends_with(".gguf") {
             normal_entries.push(entry);
         }
@@ -557,16 +587,20 @@ fn render_file_list(
 
             // 渲染分片合并条目
             for (base_name, shards) in shard_groups {
-                let total_size = shards
-                    .iter()
-                    .map(|p| std::fs::metadata(p).map(|m| m.len()).unwrap_or(0))
-                    .sum();
                 let total_count = shards.len();
                 let first_shard = shards.first().cloned().unwrap_or_default();
-                let filename = first_shard
-                    .file_name()
-                    .map(|n| n.to_string_lossy().to_string())
-                    .unwrap_or_default();
+                // 从文件名中提取总分片数（如 model.gguf.part1of3 → 3）
+                let total_shards = regex::Regex::new(r"\.part(\d+)of(\d+)")
+                    .ok()
+                    .and_then(|re| {
+                        let fname = first_shard
+                            .file_name()
+                            .map(|n| n.to_string_lossy().to_string())
+                            .unwrap_or_default();
+                        re.captures(&fname)
+                            .and_then(|caps| caps.get(2)?.as_str().parse::<usize>().ok())
+                    })
+                    .unwrap_or(total_count);
 
                 // 文件夹分组处理
                 let parent_dir = Path::new(&base_name)
@@ -614,28 +648,24 @@ fn render_file_list(
                     ui.add_space(pending_space);
                 }
                 ui.horizontal(|ui| {
-                    // 聚合按钮：点击后展开/收起分片列表
-                    let expanded_id = Id::new(format!("shard_{}", base_name));
-                    let mut expanded = ui.data(|data| data.get_temp::<bool>(expanded_id)).unwrap_or(false);
+                    // 单选按钮
                     if ui
-                        .add(
-                            egui::Button::new(egui::RichText::new("📦").size(14.0))
-                                .fill(egui::Color32::TRANSPARENT)
-                                .corner_radius(4.0),
-                        )
+                        .add(egui::RadioButton::new(selected_path == shards[0], ""))
                         .clicked()
                     {
-                        expanded = !expanded;
-                        ui.data_mut(|data| data.insert_temp(expanded_id, expanded));
+                        on_select(shards[0].clone());
                     }
-                    // 普通单选按钮（仅在未展开时显示）
-                    if !expanded {
-                        if ui.add(egui::RadioButton::new(selected_path == shards[0], "")).clicked() {
-                            on_select(shards[0].clone());
-                        }
-                    }
-                    // 标签（基于第一个分片生成）
-                    let tags = parse_tags(&filename);
+                    // 先计算显示名称（去掉 .partNofM 后缀）
+                    let relative = first_shard
+                        .strip_prefix(dir)
+                        .unwrap_or(&first_shard)
+                        .to_string_lossy();
+                    let display_name = regex::Regex::new(r"\.part\d+of\d+(?:\.gguf)?$")
+                        .ok()
+                        .and_then(|re| re.replace(&relative, "").into_owned().into())
+                        .unwrap_or_else(|| relative.to_string());
+                    // 标签（基于清理后的文件名生成）
+                    let tags = parse_tags(&display_name);
                     for (text, color) in &tags {
                         ui.add(
                             egui::Button::new(
@@ -646,17 +676,12 @@ fn render_file_list(
                         );
                     }
                     ui.separator();
-                    // 显示完整文件名（base 名 + partNofM）
-                    let relative = first_shard
-                        .strip_prefix(dir)
-                        .unwrap_or(&first_shard)
-                        .to_string_lossy();
                     ui.label(
-                        egui::RichText::new(relative.as_ref()).color(ui.visuals().weak_text_color()),
+                        egui::RichText::new(display_name).color(ui.visuals().weak_text_color()),
                     );
                     // 显示分片数量和总大小
                     ui.label(
-                        egui::RichText::new(format!("({}/{})", total_count, format_file_size(total_size)))
+                        egui::RichText::new(format!("({}/{})", total_count, total_shards))
                             .color(egui::Color32::from_rgb(180, 180, 180)),
                     );
                     // 详情按钮（点击第一个分片）

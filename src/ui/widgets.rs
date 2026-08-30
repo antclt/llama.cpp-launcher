@@ -46,7 +46,7 @@ pub enum NavIcon {
 pub fn card<R>(
     ui: &mut Ui,
     title: &str,
-    accent: Color32,
+    _accent: Color32,
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> R {
     let fill = ui.visuals().widgets.noninteractive.bg_fill;
@@ -69,9 +69,6 @@ pub fn card<R>(
         .show(ui, |ui| {
             ui.spacing_mut().item_spacing.y = 12.0;
             ui.horizontal(|ui| {
-                let (resp, painter) = ui.allocate_painter(Vec2::new(3.0, 14.0), Sense::hover());
-                painter.rect_filled(resp.rect, 2.0, accent);
-                ui.add_space(8.0);
                 ui.label(title);
             });
             ui.separator();

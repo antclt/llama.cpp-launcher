@@ -9,6 +9,13 @@ use std::thread;
 
 pub(crate) const MAX_LOG_LINES: usize = 10_000; // 日志环形缓冲区最大行数
 
+/// 使用正则表达式匹配分片文件（.partNofM 或 .partNofM.gguf 模式）
+fn is_shard_file(filename: &str) -> bool {
+    // 匹配 "model.gguf.part1of3" 或 "model.gguf.part1of3.gguf"
+    // 匹配 .partNofM 后缀（前面可以是任意字符）
+    regex::Regex::new(r"\.part\d+of\d+(?:\.gguf)?$").is_ok_and(|re| re.is_match(filename))
+}
+
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
@@ -245,6 +252,24 @@ impl ServerManager {
             return;
         }
 
+        // 检查模型路径是否为分片文件（如 model.gguf.part2of3）
+        let model_filename = model_path.file_name().unwrap_or_default().to_string_lossy();
+        let effective_model_path = if is_shard_file(&model_filename) {
+            // 直接将 .partNofM 替换为 .part1ofM
+            let re = regex::Regex::new(r"\.part(\d+)of(\d+)").unwrap();
+            let resolved = re.replace(&model_filename, |caps: &regex::Captures| {
+                let total = &caps[2];
+                format!(".part1of{}", total)
+            });
+            // 解析为完整路径（相对于模型目录）
+            model_path
+                .parent()
+                .map(|p| p.join(resolved.to_string()))
+                .unwrap_or_else(|| std::path::PathBuf::from(resolved.to_string()))
+        } else {
+            model_path.clone()
+        };
+
         if settings.port == settings.rpc_port {
             self.state = ServerState::Error(ErrorInfo::Key(i18n::Key::ErrPortConflict));
             return;
@@ -257,7 +282,7 @@ impl ServerManager {
 
         let mut cmd = Command::new(&server_path);
         cmd.arg("--model")
-            .arg(&model_path)
+            .arg(&effective_model_path)
             .arg("--host")
             .arg(&settings.host)
             .arg("--port")
