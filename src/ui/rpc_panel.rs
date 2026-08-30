@@ -167,10 +167,20 @@ pub fn ui(
                     .show(ui, |ui| {
                         for line in settings.device_list_output.lines() {
                             if !line.is_empty() {
+                                // 根据设备品牌设置圆点颜色
+                                let dot_color = if line.contains("AMD") {
+                                    egui::Color32::from_rgb(220, 50, 50) // AMD 红色
+                                } else if line.contains("NVIDIA") {
+                                    egui::Color32::from_rgb(50, 180, 50) // NVIDIA 绿色
+                                } else if line.contains("Intel") || line.contains("INTEL") {
+                                    egui::Color32::from_rgb(50, 100, 220) // Intel 蓝色
+                                } else {
+                                    accent // 其他使用主题色
+                                };
                                 ui.horizontal(|ui| {
                                     ui.label(
                                         egui::RichText::new("●")
-                                            .color(accent)
+                                            .color(dot_color)
                                             .size(10.0),
                                     );
                                     ui.label(
