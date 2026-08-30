@@ -140,6 +140,24 @@ fn is_dflash_file(filename: &str) -> bool {
     filename.to_lowercase().contains("dflash")
 }
 
+/// 使用正则表达式匹配分片文件（.partNofM 模式）
+fn is_shard_file(filename: &str) -> bool {
+    regex::Regex::new(r"\.part\d+of\d+").is_ok_and(|re| re.is_match(filename))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_shard_file() {
+        assert!(is_shard_file("model.gguf.part1of3"));
+        assert!(is_shard_file("model.gguf.part2of3"));
+        assert!(!is_shard_file("model.gguf"));
+        assert!(!is_shard_file("model.gguf.part-1"));
+    }
+}
+
 /// 递归收集模型文件。选中的目录及其所有子目录都会被扫描，
 /// 并跳过符号链接目录，避免循环引用导致界面卡住。
 fn collect_model_files(dir: &std::path::Path, mode: FileMode) -> Vec<std::path::PathBuf> {
