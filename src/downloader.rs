@@ -194,8 +194,12 @@ pub enum DownloadVariant {
     WinCpuArm64,
     /// Linux x64 CPU
     LinuxCpu,
+    /// Linux arm64 CPU
+    LinuxArm64,
     /// Linux x64 Vulkan
     LinuxVulkan,
+    /// Linux arm64 Vulkan
+    LinuxVulkanArm64,
     /// Linux x64 ROCm 7.14 Lemonade（携带 GPU 目标数据，如 "gfx103X"）
     LinuxRocmLemonade(String),
     /// Linux x64 ROCm 7.14（官方 ggml-org 版本）
@@ -218,7 +222,9 @@ impl DownloadVariant {
             DownloadVariant::WinVulkan => "bin-win-vulkan-x64".to_string(),
             DownloadVariant::WinCpuArm64 => "bin-win-cpu-arm64".to_string(),
             DownloadVariant::LinuxCpu => "bin-ubuntu-x64".to_string(),
+            DownloadVariant::LinuxArm64 => "bin-ubuntu-arm64".to_string(),
             DownloadVariant::LinuxVulkan => "bin-ubuntu-vulkan-x64".to_string(),
+            DownloadVariant::LinuxVulkanArm64 => "bin-ubuntu-vulkan-arm64".to_string(),
             // Linux ROCm 7.14 Lemonade（携带 GPU 目标数据，使用 zip 格式）
             DownloadVariant::LinuxRocmLemonade(gpu_target) => {
                 format!("llama-.*-ubuntu-rocm-{}-x64\\.zip", gpu_target)
@@ -242,7 +248,9 @@ impl DownloadVariant {
     pub fn extension(&self) -> &'static str {
         match self {
             DownloadVariant::LinuxCpu
+            | DownloadVariant::LinuxArm64
             | DownloadVariant::LinuxVulkan
+            | DownloadVariant::LinuxVulkanArm64
             | DownloadVariant::LinuxRocm714 => ".tar.gz",
             // lemonade-sdk 的 Linux 版本也使用 zip 格式
             DownloadVariant::LinuxRocmLemonade(_) => ".zip",
@@ -282,7 +290,11 @@ impl DownloadVariant {
             }
             "vulkan" => {
                 if is_linux {
-                    DownloadVariant::LinuxVulkan
+                    if cfg!(target_arch = "aarch64") {
+                        DownloadVariant::LinuxVulkanArm64
+                    } else {
+                        DownloadVariant::LinuxVulkan
+                    }
                 } else {
                     DownloadVariant::WinVulkan
                 }
@@ -290,7 +302,11 @@ impl DownloadVariant {
             // 兼容旧版 "gpu"
             "gpu" => {
                 if is_linux {
-                    DownloadVariant::LinuxVulkan
+                    if cfg!(target_arch = "aarch64") {
+                        DownloadVariant::LinuxVulkanArm64
+                    } else {
+                        DownloadVariant::LinuxVulkan
+                    }
                 } else {
                     DownloadVariant::WinCuda124
                 }
@@ -298,7 +314,11 @@ impl DownloadVariant {
             // CPU 兜底
             _ => {
                 if is_linux {
-                    DownloadVariant::LinuxCpu
+                    if cfg!(target_arch = "aarch64") {
+                        DownloadVariant::LinuxArm64
+                    } else {
+                        DownloadVariant::LinuxCpu
+                    }
                 } else if cfg!(target_arch = "aarch64") {
                     DownloadVariant::WinCpuArm64
                 } else {
@@ -1147,6 +1167,23 @@ mod tests {
     }
 
     #[test]
+    fn pick_asset_linux_arm64_cpu_vs_vulkan() {
+        let assets = vec![
+            asset("llama-b10549-bin-ubuntu-vulkan-arm64.tar.gz"),
+            asset("llama-b10549-bin-ubuntu-arm64.tar.gz"),
+        ];
+        let cpu =
+            pick_asset(&assets, &DownloadVariant::LinuxArm64).expect("应匹配 Linux ARM64 CPU 资产");
+        assert_eq!(cpu.name, "llama-b10549-bin-ubuntu-arm64.tar.gz");
+        let vulkan = pick_asset(&assets, &DownloadVariant::LinuxVulkanArm64)
+            .expect("应匹配 Linux ARM64 Vulkan 资产");
+        assert_eq!(vulkan.name, "llama-b10549-bin-ubuntu-vulkan-arm64.tar.gz");
+        // x64 变体不应命中 arm64 资产
+        assert!(pick_asset(&[assets[1].clone()], &DownloadVariant::LinuxCpu).is_none());
+        assert!(pick_asset(&[assets[0].clone()], &DownloadVariant::LinuxVulkan).is_none());
+    }
+
+    #[test]
     fn pick_asset_win_rocm_and_vulkan() {
         let assets = vec![
             asset("llama-b10549-windows-rocm-gfx1030-x64.zip"),
@@ -1165,23 +1202,34 @@ mod tests {
     fn from_settings_value_gpu_variants() {
         // 平台相关的断言按当前编译目标条件化，保证跨平台可编译
         if cfg!(target_os = "linux") {
+            // Linux: CPU 和 Vulkan 根据架构自动选择变体
+            let expected_cpu = if cfg!(target_arch = "aarch64") {
+                DownloadVariant::LinuxArm64
+            } else {
+                DownloadVariant::LinuxCpu
+            };
+            let expected_vulkan = if cfg!(target_arch = "aarch64") {
+                DownloadVariant::LinuxVulkanArm64
+            } else {
+                DownloadVariant::LinuxVulkan
+            };
             assert_eq!(
                 DownloadVariant::from_settings_value("cpu"),
-                DownloadVariant::LinuxCpu
+                expected_cpu
             );
             assert_eq!(
                 DownloadVariant::from_settings_value("vulkan"),
-                DownloadVariant::LinuxVulkan
+                expected_vulkan
             );
             // 兼容旧版 "gpu"
             assert_eq!(
                 DownloadVariant::from_settings_value("gpu"),
-                DownloadVariant::LinuxVulkan
+                expected_vulkan
             );
             // Linux 现在支持 CUDA/ROCm 变体
             assert_eq!(
                 DownloadVariant::from_settings_value("cuda133"),
-                DownloadVariant::LinuxCpu
+                expected_cpu // CUDA 仅 Windows，Linux 回退到 CPU
             );
             assert_eq!(
                 DownloadVariant::from_settings_value("rocm_lemonade"),
