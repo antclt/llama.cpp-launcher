@@ -506,6 +506,10 @@ impl ServerManager {
         if settings.main_gpu != 0 {
             cmd.arg("--main-gpu").arg(settings.main_gpu.to_string());
         }
+        // 设备（多卡时指定）
+        if !settings.device.is_empty() {
+            cmd.arg("--device").arg(&settings.device);
+        }
         // 长上下文 / 提示缓存
         if settings.cache_prompt {
             cmd.arg("--cache-prompt");

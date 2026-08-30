@@ -465,6 +465,8 @@ pub struct Preset {
     pub seed: i64, // --seed (-1 不拼接)
     #[serde(default = "default_main_gpu")]
     pub main_gpu: i64, // --main-gpu
+    #[serde(default)]
+    pub device: String, // --device
 
     // ── 采样器扩展（近新版本加入）──
     #[serde(default)]
@@ -671,6 +673,7 @@ impl Default for Preset {
             keep: default_keep_tokens(),
             seed: default_seed(),
             main_gpu: default_main_gpu(),
+            device: String::new(),
             enable_min_p: false,
             min_p: default_min_p(),
             enable_top_n_sigma: false,
@@ -784,6 +787,7 @@ impl Preset {
             keep: settings.keep,
             seed: settings.seed,
             main_gpu: settings.main_gpu,
+            device: settings.device.clone(),
             enable_min_p: settings.enable_min_p,
             min_p: settings.min_p,
             enable_top_n_sigma: settings.enable_top_n_sigma,
@@ -895,6 +899,7 @@ impl Preset {
         settings.keep = self.keep;
         settings.seed = self.seed;
         settings.main_gpu = self.main_gpu;
+        settings.device = self.device.clone();
         // 采样器扩展
         settings.enable_min_p = self.enable_min_p;
         settings.min_p = self.min_p;
@@ -1097,6 +1102,8 @@ pub struct AppSettings {
     pub seed: i64, // --seed (-1 不拼接)
     #[serde(default = "default_main_gpu")]
     pub main_gpu: i64, // --main-gpu
+    #[serde(default)]
+    pub device: String, // --device
 
     // ── 采样器扩展（近新版本加入）──
     #[serde(default)]
@@ -1284,6 +1291,12 @@ pub struct AppSettings {
     #[serde(skip, default)]
     pub device_list_output: String,
 
+    // Server 设备列表 UI 状态（不序列化）
+    #[serde(skip, default)]
+    pub show_server_device_list: bool,
+    #[serde(skip, default)]
+    pub server_device_list_output: String,
+
     // 预设
     #[serde(default)]
     pub presets: Vec<Preset>,
@@ -1411,6 +1424,7 @@ impl Default for AppSettings {
             keep: default_keep_tokens(),
             seed: default_seed(),
             main_gpu: default_main_gpu(),
+            device: String::new(),
             enable_min_p: false,
             min_p: default_min_p(),
             enable_top_n_sigma: false,
@@ -1493,6 +1507,8 @@ impl Default for AppSettings {
             mcp_editor_error: String::new(),
             show_device_list: false,
             device_list_output: String::new(),
+            show_server_device_list: false,
+            server_device_list_output: String::new(),
             presets: Vec::new(),
             new_preset_name: String::new(),
             rename_preset_index: None,

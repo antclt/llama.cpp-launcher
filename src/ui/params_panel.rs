@@ -488,6 +488,118 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     settings.override_tensor.clear();
                 }
             });
+            // 主 GPU（多卡时指定）
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelMainGpu, lang));
+                ui.add(egui::DragValue::new(&mut settings.main_gpu).range(0..=16));
+                ui.small(i18n::t(i18n::Key::HintMainGpuFirst, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMainGpu, lang));
+            });
+            // 设备（多卡时指定）
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelServerDevice, lang));
+                ui.text_edit_singleline(&mut settings.device);
+                ui.small(i18n::t(i18n::Key::HintServerDevice, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpServerDevice, lang));
+            });
+            // 查看设备列表按钮
+            let server_available = !settings.server_path.as_os_str().is_empty()
+                && settings
+                    .server_path
+                    .file_name()
+                    .map(|f| f.to_string_lossy().contains("llama-server"))
+                    .unwrap_or(false);
+            let btn = ui.add_enabled(
+                server_available,
+                egui::Button::new(i18n::t(i18n::Key::BtnViewServerDeviceList, lang)),
+            );
+            if btn.clicked() {
+                if settings.show_server_device_list {
+                    settings.show_server_device_list = false;
+                } else {
+                    // 执行 llama-server.exe --list-devices 获取设备列表
+                    settings.server_device_list_output.clear();
+                    let mut cmd = std::process::Command::new(&settings.server_path);
+                    cmd.arg("--list-devices")
+                        .stdout(std::process::Stdio::piped())
+                        .stderr(std::process::Stdio::piped());
+                    #[cfg(target_os = "windows")]
+                    {
+                        use std::os::windows::process::CommandExt;
+                        cmd.creation_flags(0x0800_0000u32);
+                    }
+                    match cmd.output() {
+                        Ok(output) => {
+                            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                            let raw = if !stdout.is_empty() {
+                                stdout
+                            } else if !stderr.is_empty() {
+                                stderr
+                            } else {
+                                String::new()
+                            };
+                            // 只保留设备行：缩进且含 ":" 的行（如 "CUDA0: NVIDIA RTX 3090 (24576 MiB)"）
+                            let devices: Vec<String> = raw
+                                .lines()
+                                .filter(|line| {
+                                    line.starts_with(char::is_whitespace) && line.trim().contains(':')
+                                })
+                                .map(|line| line.trim().to_string())
+                                .collect();
+                            if devices.is_empty() {
+                                settings.server_device_list_output =
+                                    i18n::t(i18n::Key::HintServerDeviceListEmpty, lang).to_string();
+                            } else {
+                                settings.server_device_list_output = devices.join("\n");
+                            }
+                        }
+                        Err(e) => {
+                            settings.server_device_list_output = format!("执行失败: {}", e);
+                        }
+                    }
+                    settings.show_server_device_list = true;
+                }
+            }
+            // 设备列表输出区域
+            if settings.show_server_device_list {
+                ui.label(i18n::t(i18n::Key::LabelDeviceListTitle, lang));
+                if settings.server_device_list_output.is_empty()
+                    || settings.server_device_list_output
+                        == i18n::t(i18n::Key::HintServerDeviceListEmpty, lang)
+                {
+                    ui.label(i18n::t(i18n::Key::HintServerDeviceListEmpty, lang));
+                } else {
+                    egui::ScrollArea::vertical()
+                        .max_height(200.0)
+                        .show(ui, |ui| {
+                            for line in settings.server_device_list_output.lines() {
+                                if !line.is_empty() {
+                                    // 根据设备品牌设置圆点颜色
+                                    let dot_color = if line.contains("AMD") {
+                                        egui::Color32::from_rgb(220, 50, 50) // AMD 红色
+                                    } else if line.contains("NVIDIA") {
+                                        egui::Color32::from_rgb(50, 180, 50) // NVIDIA 绿色
+                                    } else if line.contains("Intel") || line.contains("INTEL") {
+                                        egui::Color32::from_rgb(50, 100, 220) // Intel 蓝色
+                                    } else {
+                                        accent // 其他使用主题色
+                                    };
+                                    ui.horizontal(|ui| {
+                                        ui.label(
+                                            egui::RichText::new("●").color(dot_color).size(10.0),
+                                        );
+                                        ui.label(
+                                            egui::RichText::new(line)
+                                                .color(ui.visuals().text_color())
+                                                .size(13.0),
+                                        );
+                                    });
+                                }
+                            }
+                        });
+                }
+            }
         },
     );
 
@@ -804,12 +916,6 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             );
             ui.small(i18n::t(i18n::Key::HintSeedRandom, lang));
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSeed, lang));
-        });
-        ui.horizontal(|ui| {
-            ui.label(i18n::t(i18n::Key::LabelMainGpu, lang));
-            ui.add(egui::DragValue::new(&mut settings.main_gpu).range(0..=16));
-            ui.small(i18n::t(i18n::Key::HintMainGpuFirst, lang));
-            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMainGpu, lang));
         });
     });
 
