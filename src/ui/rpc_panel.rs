@@ -3,6 +3,35 @@ use crate::engine::rpc::RpcManager;
 use crate::i18n;
 use crate::ui::widgets;
 
+/// 返回平台特定的 RPC 本地文件缓存目录
+fn rpc_cache_dir() -> std::path::PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
+            std::path::PathBuf::from(local_app_data)
+                .join("llama.cpp")
+                .join("rpc")
+        } else {
+            std::path::PathBuf::from(r"C:\Users\Default\AppData\Local\llama.cpp\rpc")
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(home) = std::env::var_os("HOME") {
+            std::path::PathBuf::from(home)
+                .join(".cache")
+                .join("llama.cpp")
+                .join("rpc")
+        } else {
+            std::path::PathBuf::from("/tmp/llama.cpp/rpc")
+        }
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    {
+        std::path::PathBuf::from("/tmp/llama.cpp/rpc")
+    }
+}
+
 pub fn ui(
     ui: &mut egui::Ui,
     settings: &mut AppSettings,
@@ -200,5 +229,20 @@ pub fn ui(
             i18n::t(i18n::Key::CheckboxRpcCache, lang),
             accent,
         );
+
+        ui.add_space(4.0);
+
+        if ui
+            .button(i18n::t(i18n::Key::BtnClearRpcCache, lang))
+            .clicked()
+        {
+            let cache_dir = rpc_cache_dir();
+            if cache_dir.exists() {
+                match std::fs::remove_dir_all(&cache_dir) {
+                    Ok(()) => log::info!("已清除 RPC 缓存目录: {}", cache_dir.display()),
+                    Err(e) => log::error!("清除 RPC 缓存目录失败: {} - {}", cache_dir.display(), e),
+                }
+            }
+        }
     });
 }

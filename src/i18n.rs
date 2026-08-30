@@ -132,6 +132,7 @@ pub enum Key {
     LabelRpcDevice,
     HintRpcDevice,
     CheckboxRpcCache,
+    BtnClearRpcCache,
     DialogSelectRpc,
     BtnAutoAuthorize,
 
@@ -767,6 +768,8 @@ impl Key {
             (Key::HintRpcDevice, &Language::En) => "Comma separated, e.g. 0,1",
             (Key::CheckboxRpcCache, &Language::Zh) => "启用本地文件缓存 (--cache)",
             (Key::CheckboxRpcCache, &Language::En) => "Enable local file cache (--cache)",
+            (Key::BtnClearRpcCache, &Language::Zh) => "清除本地文件缓存",
+            (Key::BtnClearRpcCache, &Language::En) => "Clear Local File Cache",
     (Key::DialogSelectRpc, &Language::Zh) => "选择 ggml-rpc-server 可执行文件",
     (Key::DialogSelectRpc, &Language::En) => "Select ggml-rpc-server executable",
             (Key::BtnAutoAuthorize, &Language::Zh) => "自动授权",
