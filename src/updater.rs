@@ -312,22 +312,31 @@ fn fetch_release() -> Result<ReleaseInfo, String> {
 }
 
 /// 匹配当前平台的 launcher 资产
-/// - Windows: llama_cpp_launcher_v*.exe
+/// - Windows x64: llama_cpp_launcher_v*.exe
+/// - Windows arm64: llama_cpp_launcher_v*_arm64.exe
 /// - Linux: llama_cpp_launcher_v*_linux_{arch}.tar.gz
 fn pick_launcher_asset(assets: &[ReleaseAsset]) -> Option<&ReleaseAsset> {
     let is_linux = cfg!(target_os = "linux");
-    let arch = get_arch();
+    let is_arm64 = cfg!(target_arch = "aarch64");
 
     assets.iter().find(|a| {
         if is_linux {
             // Linux: 匹配 llama_cpp_launcher_v*_linux_{arch}.tar.gz
+            let arch = get_arch();
             a.name.starts_with("llama_cpp_launcher_v")
                 && a.name.contains("_linux_")
                 && a.name.contains(arch)
                 && a.name.ends_with(".tar.gz")
+        } else if is_arm64 {
+            // Windows arm64: 匹配 llama_cpp_launcher_v*_arm64.exe
+            a.name.starts_with("llama_cpp_launcher_v")
+                && a.name.contains("_arm64")
+                && a.name.ends_with(".exe")
         } else {
-            // Windows: 匹配 llama_cpp_launcher_v*.exe
-            a.name.starts_with("llama_cpp_launcher_v") && a.name.ends_with(".exe")
+            // Windows x64: 匹配 llama_cpp_launcher_v*.exe（排除 _arm64）
+            a.name.starts_with("llama_cpp_launcher_v")
+                && a.name.ends_with(".exe")
+                && !a.name.contains("_arm64")
         }
     })
 }
