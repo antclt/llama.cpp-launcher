@@ -137,6 +137,11 @@ pub fn ui(
                         "cuda133".to_string(),
                         i18n::t(i18n::Key::VariantGpuCuda133, lang),
                     );
+                    ui.selectable_value(
+                        &mut settings.download_variant,
+                        "cuda134".to_string(),
+                        i18n::t(i18n::Key::VariantGpuCuda134, lang),
+                    );
                 }
                 ui.selectable_value(
                     &mut settings.download_variant,

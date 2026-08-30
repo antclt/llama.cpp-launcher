@@ -184,6 +184,8 @@ pub enum DownloadVariant {
     WinCuda124,
     /// Windows x64 CUDA 13.3
     WinCuda133,
+    /// Windows arm64 CUDA 13.4
+    WinCuda134Arm64,
     /// Windows x64 ROCm 7.14 Lemonade（携带 GPU 目标数据，如 "gfx103X"）
     WinRocmLemonade(String),
     /// Windows x64 ROCm 7.14（官方 ggml-org 版本）
@@ -214,6 +216,7 @@ impl DownloadVariant {
             DownloadVariant::WinCpu => "bin-win-cpu-x64".to_string(),
             DownloadVariant::WinCuda124 => "bin-win-cuda-12.4-x64".to_string(),
             DownloadVariant::WinCuda133 => "bin-win-cuda-13.3-x64".to_string(),
+            DownloadVariant::WinCuda134Arm64 => "bin-win-cuda-13.4-arm64".to_string(),
             DownloadVariant::WinRocmLemonade(gpu_target) => {
                 format!("llama-.*-windows-rocm-{}-x64\\.zip", gpu_target)
             }
@@ -274,6 +277,15 @@ impl DownloadVariant {
         match value {
             "cuda124" if !is_linux => DownloadVariant::WinCuda124,
             "cuda133" if !is_linux => DownloadVariant::WinCuda133,
+            // CUDA 13.4：仅 Windows，根据架构自动选择
+            "cuda134" if !is_linux => {
+                if cfg!(target_arch = "aarch64") {
+                    DownloadVariant::WinCuda134Arm64
+                } else {
+                    // x64 回退到 CUDA 13.3
+                    DownloadVariant::WinCuda133
+                }
+            }
             "rocm_lemonade" => {
                 if is_linux {
                     DownloadVariant::LinuxRocmLemonade(gpu_target.to_string())
@@ -977,16 +989,17 @@ pub fn pick_asset<'a>(assets: &'a [Asset], variant: &'a DownloadVariant) -> Opti
     })
 }
 
-/// 按 CUDA 版本匹配 cudart 资产（cudart-llama-bin-win-cuda-{version}-x64.zip）
+/// 按 CUDA 版本匹配 cudart 资产（cudart-llama-bin-win-cuda-{version}-{arch}.zip）
 /// 用于在主下载完成后额外下载 CUDA runtime 库
 fn pick_cudart_asset<'a>(assets: &'a [Asset], variant: &DownloadVariant) -> Option<&'a Asset> {
     // 仅 CUDA 变体有效
-    let cuda_version = match variant {
-        DownloadVariant::WinCuda124 => "12.4",
-        DownloadVariant::WinCuda133 => "13.3",
+    let (cuda_version, arch) = match variant {
+        DownloadVariant::WinCuda124 => ("12.4", "x64"),
+        DownloadVariant::WinCuda133 => ("13.3", "x64"),
+        DownloadVariant::WinCuda134Arm64 => ("13.4", "arm64"),
         _ => return None,
     };
-    let prefix = format!("cudart-llama-bin-win-cuda-{}-x64", cuda_version);
+    let prefix = format!("cudart-llama-bin-win-cuda-{}-{}", cuda_version, arch);
     assets
         .iter()
         .find(|a| a.name.starts_with(&prefix) && a.name.ends_with(".zip"))
@@ -1271,6 +1284,57 @@ mod tests {
                 DownloadVariant::from_settings_value("gpu"),
                 DownloadVariant::WinCuda124
             );
+        }
+    }
+
+    #[test]
+    fn pick_asset_win_cuda134_arm64() {
+        let assets = vec![
+            asset("llama-b10690-bin-win-cuda-13.4-arm64.zip"),
+            asset("llama-b10690-bin-win-cuda-13.3-x64.zip"),
+            asset("llama-b10690-bin-win-cuda-12.4-x64.zip"),
+        ];
+        let cuda134_arm64 = pick_asset(&assets, &DownloadVariant::WinCuda134Arm64)
+            .expect("应匹配 Win CUDA 13.4 ARM64 资产");
+        assert_eq!(cuda134_arm64.name, "llama-b10690-bin-win-cuda-13.4-arm64.zip");
+        // x64 变体不应命中 arm64 资产
+        assert!(pick_asset(&[assets[0].clone()], &DownloadVariant::WinCuda133).is_none());
+    }
+
+    #[test]
+    fn pick_cudart_asset_win_cuda134_arm64() {
+        let assets = vec![
+            asset("cudart-llama-bin-win-cuda-13.4-arm64.zip"),
+            asset("cudart-llama-bin-win-cuda-13.3-x64.zip"),
+            asset("cudart-llama-bin-win-cuda-12.4-x64.zip"),
+        ];
+        let cudart = pick_cudart_asset(&assets, &DownloadVariant::WinCuda134Arm64)
+            .expect("应匹配 CUDA 13.4 ARM64 cudart 资产");
+        assert_eq!(cudart.name, "cudart-llama-bin-win-cuda-13.4-arm64.zip");
+        // 其他变体不应匹配
+        assert!(pick_cudart_asset(&[assets[0].clone()], &DownloadVariant::WinCuda133).is_none());
+        assert!(pick_cudart_asset(&[assets[0].clone()], &DownloadVariant::WinCuda124).is_none());
+    }
+
+    #[test]
+    fn from_settings_value_cuda134() {
+        // Windows 平台根据架构自动选择
+        if !cfg!(target_os = "linux") {
+            let expected = if cfg!(target_arch = "aarch64") {
+                DownloadVariant::WinCuda134Arm64
+            } else {
+                // x64 回退到 CUDA 13.3
+                DownloadVariant::WinCuda133
+            };
+            assert_eq!(DownloadVariant::from_settings_value("cuda134"), expected);
+        } else {
+            // Linux 回退到 CPU
+            let expected = if cfg!(target_arch = "aarch64") {
+                DownloadVariant::LinuxArm64
+            } else {
+                DownloadVariant::LinuxCpu
+            };
+            assert_eq!(DownloadVariant::from_settings_value("cuda134"), expected);
         }
     }
 
