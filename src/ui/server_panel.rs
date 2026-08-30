@@ -208,6 +208,19 @@ pub fn ui(
                 });
             }
 
+            // 下载内嵌 CUDA 库开关：仅 Windows + CUDA 12/13 变体时显示
+            if cfg!(target_os = "windows")
+                && (settings.download_variant == "cuda124"
+                    || settings.download_variant == "cuda133")
+            {
+                ui.horizontal(|ui| {
+                    ui.checkbox(
+                        &mut settings.download_cuda_lib,
+                        i18n::t(i18n::Key::CudaLibDownloadLabel, lang),
+                    );
+                });
+            }
+
             // 下载 llama.cpp + 检查更新：单独一行
             ui.horizontal(|ui| {
                 if ui
@@ -221,6 +234,7 @@ pub fn ui(
                         settings_manager.config_dir().to_path_buf(),
                         variant,
                         settings.release_channel.clone(),
+                        settings.download_cuda_lib,
                     );
                 }
 

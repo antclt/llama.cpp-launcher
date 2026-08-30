@@ -403,6 +403,10 @@ fn default_release_channel() -> String {
     "stable".to_string()
 }
 
+fn default_true() -> bool {
+    true
+}
+
 // Duplicate definition removed - keeping only one instance above
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Preset {
@@ -1364,6 +1368,11 @@ pub struct AppSettings {
     #[serde(default = "default_rocm_gpu_target")]
     pub rocm_gpu_target: String,
 
+    // 下载内嵌 CUDA 库开关（仅 Windows + CUDA 12/13 变体时有效）
+    // 开启时额外下载 cudart-llama-bin-win-cuda-{version}-x64.zip 并解压到 llama/ 目录
+    #[serde(default = "default_true")]
+    pub download_cuda_lib: bool,
+
     // llama.cpp 版本信息（不序列化，运行时缓存）
     #[serde(skip, default)]
     pub llama_version: String,
@@ -1525,6 +1534,7 @@ impl Default for AppSettings {
             download_variant: default_download_variant(),
             release_channel: default_release_channel(),
             rocm_gpu_target: default_rocm_gpu_target(),
+            download_cuda_lib: true,
             auto_start_preset_name: None,
             llama_version: String::new(),
             update_available: None,

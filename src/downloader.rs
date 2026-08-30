@@ -378,6 +378,7 @@ impl DownloadHandle {
         base_dir: PathBuf,
         variant: DownloadVariant,
         release_channel: String,
+        download_cuda_lib: bool,
     ) {
         {
             let mut st = self.status.lock().unwrap();
@@ -398,7 +399,14 @@ impl DownloadHandle {
         let handle = match thread::Builder::new()
             .name("llama-cpp-downloader".to_string())
             .spawn(move || {
-                download_in_background(base_dir, variant, release_channel, cancel, status)
+                download_in_background(
+                    base_dir,
+                    variant,
+                    release_channel,
+                    download_cuda_lib,
+                    cancel,
+                    status,
+                )
             }) {
             Ok(h) => h,
             Err(e) => {
@@ -537,10 +545,18 @@ pub fn download_in_background(
     base_dir: PathBuf,
     variant: DownloadVariant,
     release_channel: String,
+    download_cuda_lib: bool,
     cancel: Arc<AtomicBool>,
     status: Arc<Mutex<DownloadStatus>>,
 ) {
-    match run_download(&base_dir, variant, &release_channel, &cancel, &status) {
+    match run_download(
+        &base_dir,
+        variant,
+        &release_channel,
+        download_cuda_lib,
+        &cancel,
+        &status,
+    ) {
         Ok(path) => {
             let mut st = status.lock().unwrap();
             // 若流程中被取消（解压/定位阶段不检查取消，可能正常完成），按 Idle 处理
@@ -567,6 +583,7 @@ fn run_download(
     base_dir: &Path,
     variant: DownloadVariant,
     release_channel: &str,
+    download_cuda_lib: bool,
     cancel: &AtomicBool,
     status: &Arc<Mutex<DownloadStatus>>,
 ) -> Result<String, String> {
@@ -689,6 +706,88 @@ fn run_download(
     } else if asset.name.ends_with(".tar.gz") {
         extract_tar_gz(&archive_path, &llama_dir)
             .map_err(|e| format!("extract tar.gz failed: {}", e))?;
+    }
+
+    // 4.5) 额外下载 CUDA runtime 库（仅 Windows + CUDA 变体 + 用户开启时）
+    if download_cuda_lib && cfg!(target_os = "windows") {
+        if let Some(cudart_asset) = pick_cudart_asset(&release.assets, &variant) {
+            log::info!("[download] 下载 CUDA runtime 库: {}", cudart_asset.name);
+            set_running(status, Phase::Downloading, 0, Some(cudart_asset.size));
+            let cudart_partial = llama_dir.join(format!(".partial.{}", cudart_asset.name));
+            let cudart_official = cudart_asset.browser_download_url.clone();
+            let cudart_mirror = match cudart_official.strip_prefix("https://github.com") {
+                Some(rest) => format!("{}{}", DOWNLOAD_MIRROR_BASE, rest),
+                None => cudart_official.clone(),
+            };
+            let cudart_urls = if mirror_first {
+                [cudart_mirror, cudart_official]
+            } else {
+                [cudart_official, cudart_mirror]
+            };
+            let mut cudart_err = String::new();
+            for (i, url) in cudart_urls.iter().enumerate() {
+                if cancel.load(Ordering::SeqCst) {
+                    let _ = fs::remove_file(&cudart_partial);
+                    return Err("download cancelled".to_string());
+                }
+                let _ = fs::remove_file(&cudart_partial);
+                let source = if (i == 0 && mirror_first) || (i == 1 && !mirror_first) {
+                    "镜像源"
+                } else {
+                    "官方源"
+                };
+                let timeout = if source == "镜像源" {
+                    MIRROR_TIMEOUT_SECS
+                } else {
+                    OFFICIAL_TIMEOUT_SECS
+                };
+                log::info!(
+                    "[download] CUDA 库 尝试{} (超时 {}s): {}",
+                    source,
+                    timeout,
+                    url
+                );
+                match download_to_file(url, &cudart_partial, cancel, status, timeout) {
+                    Ok(()) => {
+                        let actual_size =
+                            fs::metadata(&cudart_partial).map(|m| m.len()).unwrap_or(0);
+                        if actual_size != cudart_asset.size {
+                            cudart_err = format!(
+                                "incomplete cudart download: expected {} bytes, got {}",
+                                cudart_asset.size, actual_size
+                            );
+                            continue;
+                        }
+                        log::info!("[download] ✓ CUDA runtime 库下载成功: {}", url);
+                        cudart_err.clear();
+                        break;
+                    }
+                    Err(DlError::Cancelled) => {
+                        let _ = fs::remove_file(&cudart_partial);
+                        return Err("download cancelled".to_string());
+                    }
+                    Err(DlError::Failed(e)) => {
+                        log::warn!("[download] ✗ CUDA 库 {} 失败: {}", source, e);
+                        cudart_err = e;
+                        continue;
+                    }
+                }
+            }
+            if !cudart_err.is_empty() {
+                let _ = fs::remove_file(&cudart_partial);
+                log::warn!("[download] CUDA runtime 库下载失败: {}", cudart_err);
+            } else {
+                // 解压 CUDA runtime 库
+                let cudart_archive = llama_dir.join(&cudart_asset.name);
+                fs::rename(&cudart_partial, &cudart_archive)
+                    .map_err(|e| format!("rename cudart partial failed: {}", e))?;
+                if cudart_asset.name.ends_with(".zip") {
+                    extract_zip(&cudart_archive, &llama_dir)
+                        .map_err(|e| format!("extract cudart zip failed: {}", e))?;
+                }
+                let _ = fs::remove_file(&cudart_archive);
+            }
+        }
     }
 
     // 5) Linux：将 build/bin/* 提升到 llama/ 根目录（简化目录结构）
@@ -856,6 +955,21 @@ pub fn pick_asset<'a>(assets: &'a [Asset], variant: &'a DownloadVariant) -> Opti
             a.name.contains(&pattern)
         }
     })
+}
+
+/// 按 CUDA 版本匹配 cudart 资产（cudart-llama-bin-win-cuda-{version}-x64.zip）
+/// 用于在主下载完成后额外下载 CUDA runtime 库
+fn pick_cudart_asset<'a>(assets: &'a [Asset], variant: &DownloadVariant) -> Option<&'a Asset> {
+    // 仅 CUDA 变体有效
+    let cuda_version = match variant {
+        DownloadVariant::WinCuda124 => "12.4",
+        DownloadVariant::WinCuda133 => "13.3",
+        _ => return None,
+    };
+    let prefix = format!("cudart-llama-bin-win-cuda-{}-x64", cuda_version);
+    assets
+        .iter()
+        .find(|a| a.name.starts_with(&prefix) && a.name.ends_with(".zip"))
 }
 
 /// 定位解压后的 llama-server 二进制：
