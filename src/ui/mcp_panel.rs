@@ -19,56 +19,55 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         accent,
         |ui| {
             ui.horizontal(|ui| {
-                // 左侧：启用开关
                 widgets::toggle(
                     ui,
                     &mut settings.mcp_enabled,
                     i18n::t(i18n::Key::CheckboxMcpEnabled, lang),
                     accent,
                 );
-                // 右侧：编辑按钮和状态摘要（使用 right_to_left 布局推到行尾）
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    // 状态摘要：已启用 x/y，或配置错误提示
-                    match &parsed {
-                        Ok(servers) if !servers.is_empty() => {
-                            let enabled = servers
-                                .iter()
-                                .filter(|s| {
-                                    settings
-                                        .mcp_server_states
-                                        .get(&s.name)
-                                        .copied()
-                                        .unwrap_or(false)
-                                })
-                                .count();
-                            ui.small(format!("{}/{}", enabled, servers.len()));
-                        }
-                        Ok(_) => {}
-                        Err(e) => {
-                            // 配置为空时不显示错误（用户可能还没填写）
-                            if !settings.mcp_config_json.trim().is_empty() {
-                                ui.small(
-                                    egui::RichText::new(format!(
-                                        "{} {}",
-                                        i18n::t(i18n::Key::ErrMcpConfigInvalid, lang),
-                                        e
-                                    ))
-                                    .color(ui.visuals().error_fg_color),
-                                );
-                            }
-                        }
-                    }
-                    if ui
-                        .button(i18n::t(i18n::Key::BtnEditMcpConfig, lang))
-                        .clicked()
-                    {
-                        settings.mcp_editor_text = settings.mcp_config_json.clone();
-                        settings.mcp_editor_error.clear();
-                        settings.mcp_editor_open = true;
-                    }
-                });
             });
-            ui.small(i18n::t(i18n::Key::HintMcpTip, lang));
+            ui.horizontal(|ui| {
+                if ui
+                    .button(i18n::t(i18n::Key::BtnEditMcpConfig, lang))
+                    .clicked()
+                {
+                    settings.mcp_editor_text = settings.mcp_config_json.clone();
+                    settings.mcp_editor_error.clear();
+                    settings.mcp_editor_open = true;
+                }
+                // 提示小文字移到按钮右侧
+                ui.small(i18n::t(i18n::Key::HintMcpTip, lang));
+                // 状态摘要：已启用 x/y，或配置错误提示
+                match &parsed {
+                    Ok(servers) if !servers.is_empty() => {
+                        let enabled = servers
+                            .iter()
+                            .filter(|s| {
+                                settings
+                                    .mcp_server_states
+                                    .get(&s.name)
+                                    .copied()
+                                    .unwrap_or(false)
+                            })
+                            .count();
+                        ui.small(format!("{}/{}", enabled, servers.len()));
+                    }
+                    Ok(_) => {}
+                    Err(e) => {
+                        // 配置为空时不显示错误（用户可能还没填写）
+                        if !settings.mcp_config_json.trim().is_empty() {
+                            ui.small(
+                                egui::RichText::new(format!(
+                                    "{} {}",
+                                    i18n::t(i18n::Key::ErrMcpConfigInvalid, lang),
+                                    e
+                                ))
+                                .color(ui.visuals().error_fg_color),
+                            );
+                        }
+                    }
+                }
+            });
         },
     );
 
