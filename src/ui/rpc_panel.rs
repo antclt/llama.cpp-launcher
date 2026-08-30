@@ -32,6 +32,40 @@ fn rpc_cache_dir() -> std::path::PathBuf {
     }
 }
 
+/// 递归计算目录大小（字节）
+fn dir_size(path: &std::path::Path) -> u64 {
+    let mut total = 0u64;
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.flatten() {
+            let meta = match entry.metadata() {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            if meta.is_file() {
+                total += meta.len();
+            } else if meta.is_dir() {
+                total += dir_size(&entry.path());
+            }
+        }
+    }
+    total
+}
+
+/// 格式化字节数为人类可读字符串 (MB / GB)
+fn format_size(bytes: u64) -> String {
+    const MB: u64 = 1024 * 1024;
+    const GB: u64 = 1024 * MB;
+    if bytes >= GB {
+        format!("{:.2} GB", bytes as f64 / GB as f64)
+    } else if bytes >= MB {
+        format!("{:.2} MB", bytes as f64 / MB as f64)
+    } else if bytes > 0 {
+        format!("{} B", bytes)
+    } else {
+        "0 B".to_string()
+    }
+}
+
 pub fn ui(
     ui: &mut egui::Ui,
     settings: &mut AppSettings,
@@ -232,11 +266,30 @@ pub fn ui(
 
         ui.add_space(4.0);
 
+        // 缓存大小按钮
+        let cache_dir = rpc_cache_dir();
+        let cache_size = if cache_dir.exists() {
+            dir_size(&cache_dir)
+        } else {
+            0
+        };
+        let size_text = format!(
+            "{} {}",
+            i18n::t(i18n::Key::BtnRpcCacheSize, lang),
+            format_size(cache_size)
+        );
+        let btn_cache_size = egui::Button::new(
+            egui::RichText::new(&size_text).small(),
+        );
+        ui.add(btn_cache_size);
+
+        ui.add_space(4.0);
+
+        // 清除缓存按钮
         if ui
             .button(i18n::t(i18n::Key::BtnClearRpcCache, lang))
             .clicked()
         {
-            let cache_dir = rpc_cache_dir();
             if cache_dir.exists() {
                 match std::fs::remove_dir_all(&cache_dir) {
                     Ok(()) => log::info!("已清除 RPC 缓存目录: {}", cache_dir.display()),
