@@ -66,6 +66,53 @@ fn format_size(bytes: u64) -> String {
     }
 }
 
+/// 格式化设备信息为简化显示格式
+/// 输入: "Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB"
+/// 输出: "ROCm0: AMD Radeon RX 7900 XTX (24560 MiB)"
+fn format_device_info(line: &str) -> String {
+    // 提取设备编号
+    let device_id = line
+        .strip_prefix("Device ")
+        .and_then(|s| s.split(':').next())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
+
+    // 根据品牌确定前缀
+    let prefix = if line.contains("AMD") {
+        "ROCm"
+    } else if line.contains("NVIDIA") {
+        "CUDA"
+    } else {
+        ""
+    };
+
+    // 提取设备名称（第一个逗号前的部分）
+    let name = line
+        .split(':')
+        .nth(1)
+        .and_then(|s| s.split(',').next())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
+
+    // 提取 VRAM 大小
+    let vram = line
+        .split("VRAM:")
+        .nth(1)
+        .and_then(|s| s.trim().split_whitespace().next())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
+
+    if !device_id.is_empty() && !name.is_empty() {
+        if !vram.is_empty() {
+            format!("{}{}: {} ({} MiB)", prefix, device_id, name, vram)
+        } else {
+            format!("{}{}: {}", prefix, device_id, name)
+        }
+    } else {
+        line.to_string()
+    }
+}
+
 pub fn ui(
     ui: &mut egui::Ui,
     settings: &mut AppSettings,
@@ -242,7 +289,7 @@ pub fn ui(
                                 ui.horizontal(|ui| {
                                     ui.label(egui::RichText::new("●").color(dot_color).size(10.0));
                                     ui.label(
-                                        egui::RichText::new(line)
+                                        egui::RichText::new(format_device_info(line))
                                             .color(ui.visuals().text_color())
                                             .size(13.0),
                                     );
