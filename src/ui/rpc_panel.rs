@@ -294,30 +294,37 @@ pub fn ui(
                                             .size(13.0),
                                     );
                                     // 添加至设备按钮
-                                    if ui
-                                        .small_button(i18n::t(i18n::Key::BtnAddToDevice, lang))
-                                        .clicked()
-                                    {
-                                        // 从设备行提取设备编号（格式："Device X: ..."）
-                                        if let Some(device_id) = line
-                                            .strip_prefix("Device ")
-                                            .and_then(|s| s.split(':').next())
-                                            .map(|s| s.trim().to_string())
-                                        {
-                                            // 根据设备品牌添加前缀
-                                            let device_entry = if line.contains("AMD") {
+                                    let device_entry = line
+                                        .strip_prefix("Device ")
+                                        .and_then(|s| s.split(':').next())
+                                        .map(|s| s.trim().to_string())
+                                        .map(|device_id| {
+                                            if line.contains("AMD") {
                                                 format!("ROCm{}", device_id)
                                             } else if line.contains("NVIDIA") {
                                                 format!("CUDA{}", device_id)
                                             } else {
                                                 device_id
-                                            };
-
+                                            }
+                                        });
+                                    if let Some(ref entry) = device_entry {
+                                        let already_added = settings
+                                            .rpc_device
+                                            .split(',')
+                                            .any(|s| s.trim() == entry);
+                                        let btn = ui.add_enabled(
+                                            !already_added,
+                                            egui::Button::new(i18n::t(
+                                                i18n::Key::BtnAddToDevice,
+                                                lang,
+                                            )),
+                                        );
+                                        if btn.clicked() {
                                             if settings.rpc_device.is_empty() {
-                                                settings.rpc_device = device_entry;
+                                                settings.rpc_device = entry.clone();
                                             } else {
                                                 settings.rpc_device =
-                                                    format!("{},{}", settings.rpc_device, device_entry);
+                                                    format!("{},{}", settings.rpc_device, entry);
                                             }
                                         }
                                     }
