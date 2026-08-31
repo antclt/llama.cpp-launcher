@@ -630,9 +630,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
 
                             // 显示设备行
                             ui.horizontal(|ui| {
-                                ui.label(
-                                    egui::RichText::new("●").color(dot_color).size(10.0),
-                                );
+                                ui.label(egui::RichText::new("●").color(dot_color).size(10.0));
                                 ui.label(
                                     egui::RichText::new(line)
                                         .color(ui.visuals().text_color())
@@ -640,22 +638,15 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                                 );
 
                                 // 添加至设备按钮（从格式 "CUDA0: ..." 提取设备 ID）
-                                let device_entry = line
-                                    .split(':')
-                                    .next()
-                                    .map(|s| s.trim().to_string());
+                                let device_entry =
+                                    line.split(':').next().map(|s| s.trim().to_string());
 
                                 if let Some(ref entry) = device_entry {
-                                    let already_added = settings
-                                        .device
-                                        .split(',')
-                                        .any(|s| s.trim() == entry);
+                                    let already_added =
+                                        settings.device.split(',').any(|s| s.trim() == entry);
                                     let btn = ui.add_enabled(
                                         !already_added,
-                                        egui::Button::new(i18n::t(
-                                            i18n::Key::BtnAddToDevice,
-                                            lang,
-                                        )),
+                                        egui::Button::new(i18n::t(i18n::Key::BtnAddToDevice, lang)),
                                     );
                                     if btn.clicked() {
                                         if settings.device.is_empty() {
@@ -675,9 +666,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                         let rpc_color = egui::Color32::from_rgb(180, 120, 255); // 紫色
                         for (i, addr) in rpc_nodes.iter().enumerate() {
                             ui.horizontal(|ui| {
-                                ui.label(
-                                    egui::RichText::new("●").color(rpc_color).size(10.0),
-                                );
+                                ui.label(egui::RichText::new("●").color(rpc_color).size(10.0));
                                 let rpc_label = format!("RPC{}: {}", i, addr);
                                 ui.label(
                                     egui::RichText::new(&rpc_label)
@@ -687,16 +676,11 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
 
                                 // 添加至设备按钮（添加 RPC0）
                                 let rpc_entry = format!("RPC{}", i);
-                                let already_added = settings
-                                    .device
-                                    .split(',')
-                                    .any(|s| s.trim() == rpc_entry);
+                                let already_added =
+                                    settings.device.split(',').any(|s| s.trim() == rpc_entry);
                                 let btn = ui.add_enabled(
                                     !already_added,
-                                    egui::Button::new(i18n::t(
-                                        i18n::Key::BtnAddToDevice,
-                                        lang,
-                                    )),
+                                    egui::Button::new(i18n::t(i18n::Key::BtnAddToDevice, lang)),
                                 );
                                 if btn.clicked() {
                                     if settings.device.is_empty() {
