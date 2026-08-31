@@ -256,30 +256,29 @@ pub fn ui(
 
     // ── 缓存 ──
     widgets::card(ui, i18n::t(i18n::Key::SectionCache, lang), accent, |ui| {
-        // ★ Toggle 新签名：开关在左，标签在右
-        widgets::toggle(
-            ui,
-            &mut settings.rpc_cache,
-            i18n::t(i18n::Key::CheckboxRpcCache, lang),
-            accent,
-        );
-
-        ui.add_space(4.0);
-
-        // 缓存大小按钮
+        // 缓存大小计算
         let cache_dir = rpc_cache_dir();
         let cache_size = if cache_dir.exists() {
             dir_size(&cache_dir)
         } else {
             0
         };
-        let size_text = format!(
-            "{} {}",
-            i18n::t(i18n::Key::BtnRpcCacheSize, lang),
-            format_size(cache_size)
-        );
-        let btn_cache_size = egui::Button::new(egui::RichText::new(&size_text).small());
-        ui.add(btn_cache_size);
+        let size_text = format_size(cache_size);
+
+        // Toggle + 缓存大小在同一行
+        ui.horizontal(|ui| {
+            widgets::toggle(
+                ui,
+                &mut settings.rpc_cache,
+                i18n::t(i18n::Key::CheckboxRpcCache, lang),
+                accent,
+            );
+            ui.label(
+                egui::RichText::new(&size_text)
+                    .small()
+                    .color(ui.visuals().weak_text_color()),
+            );
+        });
 
         ui.add_space(4.0);
 
