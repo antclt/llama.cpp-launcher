@@ -136,6 +136,7 @@ pub enum Key {
     BtnRpcCacheSize,
     DialogSelectRpc,
     BtnAutoAuthorize,
+    BtnAddToDevice,
 
     // 模型面板
     PanelModelTitle,
@@ -777,6 +778,8 @@ impl Key {
     (Key::DialogSelectRpc, &Language::En) => "Select ggml-rpc-server executable",
             (Key::BtnAutoAuthorize, &Language::Zh) => "自动授权",
             (Key::BtnAutoAuthorize, &Language::En) => "Auto Authorize",
+            (Key::BtnAddToDevice, &Language::Zh) => "添加至设备",
+            (Key::BtnAddToDevice, &Language::En) => "Add to Device",
 
             // 模型面板
             (Key::PanelModelTitle, &Language::Zh) => "模型管理",
