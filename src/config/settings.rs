@@ -1301,6 +1301,10 @@ pub struct AppSettings {
     #[serde(skip, default)]
     pub server_device_list_output: String,
 
+    // RPC 节点地址输入框临时状态（不序列化）
+    #[serde(skip, default)]
+    pub rpc_endpoint_input: String,
+
     // 预设
     #[serde(default)]
     pub presets: Vec<Preset>,
@@ -1518,6 +1522,7 @@ impl Default for AppSettings {
             device_list_output: String::new(),
             show_server_device_list: false,
             server_device_list_output: String::new(),
+            rpc_endpoint_input: String::new(),
             presets: Vec::new(),
             new_preset_name: String::new(),
             rename_preset_index: None,

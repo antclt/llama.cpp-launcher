@@ -398,19 +398,88 @@ pub fn ui(
             );
             if settings.rpc_mode {
                 ui.indent("rpc_endpoints", |ui| {
-                    ui.horizontal(|ui| {
-                        ui.label(i18n::t(i18n::Key::LabelRpcEndpoints, lang));
-                        ui.text_edit_singleline(&mut settings.rpc_endpoints);
-                        ui.small(i18n::t(i18n::Key::HintRpcEndpoints, lang));
-                    });
-                    // 下一行：添加本机 RPC 客户端按钮
-                    let local_addr = format!("127.0.0.1:{}", settings.rpc_port);
-                    // 已存在相同地址时禁用按钮，防止重复添加
-                    let already_added = settings
+                    // 标题行
+                    ui.label(i18n::t(i18n::Key::LabelRpcEndpoints, lang));
+
+                    // 解析并显示已有的节点地址
+                    let endpoints: Vec<String> = settings
                         .rpc_endpoints
                         .split(',')
-                        .map(|s| s.trim())
-                        .any(|s| s == local_addr);
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+
+                    // 节点列表（表格形式）
+                    if endpoints.is_empty() {
+                        ui.label(i18n::t(i18n::Key::HintRpcEndpointsEmpty, lang));
+                    } else {
+                        egui::Grid::new("rpc_endpoints_grid")
+                            .striped(true)
+                            .show(ui, |ui| {
+                                // 表头
+                                ui.label(i18n::t(i18n::Key::LabelRpcEndpointIndex, lang));
+                                ui.label(i18n::t(i18n::Key::LabelRpcEndpointAddress, lang));
+                                ui.label(""); // 删除按钮列
+                                ui.end_row();
+
+                                // 节点列表
+                                let mut indices_to_remove: Vec<usize> = Vec::new();
+                                for (i, addr) in endpoints.iter().enumerate() {
+                                    ui.label(format!("{}", i + 1));
+                                    ui.label(addr.as_str());
+                                    if ui
+                                        .small(egui::RichText::new("✕").color(egui::Color32::RED))
+                                        .on_hover_text(i18n::t(i18n::Key::BtnRemoveEndpoint, lang))
+                                        .clicked()
+                                    {
+                                        indices_to_remove.push(i);
+                                    }
+                                    ui.end_row();
+                                }
+
+                                // 删除操作（从后往前删避免索引偏移）
+                                if !indices_to_remove.is_empty() {
+                                    let mut new_endpoints = endpoints.clone();
+                                    for &i in indices_to_remove.iter().rev() {
+                                        new_endpoints.remove(i);
+                                    }
+                                    settings.rpc_endpoints = new_endpoints.join(",");
+                                }
+                            });
+                    }
+
+                    // 添加新节点地址
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::LabelAddEndpoint, lang));
+                        let response = ui.text_edit_singleline(&mut settings.rpc_endpoint_input);
+                        if ui
+                            .button(i18n::t(i18n::Key::BtnAddEndpoint, lang))
+                            .clicked()
+                            || (response.lost_focus()
+                                && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                        {
+                            let trimmed = settings.rpc_endpoint_input.trim().to_string();
+                            if !trimmed.is_empty() {
+                                // 检查是否已存在
+                                let exists = endpoints.iter().any(|e| e == &trimmed);
+                                if !exists {
+                                    if settings.rpc_endpoints.is_empty() {
+                                        settings.rpc_endpoints = trimmed;
+                                    } else {
+                                        settings.rpc_endpoints =
+                                            format!("{},{}", settings.rpc_endpoints, trimmed);
+                                    }
+                                    // 添加成功后清空输入框
+                                    settings.rpc_endpoint_input.clear();
+                                }
+                            }
+                        }
+                    });
+
+                    // 添加本机 RPC 客户端按钮
+                    let local_addr = format!("127.0.0.1:{}", settings.rpc_port);
+                    let already_added = endpoints.iter().any(|s| s == &local_addr);
                     if ui
                         .add_enabled(
                             !already_added,
@@ -418,13 +487,12 @@ pub fn ui(
                         )
                         .clicked()
                     {
-                        let existing = settings.rpc_endpoints.trim().to_string();
-                        settings.rpc_endpoints = if existing.is_empty() {
-                            local_addr.clone()
+                        if settings.rpc_endpoints.is_empty() {
+                            settings.rpc_endpoints = local_addr.clone();
                         } else {
-                            // 已有配置：新增地址 + 英文逗号 + 原内容
-                            format!("{},{}", local_addr, existing)
-                        };
+                            settings.rpc_endpoints =
+                                format!("{},{}", settings.rpc_endpoints, local_addr);
+                        }
                     }
                 });
             }
