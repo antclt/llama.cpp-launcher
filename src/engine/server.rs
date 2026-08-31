@@ -281,6 +281,12 @@ impl ServerManager {
         self._threads.clear();
 
         let mut cmd = Command::new(&server_path);
+
+        // RPC 模式（置于启动命令首位）
+        if settings.rpc_mode {
+            cmd.arg("--rpc").arg(&settings.rpc_endpoints);
+        }
+
         cmd.arg("--model")
             .arg(&effective_model_path)
             .arg("--host")
@@ -574,11 +580,6 @@ impl ServerManager {
         // 离线模式：拼接 --offline（如 llama.cpp 支持）
         if settings.offline_mode {
             cmd.arg("--offline");
-        }
-
-        // RPC 模式
-        if settings.rpc_mode {
-            cmd.arg("--rpc").arg(&settings.rpc_endpoints);
         }
 
         // 网页客户端开关：启用用 --webui，禁用用 --no-webui
