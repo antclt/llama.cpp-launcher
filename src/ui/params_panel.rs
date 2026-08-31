@@ -607,34 +607,57 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 {
                     ui.label(i18n::t(i18n::Key::HintServerDeviceListEmpty, lang));
                 } else {
-                    egui::ScrollArea::vertical()
-                        .max_height(200.0)
-                        .show(ui, |ui| {
-                            for line in settings.server_device_list_output.lines() {
-                                if !line.is_empty() {
-                                    // 根据设备品牌设置圆点颜色
-                                    let dot_color = if line.contains("AMD") {
-                                        egui::Color32::from_rgb(220, 50, 50) // AMD 红色
-                                    } else if line.contains("NVIDIA") {
-                                        egui::Color32::from_rgb(50, 180, 50) // NVIDIA 绿色
-                                    } else if line.contains("Intel") || line.contains("INTEL") {
-                                        egui::Color32::from_rgb(50, 100, 220) // Intel 蓝色
-                                    } else {
-                                        accent // 其他使用主题色
-                                    };
-                                    ui.horizontal(|ui| {
-                                        ui.label(
-                                            egui::RichText::new("●").color(dot_color).size(10.0),
-                                        );
-                                        ui.label(
-                                            egui::RichText::new(line)
-                                                .color(ui.visuals().text_color())
-                                                .size(13.0),
-                                        );
-                                    });
-                                }
-                            }
-                        });
+                    // 解析 RPC 节点列表，用于在设备后追加显示
+                    let rpc_nodes: Vec<String> = settings
+                        .rpc_endpoints
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+
+                    for line in settings.server_device_list_output.lines() {
+                        if !line.is_empty() {
+                            // 根据设备品牌设置圆点颜色
+                            let dot_color = if line.contains("AMD") {
+                                egui::Color32::from_rgb(220, 50, 50) // AMD 红色
+                            } else if line.contains("NVIDIA") {
+                                egui::Color32::from_rgb(50, 180, 50) // NVIDIA 绿色
+                            } else if line.contains("Intel") || line.contains("INTEL") {
+                                egui::Color32::from_rgb(50, 100, 220) // Intel 蓝色
+                            } else {
+                                accent // 其他使用主题色
+                            };
+
+                            // 显示设备行
+                            ui.horizontal(|ui| {
+                                ui.label(
+                                    egui::RichText::new("●").color(dot_color).size(10.0),
+                                );
+                                ui.label(
+                                    egui::RichText::new(line)
+                                        .color(ui.visuals().text_color())
+                                        .size(13.0),
+                                );
+                            });
+                        }
+                    }
+
+                    // 追加 RPC 节点列表（每个节点单独一行，紫色）
+                    if !rpc_nodes.is_empty() {
+                        let rpc_color = egui::Color32::from_rgb(180, 120, 255); // 紫色
+                        for (i, addr) in rpc_nodes.iter().enumerate() {
+                            ui.horizontal(|ui| {
+                                ui.label(
+                                    egui::RichText::new("●").color(rpc_color).size(10.0),
+                                );
+                                ui.label(
+                                    egui::RichText::new(format!("RPC{}: {}", i, addr))
+                                        .color(ui.visuals().text_color())
+                                        .size(13.0),
+                                );
+                            });
+                        }
+                    }
                 }
             }
         },
