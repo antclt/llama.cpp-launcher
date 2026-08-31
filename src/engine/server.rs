@@ -284,7 +284,14 @@ impl ServerManager {
 
         // RPC 模式（置于启动命令首位）
         if settings.rpc_mode {
-            cmd.arg("--rpc").arg(&settings.rpc_endpoints);
+            // 剥离每段地址末尾的 + 号（多卡标记不参与启动参数）
+            let clean_endpoints: String = settings
+                .rpc_endpoints
+                .split(',')
+                .map(|s| s.trim().trim_end_matches('+').to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            cmd.arg("--rpc").arg(&clean_endpoints);
         }
 
         cmd.arg("--model")

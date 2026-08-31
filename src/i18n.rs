@@ -127,6 +127,7 @@ pub enum Key {
     BtnRemoveEndpoint,
     LabelAddEndpoint,
     BtnAddEndpoint,
+    CheckboxMultiGpuNode,
     DialogSelectServer,
     FilterExecutable,
 
@@ -768,6 +769,8 @@ impl Key {
             (Key::LabelAddEndpoint, &Language::En) => "Add endpoint:",
             (Key::BtnAddEndpoint, &Language::Zh) => "添加",
             (Key::BtnAddEndpoint, &Language::En) => "Add",
+            (Key::CheckboxMultiGpuNode, &Language::Zh) => "多卡节点",
+            (Key::CheckboxMultiGpuNode, &Language::En) => "Multi-GPU node",
             (Key::DialogSelectServer, &Language::Zh) => "选择 llama-server 可执行文件",
             (Key::DialogSelectServer, &Language::En) => "Select llama-server executable",
             (Key::FilterExecutable, &Language::Zh) => "可执行文件",

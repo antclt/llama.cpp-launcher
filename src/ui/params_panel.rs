@@ -661,36 +661,54 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                         }
                     }
 
-                    // 追加 RPC 节点列表（每个节点单独一行，紫色）
+                    // 追加 RPC 节点列表（多卡节点展开为两个独立条目，紫色）
                     if !rpc_nodes.is_empty() {
                         let rpc_color = egui::Color32::from_rgb(180, 120, 255); // 紫色
-                        for (i, addr) in rpc_nodes.iter().enumerate() {
-                            ui.horizontal(|ui| {
-                                ui.label(egui::RichText::new("●").color(rpc_color).size(10.0));
-                                let rpc_label = format!("RPC{}: {}", i, addr);
-                                ui.label(
-                                    egui::RichText::new(&rpc_label)
-                                        .color(ui.visuals().text_color())
-                                        .size(13.0),
-                                );
-
-                                // 添加至设备按钮（添加 RPC0）
-                                let rpc_entry = format!("RPC{}", i);
-                                let already_added =
-                                    settings.device.split(',').any(|s| s.trim() == rpc_entry);
-                                let btn = ui.add_enabled(
-                                    !already_added,
-                                    egui::Button::new(i18n::t(i18n::Key::BtnAddToDevice, lang)),
-                                );
-                                if btn.clicked() {
-                                    if settings.device.is_empty() {
-                                        settings.device = rpc_entry;
-                                    } else {
-                                        settings.device =
-                                            format!("{},{}", settings.device, rpc_entry);
+                        let mut rpc_idx = 0usize;
+                        for addr in rpc_nodes.iter() {
+                            let is_multi_gpu = addr.ends_with('+');
+                            let display_addr = addr.trim_end_matches('+');
+                            // 多卡节点展开为两个条目
+                            let count = if is_multi_gpu { 2 } else { 1 };
+                            for offset in 0..count {
+                                let idx = rpc_idx + offset;
+                                ui.horizontal(|ui| {
+                                    ui.label(egui::RichText::new("●").color(rpc_color).size(10.0));
+                                    let rpc_label = format!("RPC{}: {}", idx, display_addr);
+                                    ui.label(
+                                        egui::RichText::new(&rpc_label)
+                                            .color(ui.visuals().text_color())
+                                            .size(13.0),
+                                    );
+                                    // 多卡节点展开后的两个条目都显示 MULTI-GPU 标签
+                                    if is_multi_gpu {
+                                        let tag_color = egui::Color32::from_rgb(255, 165, 0);
+                                        ui.label(
+                                            egui::RichText::new("MULTI-GPU")
+                                                .color(tag_color)
+                                                .size(10.0),
+                                        );
                                     }
-                                }
-                            });
+
+                                    // 添加至设备按钮
+                                    let rpc_entry = format!("RPC{}", idx);
+                                    let already_added =
+                                        settings.device.split(',').any(|s| s.trim() == rpc_entry);
+                                    let btn = ui.add_enabled(
+                                        !already_added,
+                                        egui::Button::new(i18n::t(i18n::Key::BtnAddToDevice, lang)),
+                                    );
+                                    if btn.clicked() {
+                                        if settings.device.is_empty() {
+                                            settings.device = rpc_entry;
+                                        } else {
+                                            settings.device =
+                                                format!("{},{}", settings.device, rpc_entry);
+                                        }
+                                    }
+                                });
+                            }
+                            rpc_idx += count;
                         }
                     }
                 }

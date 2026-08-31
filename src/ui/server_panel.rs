@@ -426,7 +426,19 @@ pub fn ui(
                                 let mut indices_to_remove: Vec<usize> = Vec::new();
                                 for (i, addr) in endpoints.iter().enumerate() {
                                     ui.label(format!("{}", i + 1));
-                                    ui.label(addr.as_str());
+                                    // 判断是否多卡节点（末尾带 +）
+                                    let is_multi_gpu = addr.ends_with('+');
+                                    let display_addr = addr.trim_end_matches('+');
+                                    ui.horizontal(|ui| {
+                                        ui.label(display_addr);
+                                        if is_multi_gpu {
+                                            ui.label(
+                                                egui::RichText::new("MULTI-GPU")
+                                                    .color(egui::Color32::from_rgb(255, 165, 0))
+                                                    .small(),
+                                            );
+                                        }
+                                    });
                                     if ui
                                         .small(egui::RichText::new("×").color(egui::Color32::RED))
                                         .on_hover_text(i18n::t(i18n::Key::BtnRemoveEndpoint, lang))
@@ -461,20 +473,32 @@ pub fn ui(
                         {
                             let trimmed = settings.rpc_endpoint_input.trim().to_string();
                             if !trimmed.is_empty() {
-                                // 检查是否已存在
-                                let exists = endpoints.iter().any(|e| e == &trimmed);
+                                // 根据多卡节点勾选状态拼接 + 标记
+                                let addr = if settings.rpc_endpoint_multi_gpu {
+                                    format!("{}+", trimmed)
+                                } else {
+                                    trimmed
+                                };
+                                // 检查是否已存在（比较时忽略末尾 +）
+                                let exists = endpoints
+                                    .iter()
+                                    .any(|e| e.trim_end_matches('+') == addr.trim_end_matches('+'));
                                 if !exists {
                                     if settings.rpc_endpoints.is_empty() {
-                                        settings.rpc_endpoints = trimmed;
+                                        settings.rpc_endpoints = addr;
                                     } else {
                                         settings.rpc_endpoints =
-                                            format!("{},{}", settings.rpc_endpoints, trimmed);
+                                            format!("{},{}", settings.rpc_endpoints, addr);
                                     }
                                     // 添加成功后清空输入框
                                     settings.rpc_endpoint_input.clear();
                                 }
                             }
                         }
+                        ui.checkbox(
+                            &mut settings.rpc_endpoint_multi_gpu,
+                            i18n::t(i18n::Key::CheckboxMultiGpuNode, lang),
+                        );
                     });
 
                     // 添加本机 RPC 客户端按钮

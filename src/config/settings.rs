@@ -1304,6 +1304,9 @@ pub struct AppSettings {
     // RPC 节点地址输入框临时状态（不序列化）
     #[serde(skip, default)]
     pub rpc_endpoint_input: String,
+    // RPC 多卡节点勾选框临时状态（不序列化）
+    #[serde(skip, default)]
+    pub rpc_endpoint_multi_gpu: bool,
 
     // 预设
     #[serde(default)]
@@ -1523,6 +1526,7 @@ impl Default for AppSettings {
             show_server_device_list: false,
             server_device_list_output: String::new(),
             rpc_endpoint_input: String::new(),
+            rpc_endpoint_multi_gpu: false,
             presets: Vec::new(),
             new_preset_name: String::new(),
             rename_preset_index: None,
