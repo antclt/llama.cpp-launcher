@@ -428,7 +428,7 @@ pub fn ui(
                                     ui.label(format!("{}", i + 1));
                                     ui.label(addr.as_str());
                                     if ui
-                                        .small(egui::RichText::new("✕").color(egui::Color32::RED))
+                                        .small(egui::RichText::new("×").color(egui::Color32::RED))
                                         .on_hover_text(i18n::t(i18n::Key::BtnRemoveEndpoint, lang))
                                         .clicked()
                                     {
