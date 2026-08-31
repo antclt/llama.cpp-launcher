@@ -638,6 +638,34 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                                         .color(ui.visuals().text_color())
                                         .size(13.0),
                                 );
+
+                                // 添加至设备按钮（从格式 "CUDA0: ..." 提取设备 ID）
+                                let device_entry = line
+                                    .split(':')
+                                    .next()
+                                    .map(|s| s.trim().to_string());
+
+                                if let Some(ref entry) = device_entry {
+                                    let already_added = settings
+                                        .device
+                                        .split(',')
+                                        .any(|s| s.trim() == entry);
+                                    let btn = ui.add_enabled(
+                                        !already_added,
+                                        egui::Button::new(i18n::t(
+                                            i18n::Key::BtnAddToDevice,
+                                            lang,
+                                        )),
+                                    );
+                                    if btn.clicked() {
+                                        if settings.device.is_empty() {
+                                            settings.device = entry.clone();
+                                        } else {
+                                            settings.device =
+                                                format!("{},{}", settings.device, entry);
+                                        }
+                                    }
+                                }
                             });
                         }
                     }
@@ -650,11 +678,34 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                                 ui.label(
                                     egui::RichText::new("●").color(rpc_color).size(10.0),
                                 );
+                                let rpc_label = format!("RPC{}: {}", i, addr);
                                 ui.label(
-                                    egui::RichText::new(format!("RPC{}: {}", i, addr))
+                                    egui::RichText::new(&rpc_label)
                                         .color(ui.visuals().text_color())
                                         .size(13.0),
                                 );
+
+                                // 添加至设备按钮（添加 RPC0）
+                                let rpc_entry = format!("RPC{}", i);
+                                let already_added = settings
+                                    .device
+                                    .split(',')
+                                    .any(|s| s.trim() == rpc_entry);
+                                let btn = ui.add_enabled(
+                                    !already_added,
+                                    egui::Button::new(i18n::t(
+                                        i18n::Key::BtnAddToDevice,
+                                        lang,
+                                    )),
+                                );
+                                if btn.clicked() {
+                                    if settings.device.is_empty() {
+                                        settings.device = rpc_entry;
+                                    } else {
+                                        settings.device =
+                                            format!("{},{}", settings.device, rpc_entry);
+                                    }
+                                }
                             });
                         }
                     }
