@@ -44,6 +44,12 @@ struct ParamsExport {
     spec_draft_n_min: usize,
     spec_draft_p_min: f32,
     spec_draft_p_split: f32,
+    spec_ngram_size_n: usize,
+    spec_ngram_size_m: usize,
+    spec_ngram_min_hits: usize,
+    spec_ngram_mod_n_min: usize,
+    spec_ngram_mod_n_max: usize,
+    spec_ngram_mod_n_match: usize,
 
     kv_offload: bool,
     cache_type_k: String,
@@ -101,6 +107,12 @@ impl ParamsExport {
             spec_draft_n_min: s.spec_draft_n_min,
             spec_draft_p_min: s.spec_draft_p_min,
             spec_draft_p_split: s.spec_draft_p_split,
+            spec_ngram_size_n: s.spec_ngram_size_n,
+            spec_ngram_size_m: s.spec_ngram_size_m,
+            spec_ngram_min_hits: s.spec_ngram_min_hits,
+            spec_ngram_mod_n_min: s.spec_ngram_mod_n_min,
+            spec_ngram_mod_n_max: s.spec_ngram_mod_n_max,
+            spec_ngram_mod_n_match: s.spec_ngram_mod_n_match,
 
             kv_offload: s.kv_offload,
             cache_type_k: s.cache_type_k.clone(),
@@ -147,6 +159,12 @@ impl ParamsExport {
         s.spec_draft_n_min = self.spec_draft_n_min;
         s.spec_draft_p_min = self.spec_draft_p_min;
         s.spec_draft_p_split = self.spec_draft_p_split;
+        s.spec_ngram_size_n = self.spec_ngram_size_n;
+        s.spec_ngram_size_m = self.spec_ngram_size_m;
+        s.spec_ngram_min_hits = self.spec_ngram_min_hits;
+        s.spec_ngram_mod_n_min = self.spec_ngram_mod_n_min;
+        s.spec_ngram_mod_n_max = self.spec_ngram_mod_n_max;
+        s.spec_ngram_mod_n_match = self.spec_ngram_mod_n_match;
 
         s.kv_offload = self.kv_offload;
         s.cache_type_k = self.cache_type_k;

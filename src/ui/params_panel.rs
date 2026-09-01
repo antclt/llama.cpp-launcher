@@ -904,74 +904,127 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     }
                 }
             });
-            // 最大推测数量 --spec-draft-n-max（DragValue）
-            ui.horizontal(|ui| {
-                ui.label(i18n::t(i18n::Key::SpecDraftNMaxLabel, lang));
-                ui.add(egui::DragValue::new(&mut settings.spec_draft_n_max).range(0..=64));
-                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftNMax, lang));
-            });
-            // 最小推测数量 --spec-draft-n-min（DragValue）
-            ui.horizontal(|ui| {
-                ui.label(i18n::t(i18n::Key::SpecDraftNMinLabel, lang));
-                ui.add(egui::DragValue::new(&mut settings.spec_draft_n_min).range(0..=32));
-                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftNMin, lang));
-            });
-            // 信任度 --spec-draft-p-min（Slider）
-            ui.horizontal(|ui| {
-                ui.label(i18n::t(i18n::Key::SpecDraftPMinLabel, lang));
-                ui.add(
-                    egui::Slider::new(&mut settings.spec_draft_p_min, 0.0..=1.0)
-                        .smallest_positive(0.01)
-                        .custom_formatter(|v, _| format!("{:.2}", v)),
-                );
-                ui.label(format!("{:.2}", settings.spec_draft_p_min));
-                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftPMin, lang));
-            });
-            // 分裂概率 --spec-draft-p-split（Slider）
-            ui.horizontal(|ui| {
-                ui.label(i18n::t(i18n::Key::SpecDraftPSplitLabel, lang));
-                ui.add(
-                    egui::Slider::new(&mut settings.spec_draft_p_split, 0.0..=1.0)
-                        .smallest_positive(0.01)
-                        .custom_formatter(|v, _| format!("{:.2}", v)),
-                );
-                ui.label(format!("{:.2}", settings.spec_draft_p_split));
-                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftPSplit, lang));
-            });
-            // 推测解码 KV 类型 K
-            ui.horizontal(|ui| {
-                ui.label(i18n::t(i18n::Key::LabelSpecDraftTypeK, lang));
-                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftTypeK, lang));
-            });
-            let spec_k_types = [
-                "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1",
-            ];
-            ui.horizontal_wrapped(|ui| {
-                ui.spacing_mut().item_spacing.x = 6.0;
-                for k_type in &spec_k_types {
-                    let selected = settings.spec_draft_type_k == *k_type;
-                    if ui.selectable_label(selected, *k_type).clicked() {
-                        settings.spec_draft_type_k = k_type.to_string();
+            // draft-* 算法参数（draft-simple / draft-eagle3 / draft-mtp / draft-dflash / draft-dspark）
+            let is_draft = settings.spec_type.starts_with("draft-");
+            if is_draft {
+                // 最大推测数量 --spec-draft-n-max（DragValue）
+                ui.horizontal(|ui| {
+                    ui.label(i18n::t(i18n::Key::SpecDraftNMaxLabel, lang));
+                    ui.add(egui::DragValue::new(&mut settings.spec_draft_n_max).range(0..=64));
+                    helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftNMax, lang));
+                });
+                // 最小推测数量 --spec-draft-n-min（DragValue）
+                ui.horizontal(|ui| {
+                    ui.label(i18n::t(i18n::Key::SpecDraftNMinLabel, lang));
+                    ui.add(egui::DragValue::new(&mut settings.spec_draft_n_min).range(0..=32));
+                    helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftNMin, lang));
+                });
+                // 信任度 --spec-draft-p-min（Slider）
+                ui.horizontal(|ui| {
+                    ui.label(i18n::t(i18n::Key::SpecDraftPMinLabel, lang));
+                    ui.add(
+                        egui::Slider::new(&mut settings.spec_draft_p_min, 0.0..=1.0)
+                            .smallest_positive(0.01)
+                            .custom_formatter(|v, _| format!("{:.2}", v)),
+                    );
+                    ui.label(format!("{:.2}", settings.spec_draft_p_min));
+                    helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftPMin, lang));
+                });
+                // 分裂概率 --spec-draft-p-split（Slider）
+                ui.horizontal(|ui| {
+                    ui.label(i18n::t(i18n::Key::SpecDraftPSplitLabel, lang));
+                    ui.add(
+                        egui::Slider::new(&mut settings.spec_draft_p_split, 0.0..=1.0)
+                            .smallest_positive(0.01)
+                            .custom_formatter(|v, _| format!("{:.2}", v)),
+                    );
+                    ui.label(format!("{:.2}", settings.spec_draft_p_split));
+                    helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftPSplit, lang));
+                });
+                // 推测解码 KV 类型 K
+                ui.horizontal(|ui| {
+                    ui.label(i18n::t(i18n::Key::LabelSpecDraftTypeK, lang));
+                    helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftTypeK, lang));
+                });
+                let spec_k_types = [
+                    "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1",
+                ];
+                ui.horizontal_wrapped(|ui| {
+                    ui.spacing_mut().item_spacing.x = 6.0;
+                    for k_type in &spec_k_types {
+                        let selected = settings.spec_draft_type_k == *k_type;
+                        if ui.selectable_label(selected, *k_type).clicked() {
+                            settings.spec_draft_type_k = k_type.to_string();
+                        }
                     }
-                }
-            });
-            // 推测解码 KV 类型 V
-            ui.horizontal(|ui| {
-                ui.label(i18n::t(i18n::Key::LabelSpecDraftTypeV, lang));
-                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftTypeV, lang));
-            });
-            let spec_v_types = [
-                "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1",
-            ];
-            ui.horizontal_wrapped(|ui| {
-                ui.spacing_mut().item_spacing.x = 6.0;
-                for v_type in &spec_v_types {
-                    let selected = settings.spec_draft_type_v == *v_type;
-                    if ui.selectable_label(selected, *v_type).clicked() {
-                        settings.spec_draft_type_v = v_type.to_string();
+                });
+                // 推测解码 KV 类型 V
+                ui.horizontal(|ui| {
+                    ui.label(i18n::t(i18n::Key::LabelSpecDraftTypeV, lang));
+                    helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftTypeV, lang));
+                });
+                let spec_v_types = [
+                    "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1",
+                ];
+                ui.horizontal_wrapped(|ui| {
+                    ui.spacing_mut().item_spacing.x = 6.0;
+                    for v_type in &spec_v_types {
+                        let selected = settings.spec_draft_type_v == *v_type;
+                        if ui.selectable_label(selected, *v_type).clicked() {
+                            settings.spec_draft_type_v = v_type.to_string();
+                        }
                     }
-                }
-            });
+                });
+            }
+            // ngram-simple / ngram-map-k / ngram-map-k4v 共用参数（size-n / size-m / min-hits）
+            let is_ngram_shared = matches!(
+                settings.spec_type.as_str(),
+                "ngram-simple" | "ngram-map-k" | "ngram-map-k4v"
+            );
+            if is_ngram_shared {
+                ui.horizontal(|ui| {
+                    ui.label(i18n::t(i18n::Key::SpecNgramSizeNLabel, lang));
+                    ui.add(egui::DragValue::new(&mut settings.spec_ngram_size_n).range(1..=256));
+                    helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecNgramSizeN, lang));
+                });
+                ui.horizontal(|ui| {
+                    ui.label(i18n::t(i18n::Key::SpecNgramSizeMLabel, lang));
+                    ui.add(egui::DragValue::new(&mut settings.spec_ngram_size_m).range(1..=256));
+                    helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecNgramSizeM, lang));
+                });
+                ui.horizontal(|ui| {
+                    ui.label(i18n::t(i18n::Key::SpecNgramMinHitsLabel, lang));
+                    ui.add(egui::DragValue::new(&mut settings.spec_ngram_min_hits).range(1..=128));
+                    helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecNgramMinHits, lang));
+                });
+            }
+            // ngram-mod 专用参数（n-min / n-max / n-match）
+            if settings.spec_type == "ngram-mod" {
+                ui.horizontal(|ui| {
+                    ui.label(i18n::t(i18n::Key::SpecNgramModNMinLabel, lang));
+                    ui.add(
+                        egui::DragValue::new(&mut settings.spec_ngram_mod_n_min).range(1..=256),
+                    );
+                    helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecNgramModNMin, lang));
+                });
+                ui.horizontal(|ui| {
+                    ui.label(i18n::t(i18n::Key::SpecNgramModNMaxLabel, lang));
+                    ui.add(
+                        egui::DragValue::new(&mut settings.spec_ngram_mod_n_max).range(1..=256),
+                    );
+                    helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecNgramModNMax, lang));
+                });
+                ui.horizontal(|ui| {
+                    ui.label(i18n::t(i18n::Key::SpecNgramModNMatchLabel, lang));
+                    ui.add(
+                        egui::DragValue::new(&mut settings.spec_ngram_mod_n_match).range(1..=128),
+                    );
+                    helper::help_button_inline(
+                        ui,
+                        i18n::t(i18n::Key::HelpSpecNgramModNMatch, lang),
+                    );
+                });
+            }
         },
     );
 

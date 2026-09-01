@@ -441,8 +441,8 @@ impl ServerManager {
             cmd.arg("--spec-type").arg(&settings.spec_type);
         }
 
-        // 3) --spec-draft-*: 仅在 spec_type != "none" 时写入
-        if settings.spec_type != "none" {
+        // 3) --spec-draft-*: 仅在 spec_type 为 draft-* 时写入
+        if settings.spec_type.starts_with("draft-") {
             cmd.arg("--spec-draft-n-max")
                 .arg(settings.spec_draft_n_max.to_string());
             cmd.arg("--spec-draft-n-min")
@@ -459,6 +459,30 @@ impl ServerManager {
                 cmd.arg("--spec-draft-type-v")
                     .arg(&settings.spec_draft_type_v);
             }
+        }
+
+        // 4) --spec-ngram-*: ngram-simple / ngram-map-k / ngram-map-k4v 共用参数
+        if matches!(
+            settings.spec_type.as_str(),
+            "ngram-simple" | "ngram-map-k" | "ngram-map-k4v"
+        ) {
+            let prefix = format!("--spec-{}", settings.spec_type);
+            cmd.arg(format!("{}-size-n", prefix))
+                .arg(settings.spec_ngram_size_n.to_string());
+            cmd.arg(format!("{}-size-m", prefix))
+                .arg(settings.spec_ngram_size_m.to_string());
+            cmd.arg(format!("{}-min-hits", prefix))
+                .arg(settings.spec_ngram_min_hits.to_string());
+        }
+
+        // 5) --spec-ngram-mod-*: ngram-mod 专用参数
+        if settings.spec_type == "ngram-mod" {
+            cmd.arg("--spec-ngram-mod-n-min")
+                .arg(settings.spec_ngram_mod_n_min.to_string());
+            cmd.arg("--spec-ngram-mod-n-max")
+                .arg(settings.spec_ngram_mod_n_max.to_string());
+            cmd.arg("--spec-ngram-mod-n-match")
+                .arg(settings.spec_ngram_mod_n_match.to_string());
         }
 
         // KV 缓存配置

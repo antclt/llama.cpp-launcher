@@ -363,6 +363,32 @@ fn default_spec_draft_type_v() -> String {
     "f16".to_string()
 }
 
+// ngram 参数默认值（ngram-simple / ngram-map-k / ngram-map-k4v 共用）
+fn default_spec_ngram_size_n() -> usize {
+    12
+}
+
+fn default_spec_ngram_size_m() -> usize {
+    48
+}
+
+fn default_spec_ngram_min_hits() -> usize {
+    1
+}
+
+// ngram-mod 参数默认值
+fn default_spec_ngram_mod_n_min() -> usize {
+    48
+}
+
+fn default_spec_ngram_mod_n_max() -> usize {
+    64
+}
+
+fn default_spec_ngram_mod_n_match() -> usize {
+    24
+}
+
 // KV 缓存比例默认值
 fn default_kv_cache_ratio() -> f32 {
     0.95
@@ -553,6 +579,20 @@ pub struct Preset {
     pub spec_draft_type_k: String, // --spec-draft-type-k
     #[serde(default = "default_spec_draft_type_v")]
     pub spec_draft_type_v: String, // --spec-draft-type-v
+    // ngram 参数（ngram-simple / ngram-map-k / ngram-map-k4v 共用）
+    #[serde(default = "default_spec_ngram_size_n")]
+    pub spec_ngram_size_n: usize, // --spec-ngram-*-size-n
+    #[serde(default = "default_spec_ngram_size_m")]
+    pub spec_ngram_size_m: usize, // --spec-ngram-*-size-m
+    #[serde(default = "default_spec_ngram_min_hits")]
+    pub spec_ngram_min_hits: usize, // --spec-ngram-*-min-hits
+    // ngram-mod 专用参数
+    #[serde(default = "default_spec_ngram_mod_n_min")]
+    pub spec_ngram_mod_n_min: usize, // --spec-ngram-mod-n-min
+    #[serde(default = "default_spec_ngram_mod_n_max")]
+    pub spec_ngram_mod_n_max: usize, // --spec-ngram-mod-n-max
+    #[serde(default = "default_spec_ngram_mod_n_match")]
+    pub spec_ngram_mod_n_match: usize, // --spec-ngram-mod-n-match
 
     // KV 缓存配置
     pub kv_offload: bool,
@@ -714,6 +754,12 @@ impl Default for Preset {
             spec_draft_p_split: default_spec_draft_p_split(),
             spec_draft_type_k: default_spec_draft_type_k(),
             spec_draft_type_v: default_spec_draft_type_v(),
+            spec_ngram_size_n: default_spec_ngram_size_n(),
+            spec_ngram_size_m: default_spec_ngram_size_m(),
+            spec_ngram_min_hits: default_spec_ngram_min_hits(),
+            spec_ngram_mod_n_min: default_spec_ngram_mod_n_min(),
+            spec_ngram_mod_n_max: default_spec_ngram_mod_n_max(),
+            spec_ngram_mod_n_match: default_spec_ngram_mod_n_match(),
             kv_offload: true,
             cache_type_k: "q8_0".to_string(),
             cache_type_v: "q8_0".to_string(),
@@ -828,6 +874,12 @@ impl Preset {
             spec_draft_p_split: settings.spec_draft_p_split,
             spec_draft_type_k: settings.spec_draft_type_k.clone(),
             spec_draft_type_v: settings.spec_draft_type_v.clone(),
+            spec_ngram_size_n: settings.spec_ngram_size_n,
+            spec_ngram_size_m: settings.spec_ngram_size_m,
+            spec_ngram_min_hits: settings.spec_ngram_min_hits,
+            spec_ngram_mod_n_min: settings.spec_ngram_mod_n_min,
+            spec_ngram_mod_n_max: settings.spec_ngram_mod_n_max,
+            spec_ngram_mod_n_match: settings.spec_ngram_mod_n_match,
             kv_offload: settings.kv_offload,
             cache_type_k: settings.cache_type_k.clone(),
             cache_type_v: settings.cache_type_v.clone(),
@@ -945,6 +997,12 @@ impl Preset {
         settings.spec_draft_p_split = self.spec_draft_p_split;
         settings.spec_draft_type_k = self.spec_draft_type_k;
         settings.spec_draft_type_v = self.spec_draft_type_v;
+        settings.spec_ngram_size_n = self.spec_ngram_size_n;
+        settings.spec_ngram_size_m = self.spec_ngram_size_m;
+        settings.spec_ngram_min_hits = self.spec_ngram_min_hits;
+        settings.spec_ngram_mod_n_min = self.spec_ngram_mod_n_min;
+        settings.spec_ngram_mod_n_max = self.spec_ngram_mod_n_max;
+        settings.spec_ngram_mod_n_match = self.spec_ngram_mod_n_match;
         settings.kv_offload = self.kv_offload;
         settings.cache_type_k = self.cache_type_k;
         settings.cache_type_v = self.cache_type_v;
@@ -1190,6 +1248,20 @@ pub struct AppSettings {
     pub spec_draft_type_k: String, // --spec-draft-type-k
     #[serde(default = "default_spec_draft_type_v")]
     pub spec_draft_type_v: String, // --spec-draft-type-v
+    // ngram 参数（ngram-simple / ngram-map-k / ngram-map-k4v 共用）
+    #[serde(default = "default_spec_ngram_size_n")]
+    pub spec_ngram_size_n: usize,
+    #[serde(default = "default_spec_ngram_size_m")]
+    pub spec_ngram_size_m: usize,
+    #[serde(default = "default_spec_ngram_min_hits")]
+    pub spec_ngram_min_hits: usize,
+    // ngram-mod 专用参数
+    #[serde(default = "default_spec_ngram_mod_n_min")]
+    pub spec_ngram_mod_n_min: usize,
+    #[serde(default = "default_spec_ngram_mod_n_max")]
+    pub spec_ngram_mod_n_max: usize,
+    #[serde(default = "default_spec_ngram_mod_n_match")]
+    pub spec_ngram_mod_n_match: usize,
 
     // KV 缓存配置
     pub kv_offload: bool,
@@ -1477,6 +1549,12 @@ impl Default for AppSettings {
             spec_draft_p_split: default_spec_draft_p_split(),
             spec_draft_type_k: default_spec_draft_type_k(),
             spec_draft_type_v: default_spec_draft_type_v(),
+            spec_ngram_size_n: default_spec_ngram_size_n(),
+            spec_ngram_size_m: default_spec_ngram_size_m(),
+            spec_ngram_min_hits: default_spec_ngram_min_hits(),
+            spec_ngram_mod_n_min: default_spec_ngram_mod_n_min(),
+            spec_ngram_mod_n_max: default_spec_ngram_mod_n_max(),
+            spec_ngram_mod_n_match: default_spec_ngram_mod_n_match(),
             kv_offload: true,
             cache_type_k: "q8_0".to_string(),
             cache_type_v: "q8_0".to_string(),
