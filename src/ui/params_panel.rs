@@ -874,6 +874,10 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ),
                 ("draft-mtp", i18n::t(i18n::Key::SpecTypeDraftMtp, lang)),
                 (
+                    "draft-dflash",
+                    i18n::t(i18n::Key::SpecTypeDraftDflash, lang),
+                ),
+                (
                     "ngram-simple",
                     i18n::t(i18n::Key::SpecTypeNgramSimple, lang),
                 ),
@@ -884,7 +888,6 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ),
                 ("ngram-mod", i18n::t(i18n::Key::SpecTypeNgramMod, lang)),
                 ("ngram-cache", i18n::t(i18n::Key::SpecTypeNgramCache, lang)),
-                ("dflash", i18n::t(i18n::Key::SpecTypeDflash, lang)),
             ];
 
             ui.horizontal_wrapped(|ui| {
