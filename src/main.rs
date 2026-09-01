@@ -7,6 +7,7 @@ pub mod engine;
 pub mod geo;
 pub mod i18n;
 pub mod kv_cache;
+pub mod net_proxy;
 pub mod shortcut;
 mod spacing_debugger;
 pub mod theme;

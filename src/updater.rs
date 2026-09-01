@@ -57,11 +57,15 @@ fn get_arch() -> &'static str {
     }
 }
 
-/// 带超时与 User-Agent 的共享 Agent
+/// 带超时与 User-Agent 的共享 Agent；
+/// 自动应用 Windows 系统代理（Clash 等，见 net_proxy 模块）
 fn agent(timeout_secs: u64) -> ureq::Agent {
-    ureq::AgentBuilder::new()
-        .timeout(std::time::Duration::from_secs(timeout_secs))
-        .build()
+    let mut builder =
+        ureq::AgentBuilder::new().timeout(std::time::Duration::from_secs(timeout_secs));
+    if let Some(proxy) = crate::net_proxy::system_proxy() {
+        builder = builder.proxy(proxy);
+    }
+    builder.build()
 }
 
 /// 官方 + 镜像依次尝试，带不同超时；返回 Response body 字符串
