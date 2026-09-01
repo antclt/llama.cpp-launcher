@@ -46,7 +46,32 @@ pub enum NavIcon {
 pub fn card<R>(
     ui: &mut Ui,
     title: &str,
+    accent: Color32,
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> R {
+    card_with_header(ui, title, accent, |_| {}, add_contents)
+}
+
+/// 卡片（标题行右侧可附加组件，如操作按钮）。
+/// 布局与 `card` 完全一致：标题居左、附加组件右对齐到标题行最右。
+pub fn card_with_header<R>(
+    ui: &mut Ui,
+    title: &str,
     _accent: Color32,
+    header: impl FnOnce(&mut Ui),
+    add_contents: impl FnOnce(&mut Ui) -> R,
+) -> R {
+    card_with_header_notice(ui, title, _accent, None, header, add_contents)
+}
+
+/// 卡片变体：标题右边紧跟一条状态通知（如预设启动成功/失败）。
+/// `notice` = Some((是否成功, 消息))；成功绿色 ✓、失败用主题错误色 ✕。
+pub fn card_with_header_notice<R>(
+    ui: &mut Ui,
+    title: &str,
+    _accent: Color32,
+    notice: Option<(bool, &str)>,
+    header: impl FnOnce(&mut Ui),
     add_contents: impl FnOnce(&mut Ui) -> R,
 ) -> R {
     let fill = ui.visuals().widgets.noninteractive.bg_fill;
@@ -70,6 +95,20 @@ pub fn card<R>(
             ui.spacing_mut().item_spacing.y = 12.0;
             ui.horizontal(|ui| {
                 ui.label(title);
+                // 标题右侧紧跟的状态通知（显式颜色，随成败切换）
+                if let Some((ok, msg)) = notice {
+                    let color = if ok {
+                        Color32::from_rgb(52, 168, 83) // #34A853 成功绿
+                    } else {
+                        ui.visuals().error_fg_color
+                    };
+                    ui.label(
+                        egui::RichText::new(format!("{} {}", if ok { "✓" } else { "✕" }, msg))
+                            .color(color),
+                    );
+                }
+                // 附加组件右对齐到标题行最右
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), header);
             });
             ui.separator();
             ui.add_space(4.0);

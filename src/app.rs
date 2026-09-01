@@ -36,6 +36,12 @@ pub struct LlamaLauncherApp {
     updater: crate::updater::UpdaterHandle,
     check_update: Option<poll_promise::Promise<(String, Option<String>)>>,
     install_exit_timer: f32, // 自更新安装阶段：显示"正在安装"的倒计时
+    preset_share: crate::ui::preset_share::PresetShareUi,
+    preset_config: crate::ui::preset_share::PresetConfigUi,
+    /// 预设启动结果通知：(是否成功, 消息, 过期时间戳)；到期自动清除
+    preset_start_notice: Option<(bool, String, f64)>,
+    /// 预设启动监听：Some(true)=Server，Some(false)=RPC；状态机到终态后转为通知
+    preset_start_watch: Option<bool>,
     nav: NavSection,
     logo: Option<egui::TextureHandle>,
     theme_applied: (bool, String),
@@ -140,6 +146,10 @@ impl LlamaLauncherApp {
             updater: crate::updater::UpdaterHandle::new(),
             check_update: None,
             install_exit_timer: 0.0,
+            preset_share: crate::ui::preset_share::PresetShareUi::default(),
+            preset_config: crate::ui::preset_share::PresetConfigUi::default(),
+            preset_start_notice: None,
+            preset_start_watch: None,
             nav: NavSection::Server,
             logo,
             theme_applied: (true, String::new()), // 重新应用逻辑在 update 中处理
@@ -512,6 +522,60 @@ impl eframe::App for LlamaLauncherApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         ctx.request_repaint_after(std::time::Duration::from_millis(500));
 
+        // 预设启动监听：状态机到终态后转为结果通知（Running=成功 / Error=失败 / Idle=取消）
+        if let Some(is_server) = self.preset_start_watch {
+            let terminal = if is_server {
+                match self.server_manager.state() {
+                    ServerState::Running => Some((true, None)),
+                    ServerState::Error(e) => Some((false, Some(e.text(&self.lang)))),
+                    // 用户手动停止等：静默取消监听，不误报失败
+                    ServerState::Idle | ServerState::Stopping => {
+                        self.preset_start_watch = None;
+                        None
+                    }
+                    _ => None,
+                }
+            } else {
+                match self.rpc_manager.state() {
+                    RpcState::Running => Some((true, None)),
+                    RpcState::Error(e) => Some((false, Some(e.text(&self.lang)))),
+                    RpcState::Idle | RpcState::Stopping => {
+                        self.preset_start_watch = None;
+                        None
+                    }
+                    _ => None,
+                }
+            };
+            if let Some((ok, err)) = terminal {
+                self.preset_start_watch = None;
+                let now = ctx.input(|i| i.time);
+                let msg = match (ok, err) {
+                    (true, _) => i18n::t(
+                        if is_server {
+                            i18n::Key::PresetStartServerOk
+                        } else {
+                            i18n::Key::PresetStartRpcOk
+                        },
+                        &self.lang,
+                    )
+                    .to_string(),
+                    (false, Some(text)) => format!(
+                        "{}: {}",
+                        i18n::t(i18n::Key::PresetStartFail, &self.lang),
+                        text
+                    ),
+                    (false, None) => i18n::t(i18n::Key::PresetStartFail, &self.lang).to_string(),
+                };
+                self.preset_start_notice = Some((ok, msg, now + 6.0));
+            }
+        }
+        // 通知到期自动清除
+        if let Some((_, _, expire)) = &self.preset_start_notice {
+            if ctx.input(|i| i.time) >= *expire {
+                self.preset_start_notice = None;
+            }
+        }
+
         // 自更新安装阶段：下载完成并启动自替换脚本后，短暂展示"正在安装"再关闭窗口
         // （Let 脚本等待主进程退出）
         if matches!(
@@ -686,10 +750,46 @@ impl eframe::App for LlamaLauncherApp {
                                 crate::theme::accent_color(&self.settings.accent_color),
                             ),
                             NavSection::Presets => {
-                                let should_start =
-                                    presets_panel::ui(ui, &mut self.settings, &self.lang);
-                                if should_start {
-                                    self.server_manager.start(&self.settings);
+                                match presets_panel::ui(
+                                    ui,
+                                    &mut self.settings,
+                                    &self.lang,
+                                    &mut self.preset_share,
+                                    &mut self.preset_config,
+                                    &self.rpc_manager,
+                                    &self.preset_start_notice,
+                                ) {
+                                    crate::ui::presets_panel::PresetPanelRequest::None => {}
+                                    crate::ui::presets_panel::PresetPanelRequest::StartServer => {
+                                        // engine 幂等：已运行时 start() 直接返回，不弹"启动成功"
+                                        let was_running = self.server_manager.is_running();
+                                        self.server_manager.start(&self.settings);
+                                        // 路径缺失等校验失败会同步置 Error → 立即通知；
+                                        // 否则进入监听，等状态机到 Running/Error 再通知
+                                        if let ServerState::Error(e) = self.server_manager.state() {
+                                            let now = ctx.input(|i| i.time);
+                                            self.preset_start_notice =
+                                                Some((false, e.text(&self.lang), now + 6.0));
+                                        } else if !was_running {
+                                            self.preset_start_watch = Some(true);
+                                        }
+                                    }
+                                    crate::ui::presets_panel::PresetPanelRequest::StartRpc => {
+                                        let was_running = self.rpc_manager.is_running();
+                                        self.rpc_manager.start(&self.settings);
+                                        if let RpcState::Error(e) = self.rpc_manager.state() {
+                                            let now = ctx.input(|i| i.time);
+                                            self.preset_start_notice =
+                                                Some((false, e.text(&self.lang), now + 6.0));
+                                        } else if !was_running {
+                                            self.preset_start_watch = Some(false);
+                                        }
+                                    }
+                                    crate::ui::presets_panel::PresetPanelRequest::OpenConfig(i) => {
+                                        // 打开配置窗口：快照设置并应用该预设参数到草稿
+                                        let preset = self.settings.presets[i].clone();
+                                        self.preset_config.open_for(&preset, self.settings.clone());
+                                    }
                                 }
                             }
                             NavSection::Settings => settings_panel::ui(

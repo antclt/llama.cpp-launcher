@@ -4,6 +4,7 @@ pub mod log_panel;
 pub mod mcp_panel;
 pub mod model_panel;
 pub mod params_panel;
+pub mod preset_share;
 pub mod presets_panel;
 pub mod rpc_panel;
 pub mod server_panel;

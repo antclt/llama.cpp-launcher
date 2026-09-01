@@ -13,7 +13,8 @@ config/AGENTS.md。
 - params_panel: n_ctx/n_predict/temperature/top_p/top_k/repeat_penalty/kv_offload/cache_type/GPU
 - log_panel: 服务器日志 ui() + 远程调用日志 rpc_ui()，共享 render()/LogSource trait
 - launch_commands_panel: server/RPC 最终启动命令只读展示
-- presets_panel: 预设保存/应用/删除/自启动，返回 bool(是否应启动 Server)
+- presets_panel: 预设保存/应用/删除/重命名/自启动 + 分享/引入入口；返回 PresetPanelRequest（None/StartServer/StartRpc/OpenConfig）
+- preset_share: 预设分享/引入模块（分享码 encode/decode、依赖声明 ShareDecl、引入配置窗口草稿隔离、声明阅读窗口）；进程生命周期仍走 engine，由 app.rs 响应 PresetPanelRequest
 
 ## WHERE TO LOOK
 
@@ -30,7 +31,9 @@ config/AGENTS.md。
     - model_panel: +&mut ServerManager, &mut RpcManager；FileMode(Main/Mmproj/DFlash)；auto_detect_model_dir /
       is_dflash_file()
     - log_panel: ui() +&mut ServerManager（服务器日志）；rpc_ui() +&mut RpcManager（远程调用日志）
-    - presets_panel: bool 返回值用于触发 auto_start_server_on_first_frame
+    - presets_panel: +PresetShareUi, PresetConfigUi, &RpcManager, 启动结果通知；返回 PresetPanelRequest 交给 app.rs 执行
+- 弹窗（Window）统一由 app.rs/presets_panel 每帧渲染入口调用，窗口内文本同样走 i18n；
+  深浅色自适应用 ui.visuals()，主题色填充用 accent + alpha 175（低饱和度规范）。
 
 ## ANTI-PATTERNS
 
