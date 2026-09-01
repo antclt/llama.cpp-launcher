@@ -22,41 +22,20 @@ use std::thread::{self, JoinHandle};
 
 use serde::Deserialize;
 
-/// 请求 User-Agent（GitHub API 必需）
-const USER_AGENT: &str = "llama-cpp-launcher";
-/// 下载块大小（字节）
-const CHUNK_SIZE: usize = 8192;
+use crate::net_proxy as net;
+
 /// 定位二进制时 BFS 最大深度（相对解压根的子目录深度）
 const MAX_SEARCH_DEPTH: usize = 4;
-/// 官方 GitHub API 超时（秒）
-const OFFICIAL_TIMEOUT_SECS: u64 = 300;
-/// gh-proxy 镜像超时（秒）
-const MIRROR_TIMEOUT_SECS: u64 = 500;
-/// 全部源都失败时 UI 展示的固定错误消息（网络层）
-pub const ERR_NETWORK: &str = "network-error";
+/// 全部源都失败时 UI 展示的固定错误消息（网络层；统一入口见 net::ERR_NETWORK）
+pub use crate::net_proxy::ERR_NETWORK;
 /// API 镜像基址（gh-proxy 前缀，官方超时/失败时自动回退）
 const API_MIRROR_BASE: &str = "https://gh-proxy.com";
 /// 资产下载源（镜像前缀；官方 URL 直接使用 asset.browser_download_url）
 const DOWNLOAD_MIRROR_BASE: &str = "https://gh-proxy.com/https://github.com";
 
-/// 带超时与 User-Agent 的共享 Agent；
-/// 自动应用 Windows 系统代理（Clash 等，见 net_proxy 模块）
-fn agent(timeout_secs: u64) -> ureq::Agent {
-    let mut builder =
-        ureq::AgentBuilder::new().timeout(std::time::Duration::from_secs(timeout_secs));
-    if let Some(proxy) = crate::net_proxy::system_proxy() {
-        builder = builder.proxy(proxy);
-    }
-    builder.build()
-}
-
-/// 官方 + 镜像依次尝试，带不同超时；返回 Response body 字符串
-///
-/// 优先级策略：
-/// - `smart_mirror = true`（下载文件）：根据地理位置智能选择优先级
-///   - 中国大陆：镜像源（500秒超时）→ 官方源（300秒超时）
-///   - 其他地区：官方源（300秒超时）→ 镜像源（500秒超时）
-/// - `smart_mirror = false`（API 调用）：始终使用官方源，失败后回退镜像
+/// 官方 + 镜像依次尝试；返回 Response body 字符串。
+/// 网络层（连接/读超时 + 系统代理 + UA）统一走 net::build_agent，
+/// 无总超时——大文件下载不会被 `.timeout()` 总超时掐断。
 fn fetch_with_fallback(
     official_url: &str,
     mirror_url: &str,
@@ -85,52 +64,33 @@ fn fetch_with_fallback(
         log::info!("[network] API 调用: 始终使用官方源");
     }
 
+    let agent = net::build_agent();
     if mirror_first {
         // 中国大陆：优先使用镜像源
-        let mirror_agent = agent(MIRROR_TIMEOUT_SECS);
-        log::info!(
-            "[network] 尝试镜像源 (超时 {}s): {}",
-            MIRROR_TIMEOUT_SECS,
-            mirror_url
-        );
-        if let Ok(body) = fetch_body(&mirror_agent, mirror_url) {
+        log::info!("[network] 尝试镜像源: {}", mirror_url);
+        if let Ok(body) = fetch_body(&agent, mirror_url) {
             log::info!("[network] ✓ 镜像源请求成功");
             return Ok(body);
         }
         log::warn!("[network] ✗ 镜像源请求失败，回退到官方源");
         // 镜像失败，回退到官方源
-        let official_agent = agent(OFFICIAL_TIMEOUT_SECS);
-        log::info!(
-            "[network] 尝试官方源 (超时 {}s): {}",
-            OFFICIAL_TIMEOUT_SECS,
-            official_url
-        );
-        if let Ok(body) = fetch_body(&official_agent, official_url) {
+        log::info!("[network] 尝试官方源: {}", official_url);
+        if let Ok(body) = fetch_body(&agent, official_url) {
             log::info!("[network] ✓ 官方源请求成功");
             return Ok(body);
         }
         log::warn!("[network] ✗ 官方源请求也失败");
     } else {
         // 其他地区或 API 调用：优先使用官方源
-        let official_agent = agent(OFFICIAL_TIMEOUT_SECS);
-        log::info!(
-            "[network] 尝试官方源 (超时 {}s): {}",
-            OFFICIAL_TIMEOUT_SECS,
-            official_url
-        );
-        if let Ok(body) = fetch_body(&official_agent, official_url) {
+        log::info!("[network] 尝试官方源: {}", official_url);
+        if let Ok(body) = fetch_body(&agent, official_url) {
             log::info!("[network] ✓ 官方源请求成功");
             return Ok(body);
         }
         log::warn!("[network] ✗ 官方源请求失败，回退到镜像源");
         // 官方失败，回退到镜像源
-        let mirror_agent = agent(MIRROR_TIMEOUT_SECS);
-        log::info!(
-            "[network] 尝试镜像源 (超时 {}s): {}",
-            MIRROR_TIMEOUT_SECS,
-            mirror_url
-        );
-        if let Ok(body) = fetch_body(&mirror_agent, mirror_url) {
+        log::info!("[network] 尝试镜像源: {}", mirror_url);
+        if let Ok(body) = fetch_body(&agent, mirror_url) {
             log::info!("[network] ✓ 镜像源请求成功");
             return Ok(body);
         }
@@ -145,7 +105,7 @@ fn fetch_with_fallback(
 fn fetch_body(ag: &ureq::Agent, url: &str) -> Result<String, String> {
     let response = ag
         .get(url)
-        .set("User-Agent", USER_AGENT)
+        .set("User-Agent", net::USER_AGENT)
         .call()
         .map_err(|e| e.to_string())?;
     response.into_string().map_err(|e| e.to_string())
@@ -688,13 +648,8 @@ fn run_download(
         } else {
             "官方源"
         };
-        let timeout = if source == "镜像源" {
-            MIRROR_TIMEOUT_SECS
-        } else {
-            OFFICIAL_TIMEOUT_SECS
-        };
-        log::info!("[download] 尝试{} (超时 {}s): {}", source, timeout, url);
-        match download_to_file(url, &partial, cancel, status, timeout) {
+        log::info!("[download] 尝试{}: {}", source, url);
+        match download_to_file(url, &partial, cancel, status) {
             Ok(()) => {
                 // 下载完整性校验：实际字节应与资产声明一致
                 let actual_size = fs::metadata(&partial).map(|m| m.len()).unwrap_or(0);
@@ -770,18 +725,8 @@ fn run_download(
                 } else {
                     "官方源"
                 };
-                let timeout = if source == "镜像源" {
-                    MIRROR_TIMEOUT_SECS
-                } else {
-                    OFFICIAL_TIMEOUT_SECS
-                };
-                log::info!(
-                    "[download] CUDA 库 尝试{} (超时 {}s): {}",
-                    source,
-                    timeout,
-                    url
-                );
-                match download_to_file(url, &cudart_partial, cancel, status, timeout) {
+                log::info!("[download] CUDA 库 尝试{}: {}", source, url);
+                match download_to_file(url, &cudart_partial, cancel, status) {
                     Ok(()) => {
                         let actual_size =
                             fs::metadata(&cudart_partial).map(|m| m.len()).unwrap_or(0);
@@ -868,25 +813,24 @@ enum DlError {
     Failed(String),
 }
 
-/// 流式下载到文件（8192 字节/chunk；每 chunk 更新进度 + 检查取消）
-/// 使用带超时的 agent，防止网络卡死。
+/// 流式下载到文件（net::CHUNK_SIZE 字节/chunk；每 chunk 更新进度 + 检查取消）
+/// 使用 net::build_agent（连接/读超时防卡死，无总超时，大文件不被掐断）。
 fn download_to_file(
     url: &str,
     out: &Path,
     cancel: &AtomicBool,
     status: &Arc<Mutex<DownloadStatus>>,
-    timeout_secs: u64,
 ) -> Result<(), DlError> {
-    let ag = agent(timeout_secs);
+    let ag = net::build_agent();
     let response = ag
         .get(url)
-        .set("User-Agent", USER_AGENT)
+        .set("User-Agent", net::USER_AGENT)
         .call()
         .map_err(|e| DlError::Failed(e.to_string()))?;
     let file = File::create(out).map_err(|e| DlError::Failed(e.to_string()))?;
     let mut writer = BufWriter::new(file);
     let mut reader = response.into_reader();
-    let mut buf = vec![0u8; CHUNK_SIZE];
+    let mut buf = vec![0u8; net::CHUNK_SIZE];
     let mut done: u64 = 0;
     loop {
         let n = reader

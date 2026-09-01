@@ -34,7 +34,7 @@ regex = "1"
 shortcuts-rs = "1.1.1"
 # 复用 eframe 已引入的版本（0.6.2 / 0.61.2），仅追加 DWM 所需 feature
 raw-window-handle = "0.6.2"
-windows-sys = { version = "0.61.2", features = ["Win32_Graphics_Dwm", "Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61.2", features = ["Win32_Graphics_Dwm", "Win32_Foundation", "Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging", "Win32_System_Threading"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # Linux 需要 x11 后端支持 winit/eframe

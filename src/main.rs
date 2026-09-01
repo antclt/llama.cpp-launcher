@@ -122,6 +122,20 @@ use std::sync::Arc;
 fn main() -> eframe::Result {
     init_logger();
 
+    // 自更新等待者进程：旧版本 spawn 自身（--updater-switch <pid>），
+    // 等旧进程完全退出后启动已换入正式名的新版本。无 UI，完毕即退出。
+    #[cfg(target_os = "windows")]
+    if std::env::args().nth(1).as_deref() == Some("--updater-switch") {
+        if let Ok(pid) = std::env::args().nth(2).unwrap_or_default().parse::<u32>() {
+            crate::updater::run_updater_waiter(pid);
+            std::process::exit(0);
+        }
+    }
+
+    // 启动清理：上次更新遗留的旧版备份（exe.old）与空 update 目录
+    #[cfg(target_os = "windows")]
+    crate::updater::cleanup_leftovers_on_startup();
+
     // 检测命令行参数是否包含 --minimized（开机自启时使用）
     let start_minimized = env::args().any(|arg| arg == "--minimized");
 
