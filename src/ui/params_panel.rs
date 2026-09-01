@@ -878,6 +878,10 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     i18n::t(i18n::Key::SpecTypeDraftDflash, lang),
                 ),
                 (
+                    "draft-dspark",
+                    i18n::t(i18n::Key::SpecTypeDraftDspark, lang),
+                ),
+                (
                     "ngram-simple",
                     i18n::t(i18n::Key::SpecTypeNgramSimple, lang),
                 ),
