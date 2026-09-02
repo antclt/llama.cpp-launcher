@@ -70,24 +70,30 @@ fn format_size(bytes: u64) -> String {
 /// 输入: "Device 0: AMD Radeon RX 7900 XTX, gfx1100 (0x1100), VMM: no, Wave Size: 32, VRAM: 24560 MiB"
 /// 输出: "ROCm0: AMD Radeon RX 7900 XTX (24560 MiB)"
 fn format_device_info(line: &str) -> String {
+    // 先去除行首尾空格，处理Linux下可能存在的缩进
+    let trimmed_line = line.trim();
+
     // 提取设备编号
-    let device_id = line
+    let device_id = trimmed_line
         .strip_prefix("Device ")
         .and_then(|s| s.split(':').next())
         .map(|s| s.trim().to_string())
         .unwrap_or_default();
 
     // 根据品牌确定前缀
-    let prefix = if line.contains("AMD") {
+    let prefix = if trimmed_line.contains("AMD")
+        || trimmed_line.contains("Radeon")
+        || trimmed_line.contains("ROCm")
+    {
         "ROCm"
-    } else if line.contains("NVIDIA") {
+    } else if trimmed_line.contains("NVIDIA") || trimmed_line.contains("CUDA") {
         "CUDA"
     } else {
         ""
     };
 
     // 提取设备名称（第一个逗号前的部分）
-    let name = line
+    let name = trimmed_line
         .split(':')
         .nth(1)
         .and_then(|s| s.split(',').next())
@@ -95,7 +101,7 @@ fn format_device_info(line: &str) -> String {
         .unwrap_or_default();
 
     // 提取 VRAM 大小
-    let vram = line
+    let vram = trimmed_line
         .split("VRAM:")
         .nth(1)
         .and_then(|s| s.trim().split_whitespace().next())
