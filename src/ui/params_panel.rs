@@ -1041,7 +1041,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         });
         // 投影 GPU 卸载 --mmproj-offload / --no-mmproj-offload
         ui.horizontal(|ui| {
-            widgets::toggle(
+            widgets::toggle_trailing(
                 ui,
                 &mut settings.mmproj_offload,
                 i18n::t(i18n::Key::LabelMmprojOffload, lang),
