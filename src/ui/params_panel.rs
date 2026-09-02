@@ -1041,8 +1041,12 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         });
         // 投影 GPU 卸载 --mmproj-offload / --no-mmproj-offload
         ui.horizontal(|ui| {
-            ui.checkbox(&mut settings.mmproj_offload, "");
-            ui.label(i18n::t(i18n::Key::LabelMmprojOffload, lang));
+            widgets::toggle(
+                ui,
+                &mut settings.mmproj_offload,
+                i18n::t(i18n::Key::LabelMmprojOffload, lang),
+                accent,
+            );
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMmprojOffload, lang));
         });
         // 投影设备 --mmproj-device
