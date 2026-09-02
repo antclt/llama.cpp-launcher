@@ -80,6 +80,7 @@ pub enum Key {
     BtnSavePreset,
     BtnExportParams,
     BtnImportParams,
+    BtnPasteShareCode,
     BtnDeletePreset,
     BtnRenamePreset,
     BtnApplyPreset,
@@ -781,6 +782,8 @@ impl Key {
             (Key::BtnExportParams, &Language::En) => "Export Parameters",
             (Key::BtnImportParams, &Language::Zh) => "导入参数预设",
             (Key::BtnImportParams, &Language::En) => "Import Parameters",
+            (Key::BtnPasteShareCode, &Language::Zh) => "从剪贴板粘贴分享码",
+            (Key::BtnPasteShareCode, &Language::En) => "Paste Share Code",
 
             (Key::BtnDeletePreset, &Language::Zh) => "删除",
             (Key::BtnDeletePreset, &Language::En) => "Delete",

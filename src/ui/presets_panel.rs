@@ -30,6 +30,8 @@ pub fn ui(
     let mut start_server = false;
     let mut start_rpc = false;
     let mut config_request: Option<Preset> = None;
+    // header 闭包中的延迟操作标志（避免与 body 闭包同时借用 &mut share）
+    let mut header_share_open = false;
 
     widgets::card_with_header_notice(
         ui,
@@ -48,7 +50,7 @@ pub fn ui(
                 ))
                 .clicked()
             {
-                share.open();
+                header_share_open = true;
             }
             // 测试功能提示：黄色感叹号（悬停显示说明），位于分享按钮左边
             // （header 为 right_to_left 布局，后绘制者靠左）
@@ -347,6 +349,11 @@ pub fn ui(
             }
         },
     );
+
+    // header 闭包中延迟的分享按钮操作
+    if header_share_open {
+        share.open();
+    }
 
     // ⚙/引入标记请求的 open_for：在 horizontal 闭包外执行（此处无 preset 借用活跃）
     if let Some(p) = config_request.take() {

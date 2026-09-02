@@ -904,6 +904,16 @@ fn render_import_tab(
                 }
             }
         }
+        if ui
+            .small_button(i18n::t(i18n::Key::BtnPasteShareCode, lang))
+            .clicked()
+        {
+            if let Ok(text) =
+                arboard::Clipboard::new().and_then(|mut cb| cb.get_text().map(|s| s.to_string()))
+            {
+                share.import_text = text;
+            }
+        }
     });
 
     // 版本不兼容警告（允许强制添加）
