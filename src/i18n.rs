@@ -170,6 +170,7 @@ pub enum Key {
     DetailsEmbeddingLength,
     DetailsBlockCount,
     DetailsTensorCount,
+    DetailsNGramTensorSize,
     DetailsUnknown,
     Loading,
 
@@ -922,6 +923,8 @@ impl Key {
             (Key::DetailsBlockCount, &Language::En) => "Layers:",
             (Key::DetailsTensorCount, &Language::Zh) => "张量数量:",
             (Key::DetailsTensorCount, &Language::En) => "Tensors:",
+            (Key::DetailsNGramTensorSize, &Language::Zh) => "N-gram 大小:",
+            (Key::DetailsNGramTensorSize, &Language::En) => "N-gram Size:",
             (Key::DetailsUnknown, &Language::Zh) => "未知",
             (Key::DetailsUnknown, &Language::En) => "N/A",
             (Key::Loading, &Language::Zh) => "加载中...",

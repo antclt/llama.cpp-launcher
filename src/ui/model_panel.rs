@@ -429,6 +429,8 @@ struct ModelDetails {
     block_count: Option<u64>,
     /// 张量数量
     tensor_count: u64,
+    /// N-gram 张量大小（字节），若存在 per_layer_token_embd.weight 则显示
+    ngram_tensor_size: Option<u64>,
 }
 
 /// 模型详情弹窗的跨帧状态（存于 Ui 临时数据，按钮点击后保持打开）
@@ -484,6 +486,13 @@ fn load_model_details(
         .get(&format!("{}.block_count", architecture))
         .and_then(|v| v.as_u64());
 
+    // 查找 per_layer_token_embd.weight tensor（N-gram 表）
+    let ngram_tensor_size = model
+        .tensors()
+        .iter()
+        .find(|t| t.name == "per_layer_token_embd.weight")
+        .map(|t| t.size);
+
     Ok(ModelDetails {
         file_name,
         file_size,
@@ -494,6 +503,7 @@ fn load_model_details(
         embedding_length,
         block_count,
         tensor_count: model.num_tensor(),
+        ngram_tensor_size,
     })
 }
 
@@ -1039,6 +1049,14 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                             i18n::t(i18n::Key::DetailsTensorCount, lang),
                             &details.tensor_count.to_string(),
                         );
+                        // N-gram 大小（若模型包含 per_layer_token_embd.weight 张量）
+                        if let Some(ngram_size) = details.ngram_tensor_size {
+                            detail_row(
+                                ui,
+                                i18n::t(i18n::Key::DetailsNGramTensorSize, lang),
+                                &format_file_size(ngram_size),
+                            );
+                        }
                     } else {
                         // 异步任务进行中，显示加载指示器
                         ui.horizontal(|ui| {
