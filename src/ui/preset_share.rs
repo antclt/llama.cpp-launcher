@@ -38,6 +38,36 @@ fn default_jinja_enabled() -> bool {
     true
 }
 
+// 多模态（mmproj / mtmd / video）默认值（与 AppSettings 保持一致，
+// 保证旧版导出 JSON 直接反序列化时缺失的新字段有默认值）
+fn default_mmproj_auto() -> bool {
+    true
+}
+fn default_mmproj_offload() -> bool {
+    true
+}
+fn default_mmproj_device() -> String {
+    "auto".to_string()
+}
+fn default_image_min_tokens() -> i64 {
+    0
+}
+fn default_image_max_tokens() -> i64 {
+    0
+}
+fn default_mtmd_batch_max_tokens() -> usize {
+    1024
+}
+fn default_video_fps() -> f32 {
+    4.0
+}
+fn default_video_timestamp_interval() -> usize {
+    5000
+}
+fn default_video_ffmpeg_dir() -> String {
+    String::new()
+}
+
 /// 导出/导入/分享的"参数面板"专用结构（不包含 Server/RPC/模型路径/密钥等）
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ParamsExport {
@@ -92,6 +122,25 @@ pub struct ParamsExport {
     pub chat_template: String,
     #[serde(default)]
     pub chat_template_file: PathBuf,
+    // 多模态（mmproj / mtmd / video）
+    #[serde(default = "default_mmproj_auto")]
+    pub mmproj_auto: bool,
+    #[serde(default = "default_mmproj_offload")]
+    pub mmproj_offload: bool,
+    #[serde(default = "default_mmproj_device")]
+    pub mmproj_device: String,
+    #[serde(default = "default_image_min_tokens")]
+    pub image_min_tokens: i64,
+    #[serde(default = "default_image_max_tokens")]
+    pub image_max_tokens: i64,
+    #[serde(default = "default_mtmd_batch_max_tokens")]
+    pub mtmd_batch_max_tokens: usize,
+    #[serde(default = "default_video_fps")]
+    pub video_fps: f32,
+    #[serde(default = "default_video_timestamp_interval")]
+    pub video_timestamp_interval: usize,
+    #[serde(default = "default_video_ffmpeg_dir")]
+    pub video_ffmpeg_dir: String,
 }
 
 impl ParamsExport {
@@ -136,6 +185,15 @@ impl ParamsExport {
             jinja_enabled: s.jinja_enabled,
             chat_template: s.chat_template.clone(),
             chat_template_file: s.chat_template_file.clone(),
+            mmproj_auto: s.mmproj_auto,
+            mmproj_offload: s.mmproj_offload,
+            mmproj_device: s.mmproj_device.clone(),
+            image_min_tokens: s.image_min_tokens,
+            image_max_tokens: s.image_max_tokens,
+            mtmd_batch_max_tokens: s.mtmd_batch_max_tokens,
+            video_fps: s.video_fps,
+            video_timestamp_interval: s.video_timestamp_interval,
+            video_ffmpeg_dir: s.video_ffmpeg_dir.clone(),
         }
     }
 
@@ -179,6 +237,15 @@ impl ParamsExport {
         s.jinja_enabled = self.jinja_enabled;
         s.chat_template = self.chat_template;
         s.chat_template_file = self.chat_template_file;
+        s.mmproj_auto = self.mmproj_auto;
+        s.mmproj_offload = self.mmproj_offload;
+        s.mmproj_device = self.mmproj_device;
+        s.image_min_tokens = self.image_min_tokens;
+        s.image_max_tokens = self.image_max_tokens;
+        s.mtmd_batch_max_tokens = self.mtmd_batch_max_tokens;
+        s.video_fps = self.video_fps;
+        s.video_timestamp_interval = self.video_timestamp_interval;
+        s.video_ffmpeg_dir = self.video_ffmpeg_dir;
     }
 
     /// 从单个预设构造（字段与 AppSettings 同名，直接对拷）；
@@ -224,6 +291,15 @@ impl ParamsExport {
             jinja_enabled: p.jinja_enabled,
             chat_template: p.chat_template.clone(),
             chat_template_file: p.chat_template_file.clone(),
+            mmproj_auto: p.mmproj_auto,
+            mmproj_offload: p.mmproj_offload,
+            mmproj_device: p.mmproj_device.clone(),
+            image_min_tokens: p.image_min_tokens,
+            image_max_tokens: p.image_max_tokens,
+            mtmd_batch_max_tokens: p.mtmd_batch_max_tokens,
+            video_fps: p.video_fps,
+            video_timestamp_interval: p.video_timestamp_interval,
+            video_ffmpeg_dir: p.video_ffmpeg_dir.clone(),
         }
     }
 
@@ -270,6 +346,15 @@ impl ParamsExport {
         p.jinja_enabled = self.jinja_enabled;
         p.chat_template = self.chat_template;
         p.chat_template_file = self.chat_template_file;
+        p.mmproj_auto = self.mmproj_auto;
+        p.mmproj_offload = self.mmproj_offload;
+        p.mmproj_device = self.mmproj_device;
+        p.image_min_tokens = self.image_min_tokens;
+        p.image_max_tokens = self.image_max_tokens;
+        p.mtmd_batch_max_tokens = self.mtmd_batch_max_tokens;
+        p.video_fps = self.video_fps;
+        p.video_timestamp_interval = self.video_timestamp_interval;
+        p.video_ffmpeg_dir = self.video_ffmpeg_dir;
         p
     }
 }

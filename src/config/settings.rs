@@ -433,6 +433,39 @@ fn default_true() -> bool {
     true
 }
 
+// 多模态（mmproj / mtmd / video）默认值
+fn default_mmproj_auto() -> bool {
+    true
+}
+
+fn default_mmproj_offload() -> bool {
+    true
+}
+
+fn default_mmproj_device() -> String {
+    "auto".to_string()
+}
+
+fn default_image_min_tokens() -> i64 {
+    0
+}
+
+fn default_image_max_tokens() -> i64 {
+    0
+}
+
+fn default_mtmd_batch_max_tokens() -> usize {
+    1024
+}
+
+fn default_video_fps() -> f32 {
+    4.0
+}
+
+fn default_video_timestamp_interval() -> usize {
+    5000
+}
+
 // Duplicate definition removed - keeping only one instance above
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Preset {
@@ -632,6 +665,25 @@ pub struct Preset {
     pub model_path: PathBuf,
     #[serde(default)]
     pub mmproj_path: PathBuf,
+    // ── 多模态（mmproj / mtmd / video）──
+    #[serde(default = "default_mmproj_auto")]
+    pub mmproj_auto: bool,
+    #[serde(default = "default_mmproj_offload")]
+    pub mmproj_offload: bool,
+    #[serde(default = "default_mmproj_device")]
+    pub mmproj_device: String,
+    #[serde(default = "default_image_min_tokens")]
+    pub image_min_tokens: i64,
+    #[serde(default = "default_image_max_tokens")]
+    pub image_max_tokens: i64,
+    #[serde(default = "default_mtmd_batch_max_tokens")]
+    pub mtmd_batch_max_tokens: usize,
+    #[serde(default = "default_video_fps")]
+    pub video_fps: f32,
+    #[serde(default = "default_video_timestamp_interval")]
+    pub video_timestamp_interval: usize,
+    #[serde(default)]
+    pub video_ffmpeg_dir: String,
     #[serde(default)]
     pub dflash_path: PathBuf,
     #[serde(default)]
@@ -791,6 +843,16 @@ impl Default for Preset {
             rpc_endpoints: "127.0.0.1:50052".to_string(),
             model_path: PathBuf::new(),
             mmproj_path: PathBuf::new(),
+            // 多模态
+            mmproj_auto: default_mmproj_auto(),
+            mmproj_offload: default_mmproj_offload(),
+            mmproj_device: default_mmproj_device(),
+            image_min_tokens: default_image_min_tokens(),
+            image_max_tokens: default_image_max_tokens(),
+            mtmd_batch_max_tokens: default_mtmd_batch_max_tokens(),
+            video_fps: default_video_fps(),
+            video_timestamp_interval: default_video_timestamp_interval(),
+            video_ffmpeg_dir: String::new(),
             dflash_path: PathBuf::new(),
             model_dir: PathBuf::new(),
             alias: String::new(),
@@ -913,6 +975,15 @@ impl Preset {
             rpc_endpoints: settings.rpc_endpoints.clone(),
             model_path: settings.model_path.clone(),
             mmproj_path: settings.mmproj_path.clone(),
+            mmproj_auto: settings.mmproj_auto,
+            mmproj_offload: settings.mmproj_offload,
+            mmproj_device: settings.mmproj_device.clone(),
+            image_min_tokens: settings.image_min_tokens,
+            image_max_tokens: settings.image_max_tokens,
+            mtmd_batch_max_tokens: settings.mtmd_batch_max_tokens,
+            video_fps: settings.video_fps,
+            video_timestamp_interval: settings.video_timestamp_interval,
+            video_ffmpeg_dir: settings.video_ffmpeg_dir.clone(),
             dflash_path: settings.dflash_path.clone(),
             model_dir: settings.model_dir.clone(),
             alias: settings.alias.clone(),
@@ -1038,6 +1109,15 @@ impl Preset {
         settings.rpc_endpoints = self.rpc_endpoints;
         settings.model_path = self.model_path;
         settings.mmproj_path = self.mmproj_path;
+        settings.mmproj_auto = self.mmproj_auto;
+        settings.mmproj_offload = self.mmproj_offload;
+        settings.mmproj_device = self.mmproj_device.clone();
+        settings.image_min_tokens = self.image_min_tokens;
+        settings.image_max_tokens = self.image_max_tokens;
+        settings.mtmd_batch_max_tokens = self.mtmd_batch_max_tokens;
+        settings.video_fps = self.video_fps;
+        settings.video_timestamp_interval = self.video_timestamp_interval;
+        settings.video_ffmpeg_dir = self.video_ffmpeg_dir.clone();
         settings.dflash_path = self.dflash_path;
         settings.model_dir = self.model_dir;
         settings.alias = self.alias;
@@ -1116,6 +1196,25 @@ pub struct AppSettings {
     // 模型
     pub model_path: PathBuf,
     pub mmproj_path: PathBuf,
+    // ── 多模态（mmproj / mtmd / video）──
+    #[serde(default = "default_mmproj_auto")]
+    pub mmproj_auto: bool,
+    #[serde(default = "default_mmproj_offload")]
+    pub mmproj_offload: bool,
+    #[serde(default = "default_mmproj_device")]
+    pub mmproj_device: String,
+    #[serde(default = "default_image_min_tokens")]
+    pub image_min_tokens: i64,
+    #[serde(default = "default_image_max_tokens")]
+    pub image_max_tokens: i64,
+    #[serde(default = "default_mtmd_batch_max_tokens")]
+    pub mtmd_batch_max_tokens: usize,
+    #[serde(default = "default_video_fps")]
+    pub video_fps: f32,
+    #[serde(default = "default_video_timestamp_interval")]
+    pub video_timestamp_interval: usize,
+    #[serde(default)]
+    pub video_ffmpeg_dir: String,
     #[serde(default)]
     pub dflash_path: PathBuf,
     #[serde(default)]
@@ -1500,6 +1599,16 @@ impl Default for AppSettings {
             parallel_slots: 1,
             model_path: PathBuf::new(),
             mmproj_path: PathBuf::new(),
+            // 多模态
+            mmproj_auto: default_mmproj_auto(),
+            mmproj_offload: default_mmproj_offload(),
+            mmproj_device: default_mmproj_device(),
+            image_min_tokens: default_image_min_tokens(),
+            image_max_tokens: default_image_max_tokens(),
+            mtmd_batch_max_tokens: default_mtmd_batch_max_tokens(),
+            video_fps: default_video_fps(),
+            video_timestamp_interval: default_video_timestamp_interval(),
+            video_ffmpeg_dir: String::new(),
             dflash_path: PathBuf::new(),
             model_dir: PathBuf::new(),
             alias: String::new(),

@@ -1024,6 +1024,102 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         },
     );
 
+    // ── 多模态 ──
+    widgets::card(ui, i18n::t(i18n::Key::Multimodal, lang), accent, |ui| {
+        // 多模态投影文件 --mmproj-auto / --no-mmproj
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelMmprojAuto, lang));
+            let mm_vals = ["auto", "off"];
+            let mm_labels = [
+                i18n::t(i18n::Key::MmprojAuto, lang),
+                i18n::t(i18n::Key::MmprojOff, lang),
+            ];
+            let mut mm_idx = if settings.mmproj_auto { 0 } else { 1 };
+            widgets::segmented(ui, &mm_labels, &mut mm_idx, accent);
+            settings.mmproj_auto = mm_vals[mm_idx] == "auto";
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMmprojAuto, lang));
+        });
+        // 投影 GPU 卸载 --mmproj-offload / --no-mmproj-offload
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut settings.mmproj_offload, "");
+            ui.label(i18n::t(i18n::Key::LabelMmprojOffload, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMmprojOffload, lang));
+        });
+        // 投影设备 --mmproj-device
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelMmprojDevice, lang));
+            ui.add(egui::TextEdit::singleline(&mut settings.mmproj_device).desired_width(120.0));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMmprojDevice, lang));
+        });
+        ui.separator();
+        // 图片最小 Token --image-min-tokens
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelImageMinTokens, lang));
+            ui.add(
+                egui::DragValue::new(&mut settings.image_min_tokens)
+                    .range(0..=32768)
+                    .speed(1),
+            );
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpImageTokens, lang));
+        });
+        // 图片最大 Token --image-max-tokens
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelImageMaxTokens, lang));
+            ui.add(
+                egui::DragValue::new(&mut settings.image_max_tokens)
+                    .range(0..=32768)
+                    .speed(1),
+            );
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpImageTokens, lang));
+        });
+        // 批次最大 Token --mtmd-batch-max-tokens
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelMtmdBatchMaxTokens, lang));
+            ui.add(
+                egui::DragValue::new(&mut settings.mtmd_batch_max_tokens)
+                    .range(1..=32768)
+                    .speed(1),
+            );
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpMtmdBatch, lang));
+        });
+        ui.separator();
+        // 视频帧率 --video-fps
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelVideoFps, lang));
+            ui.add(
+                egui::DragValue::new(&mut settings.video_fps)
+                    .range(0.1..=60.0)
+                    .speed(0.1)
+                    .fixed_decimals(1),
+            );
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpVideoFps, lang));
+        });
+        // 时间戳间隔 --video-timestamp-interval
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelVideoTimestampInterval, lang));
+            ui.add(
+                egui::DragValue::new(&mut settings.video_timestamp_interval)
+                    .range(0..=60000)
+                    .speed(100),
+            );
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpVideoTimestamp, lang));
+        });
+        // FFmpeg 目录 --video-ffmpeg-dir
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::LabelVideoFfmpegDir, lang));
+            ui.add(egui::TextEdit::singleline(&mut settings.video_ffmpeg_dir).desired_width(200.0));
+            if ui.button(i18n::t(i18n::Key::BtnBrowse, lang)).clicked() {
+                if let Some(path) = rfd::FileDialog::new()
+                    .set_title("Select ffmpeg directory")
+                    .pick_folder()
+                {
+                    settings.video_ffmpeg_dir = path.to_string_lossy().to_string();
+                }
+            }
+            helper::help_button_inline(ui, i18n::t(i18n::Key::HelpVideoFfmpegDir, lang));
+        });
+    });
+
     // ── 线程与生成长度 ──
     widgets::card(ui, i18n::t(i18n::Key::SectionThreads, lang), accent, |ui| {
         ui.horizontal(|ui| {

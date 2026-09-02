@@ -423,6 +423,45 @@ impl ServerManager {
             cmd.arg("--mmproj").arg(&settings.mmproj_path);
         }
 
+        // 多模态参数
+        if settings.mmproj_auto {
+            cmd.arg("--mmproj-auto");
+        } else {
+            cmd.arg("--no-mmproj");
+        }
+        if settings.mmproj_offload {
+            cmd.arg("--mmproj-offload");
+        } else {
+            cmd.arg("--no-mmproj-offload");
+        }
+        if settings.mmproj_device != "auto" {
+            cmd.arg("--mmproj-device").arg(&settings.mmproj_device);
+        }
+        if settings.image_min_tokens > 0 {
+            cmd.arg("--image-min-tokens")
+                .arg(settings.image_min_tokens.to_string());
+        }
+        if settings.image_max_tokens > 0 {
+            cmd.arg("--image-max-tokens")
+                .arg(settings.image_max_tokens.to_string());
+        }
+        if settings.mtmd_batch_max_tokens != 1024 {
+            cmd.arg("--mtmd-batch-max-tokens")
+                .arg(settings.mtmd_batch_max_tokens.to_string());
+        }
+        if (settings.video_fps - 4.0).abs() > f32::EPSILON {
+            cmd.arg("--video-fps")
+                .arg(format!("{}", settings.video_fps));
+        }
+        if settings.video_timestamp_interval != 5000 {
+            cmd.arg("--video-timestamp-interval")
+                .arg(settings.video_timestamp_interval.to_string());
+        }
+        if !settings.video_ffmpeg_dir.is_empty() {
+            cmd.arg("--video-ffmpeg-dir")
+                .arg(&settings.video_ffmpeg_dir);
+        }
+
         // 模型别名
         if !settings.alias.is_empty() {
             cmd.arg("--alias").arg(&settings.alias);
