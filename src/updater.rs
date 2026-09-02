@@ -4,16 +4,22 @@
 //! 1. check()：GET GitHub latest release API（yihuishou/llama.cpp-launcher），
 //!    比对 tag_name 与当前编译版本（CARGO_PKG_VERSION）；
 //! 2. 有新版本时 UI 切换为「安装更新」，install() 后台线程流式下载新 exe
-//!    （写入 exe 同目录 update/ 子目录，带进度 + 取消）；
-//! 3. 下载完成 → replace_and_restart()：以 cmd /d /c 启动分离脚本
-//!    （脚本参数经进程 API 传递，中英文路径均安全）：
-//!      timeout 3 秒（等主进程退出）
-//!      → move 当前 exe → .old
-//!      → move 新 exe → 正式名
-//!      → del .old
-//!      → start 新 exe（自动重启）
+//!    （写入 exe 同目录 update/ 子目录，带进度 + 取消；Linux 资产为压缩包，
+//!    下载后解压出二进制）；
+//! 3. 下载完成 → 自等待者方案（见"自替换"段）：
+//!    - 旧版本 spawn 自身（--updater-switch <pid>）作为无窗口等待者；
+//!    - 旧 exe 改名为 exe.old 腾出正式名（运行中的 exe 允许改名），
+//!      新包改名为正式名；
+//!    - 主进程随 Installing 状态关闭窗口退出；
+//!    - 等待者等旧进程完全退出后，启动已换入正式名的新版本；
+//!    - 新版本启动时清理 exe.old 与 update 目录残留。
+//!    全程进程 API + Rust fs（宽字符），中英文路径安全，不依赖 cmd/bat
+//!    （cmd /c 引号解析会损坏路径、bat 有代码页乱码问题），且不依赖新版本
+//!    exe 的任何配合——官方历史版本同样可直接更新。
+//!    Linux/macOS 仍走 sh 后台脚本替换。
 //! 4. 主进程随即退出窗口。
 //!
+//! 网络（超时/UA/代理/分块）统一由 net_proxy 工具模块提供。
 //! UI 层：每帧轮询 UpdaterHandle::snapshot() 渲染按钮状态/进度；
 //! 应用关闭时无需额外取消（下载线程持有 Arc 克隆，不阻塞退出）。
 
@@ -26,24 +32,18 @@ use std::thread::{self, JoinHandle};
 
 use serde::Deserialize;
 
+use crate::net_proxy as net;
+
 /// 上游仓库 latest release API（直连，官方）
 const API_OFFICIAL: &str =
     "https://api.github.com/repos/yihuishou/llama.cpp-launcher/releases/latest";
 /// API 镜像基址（gh-proxy 前缀，官方超时/失败时自动回退）
 const API_MIRROR: &str =
     "https://gh-proxy.com/https://api.github.com/repos/yihuishou/llama.cpp-launcher/releases/latest";
-/// 资产下载源（镜像前缀；官方 URL 直接使用 asset.browser_download_url）
+/// 资产下载镜像前缀（官方 URL 直接使用 asset.browser_download_url）
 const DOWNLOAD_MIRROR: &str = "https://gh-proxy.com/https://github.com";
-/// 官方 GitHub API 超时（秒）
-const OFFICIAL_TIMEOUT_SECS: u64 = 300;
-/// gh-proxy 镜像超时（秒）
-const MIRROR_TIMEOUT_SECS: u64 = 500;
-/// 全部源都失败时 UI 展示的固定错误消息（网络层；区别于业务错误）
-pub const ERR_NETWORK: &str = "network-error";
-/// 请求 User-Agent（GitHub API 必需）
-const USER_AGENT: &str = "llama-cpp-launcher";
-/// 下载块大小（字节）
-const CHUNK_SIZE: usize = 8192;
+/// 全部源失败时 UI 展示的固定错误消息（网络层；统一入口见 net::ERR_NETWORK）
+pub use crate::net_proxy::ERR_NETWORK;
 
 /// 获取当前 CPU 架构标识（用于匹配 Linux 资产）
 fn get_arch() -> &'static str {
@@ -57,20 +57,9 @@ fn get_arch() -> &'static str {
     }
 }
 
-/// 带超时与 User-Agent 的共享 Agent
-fn agent(timeout_secs: u64) -> ureq::Agent {
-    ureq::AgentBuilder::new()
-        .timeout(std::time::Duration::from_secs(timeout_secs))
-        .build()
-}
-
-/// 官方 + 镜像依次尝试，带不同超时；返回 Response body 字符串
-///
-/// 优先级策略：
-/// - `smart_mirror = true`（下载文件）：根据地理位置智能选择优先级
-///   - 中国大陆：镜像源（500秒超时）→ 官方源（300秒超时）
-///   - 其他地区：官方源（300秒超时）→ 镜像源（500秒超时）
-/// - `smart_mirror = false`（API 调用）：始终使用官方源，失败后回退镜像
+/// 官方 + 镜像依次尝试；返回 Response body 字符串。
+/// 网络层（连接/读超时 + 系统代理 + UA）统一走 net::build_agent，
+/// 无总超时——大文件下载不会被 `.timeout()` 总超时掐断。
 fn fetch_with_fallback(
     official_url: &str,
     mirror_url: &str,
@@ -99,52 +88,33 @@ fn fetch_with_fallback(
         log::info!("[network] API 调用: 始终使用官方源");
     }
 
+    let agent = net::build_agent();
     if mirror_first {
         // 中国大陆：优先使用镜像源
-        let mirror_agent = agent(MIRROR_TIMEOUT_SECS);
-        log::info!(
-            "[network] 尝试镜像源 (超时 {}s): {}",
-            MIRROR_TIMEOUT_SECS,
-            mirror_url
-        );
-        if let Ok(body) = fetch_body(&mirror_agent, mirror_url) {
+        log::info!("[network] 尝试镜像源: {}", mirror_url);
+        if let Ok(body) = fetch_body(&agent, mirror_url) {
             log::info!("[network] ✓ 镜像源请求成功");
             return Ok(body);
         }
         log::warn!("[network] ✗ 镜像源请求失败，回退到官方源");
         // 镜像失败，回退到官方源
-        let official_agent = agent(OFFICIAL_TIMEOUT_SECS);
-        log::info!(
-            "[network] 尝试官方源 (超时 {}s): {}",
-            OFFICIAL_TIMEOUT_SECS,
-            official_url
-        );
-        if let Ok(body) = fetch_body(&official_agent, official_url) {
+        log::info!("[network] 尝试官方源: {}", official_url);
+        if let Ok(body) = fetch_body(&agent, official_url) {
             log::info!("[network] ✓ 官方源请求成功");
             return Ok(body);
         }
         log::warn!("[network] ✗ 官方源请求也失败");
     } else {
         // 其他地区或 API 调用：优先使用官方源
-        let official_agent = agent(OFFICIAL_TIMEOUT_SECS);
-        log::info!(
-            "[network] 尝试官方源 (超时 {}s): {}",
-            OFFICIAL_TIMEOUT_SECS,
-            official_url
-        );
-        if let Ok(body) = fetch_body(&official_agent, official_url) {
+        log::info!("[network] 尝试官方源: {}", official_url);
+        if let Ok(body) = fetch_body(&agent, official_url) {
             log::info!("[network] ✓ 官方源请求成功");
             return Ok(body);
         }
         log::warn!("[network] ✗ 官方源请求失败，回退到镜像源");
         // 官方失败，回退到镜像源
-        let mirror_agent = agent(MIRROR_TIMEOUT_SECS);
-        log::info!(
-            "[network] 尝试镜像源 (超时 {}s): {}",
-            MIRROR_TIMEOUT_SECS,
-            mirror_url
-        );
-        if let Ok(body) = fetch_body(&mirror_agent, mirror_url) {
+        log::info!("[network] 尝试镜像源: {}", mirror_url);
+        if let Ok(body) = fetch_body(&agent, mirror_url) {
             log::info!("[network] ✓ 镜像源请求成功");
             return Ok(body);
         }
@@ -159,7 +129,7 @@ fn fetch_with_fallback(
 fn fetch_body(ag: &ureq::Agent, url: &str) -> Result<String, String> {
     let response = ag
         .get(url)
-        .set("User-Agent", USER_AGENT)
+        .set("User-Agent", net::USER_AGENT)
         .call()
         .map_err(|e| e.to_string())?;
     response.into_string().map_err(|e| e.to_string())
@@ -442,6 +412,7 @@ fn run_download(cancel: &AtomicBool, status: &Arc<Mutex<UpdateStatus>>) -> Resul
     }
     let partial_ext = if is_linux { ".tar.gz" } else { ".exe" };
     let partial = update_dir.join(format!(".partial.new{}", partial_ext));
+    let agent = net::build_agent();
 
     // asset.browser_download_url 形如 https://github.com/.../releases/download/...
     // 官方源直接使用；镜像源去掉 github.com 前缀后接在 DOWNLOAD_MIRROR 之后
@@ -488,14 +459,8 @@ fn run_download(cancel: &AtomicBool, status: &Arc<Mutex<UpdateStatus>>) -> Resul
         } else {
             "官方源"
         };
-        let timeout = if source == "镜像源" {
-            MIRROR_TIMEOUT_SECS
-        } else {
-            OFFICIAL_TIMEOUT_SECS
-        };
-        log::info!("[update] 尝试{} (超时 {}s): {}", source, timeout, url);
-        let ag = agent(timeout);
-        let response = match ag.get(url).set("User-Agent", USER_AGENT).call() {
+        log::info!("[update] 尝试{}: {}", source, url);
+        let response = match agent.get(url).set("User-Agent", net::USER_AGENT).call() {
             Ok(r) => r,
             Err(e) => {
                 log::warn!("[update] ✗ {} 失败: {}", source, e);
@@ -508,7 +473,7 @@ fn run_download(cancel: &AtomicBool, status: &Arc<Mutex<UpdateStatus>>) -> Resul
                 File::create(&partial).map_err(|e| format!("create temp file failed: {}", e))?;
             let mut writer = BufWriter::new(file);
             let mut reader = response.into_reader();
-            let mut buf = vec![0u8; CHUNK_SIZE];
+            let mut buf = vec![0u8; net::CHUNK_SIZE];
             let mut done: u64 = 0;
             loop {
                 let n = reader
@@ -600,119 +565,126 @@ fn extract_linux_binary(archive: &Path, dest_dir: &Path) -> Result<PathBuf, Stri
     Err("launcher binary not found in archive".to_string())
 }
 
-// ======================= 自替换 =======================
+// ======================= 自替换（自等待者方案） =======================
 
-/// 启动独立脚本完成替换并重启：
-///   等待主进程退出 → 当前二进制改名为 .old → 新二进制移入正式名 → 删除 .old → 启动新二进制。
-/// 脚本通过进程参数传递，中英文路径均安全；主进程随后自行退出。
+/// 旧版本：下载完成后交接替换。
+/// 1) spawn 自身（`--updater-switch <pid>`）作为无窗口等待者；
+/// 2) 旧 exe 改名为 exe.old 腾出正式名（运行中的 exe 允许改名，进程继续运行）；
+/// 3) 新包改名为正式名（失败则回滚旧包）；主进程随 Installing 状态自行退出；
+/// 4) 等待者等旧进程完全退出后，启动已换入正式名的新版本，自身退出。
+///
+/// 全程进程 API + Rust fs（宽字符），中英文路径安全；无 cmd/bat
+/// （cmd /c 引号解析损坏路径、bat 代码页乱码）。不依赖新版本 exe 的任何配合，
+/// 官方历史版本同样可直接更新。
 fn replace_and_restart(new_binary: &Path) {
     let Ok(exe_path) = std::env::current_exe() else {
         return;
     };
-    let old_binary = exe_path.with_extension("old");
 
     #[cfg(target_os = "windows")]
     {
-        // Windows: 写入临时 .bat 脚本，轮询等待旧进程退出后替换
-        // 旧进程需要完成 Drop（停止 server/RPC、保存设置）后窗口才会关闭
-        let update_dir = exe_path
-            .parent()
-            .map(|p| p.join("update"))
-            .unwrap_or_default();
-
-        let exe_str = exe_path.display().to_string();
-        let old_str = old_binary.display().to_string();
-        let new_str = new_binary.display().to_string();
-        let update_str = update_dir.display().to_string();
-        let pid = std::process::id();
-
-        // 路径含空格时使用引号包裹
-        let has_space = exe_str.contains(' ')
-            || old_str.contains(' ')
-            || new_str.contains(' ')
-            || update_str.contains(' ');
-        let (ql, qr) = if has_space { ("\"", "\"") } else { ("", "") };
-
-        // 写入临时批处理脚本
-        // 脚本逻辑：轮询 tasklist 检测旧进程 PID，退出后才执行替换和启动
-        let bat_path = update_dir.join("_replace.bat");
-        let bat_content = format!(
-            "@echo off\r\n\
-             set \"OLD_PID={pid}\"\r\n\
-             echo [1/7] 等待旧进程 PID %OLD_PID% 退出...\r\n\
-             :waitloop\r\n\
-             tasklist /FI \"PID eq %OLD_PID%\" /NH 2>nul | findstr /I \"%OLD_PID%\" >nul\r\n\
-             if %errorlevel%==0 (\r\n\
-                 timeout /t 1 /nobreak >nul\r\n\
-                 goto waitloop\r\n\
-             )\r\n\
-             echo [2/7] 旧进程已退出\r\n\
-             move /Y {ql}{exe_str}{qr} {ql}{old_str}{qr} >nul 2>&1\r\n\
-             echo [3/7] move1完成\r\n\
-             move /Y {ql}{new_str}{qr} {ql}{exe_str}{qr} >nul 2>&1\r\n\
-             echo [4/7] move2完成\r\n\
-             del /Q {ql}{old_str}{qr} >nul 2>&1\r\n\
-             echo [5/7] del完成\r\n\
-             rmdir /Q /S {ql}{update_str}{qr} >nul 2>&1\r\n\
-             echo [6/7] rmdir完成\r\n\
-             start \"\" {ql}{exe_str}{qr}\r\n\
-             echo [7/7] 新进程已启动\r\n"
-        );
-
-        if let Err(e) = std::fs::write(&bat_path, &bat_content) {
-            log::error!("写入替换脚本失败: {}", e);
-            return;
-        }
-
-        log::info!("自替换脚本: {} (等待 PID {} 退出)", bat_path.display(), pid);
-
-        let mut cmd = std::process::Command::new("cmd");
-        cmd.args(["/d", "/c", bat_path.to_str().unwrap_or("")]);
+        let old_path = exe_path.with_extension("exe.old");
+        // 1) 等待者 = 自身二进制（先于改名 spawn；无 UI，仅等待与启动新版本）
+        let mut cmd = std::process::Command::new(&exe_path);
+        cmd.arg("--updater-switch")
+            .arg(std::process::id().to_string());
         {
             use std::os::windows::process::CommandExt;
-            // 只使用 CREATE_NO_WINDOW，不使用 DETACHED_PROCESS
-            cmd.creation_flags(0x0800_0000);
+            cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
         }
-
-        match cmd.spawn() {
-            Ok(mut child) => {
-                log::info!("自替换脚本已启动, PID: {}", child.id());
-                // 等待脚本执行完成
-                match child.wait() {
-                    Ok(status) => {
-                        log::info!("脚本退出码: {:?}", status);
-                    }
-                    Err(e) => {
-                        log::error!("等待脚本执行失败: {}", e);
-                    }
-                }
-            }
-            Err(e) => {
-                log::error!("自替换脚本启动失败: {}", e);
-            }
+        if let Err(e) = cmd.spawn() {
+            log::warn!("[updater] 启动等待者失败，放弃自动替换: {}", e);
+            return;
         }
+        // 2) 旧 exe 改名腾出正式名（自身映像允许改名，进程不受影响）
+        if let Err(e) = std::fs::rename(&exe_path, &old_path) {
+            log::warn!("[updater] 旧 exe 改名失败，放弃自动替换: {}", e);
+            return;
+        }
+        // 3) 新包顶替正式名；失败则回滚旧包，保持可用状态
+        if let Err(e) = std::fs::rename(new_binary, &exe_path) {
+            log::warn!("[updater] 新包改名失败，回滚: {}", e);
+            let _ = std::fs::rename(&old_path, &exe_path);
+            return;
+        }
+        // 4) update/ 目录此时已空，best-effort 删除
+        if let Some(dir) = new_binary.parent() {
+            let _ = std::fs::remove_dir(dir);
+        }
+        log::info!("[updater] 交接完成，等待者已启动，主进程即将退出");
     }
 
     #[cfg(not(target_os = "windows"))]
     {
-        // Linux/macOS: sh 后台执行，sleep 等主进程退出后替换并重启
-        let update_dir = exe_path
-            .parent()
-            .map(|p| p.join("update"))
-            .unwrap_or_default();
+        // Linux/macOS：sh 后台执行，sleep 等主进程退出后替换并重启
+        let old_path = exe_path.with_extension("old");
         let script = format!(
-            "(sleep 8; mv \"{}\" \"{}\"; mv \"{}\" \"{}\"; rm -f \"{}\"; rm -rf \"{}\"; chmod +x \"{}\"; \"{}\" &) >/dev/null 2>&1 &",
+            "(sleep 3; mv \"{}\" \"{}\"; mv \"{}\" \"{}\"; rm -f \"{}\"; \"{}\" &) >/dev/null 2>&1 &",
             exe_path.display(),
-            old_binary.display(),
+            old_path.display(),
             new_binary.display(),
             exe_path.display(),
-            old_binary.display(),
-            update_dir.display(),
-            exe_path.display(),
+            old_path.display(),
             exe_path.display(),
         );
         let _ = std::process::Command::new("sh")
             .args(["-c", &script])
             .spawn();
+    }
+}
+
+/// 等待者进程入口（main 检测到 `--updater-switch <pid>` 时调用，无 UI）。
+/// 等待旧进程完全退出（含 Drop 保存设置，最多 15s），然后启动已换入正式名的
+/// 新版本，自身退出。自身映像 = exe.old（被自己映射，不可删除），
+/// 由新版本启动时清理。
+#[cfg(target_os = "windows")]
+pub fn run_updater_waiter(old_pid: u32) {
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{
+        OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE,
+    };
+    const WAIT_TIMEOUT_MS: u32 = 15_000;
+
+    unsafe {
+        // OpenProcess 失败（旧进程已退出）视为已退出，直接继续；
+        // 超时（旧进程异常卡住）则放弃启动，避免双窗口共存
+        let handle = OpenProcess(PROCESS_SYNCHRONIZE, 0, old_pid);
+        if !handle.is_null() {
+            WaitForSingleObject(handle, WAIT_TIMEOUT_MS);
+            CloseHandle(handle);
+        }
+    }
+    // current_exe 返回创建时的路径（正式名）——此刻该路径已是新版本
+    let Ok(exe_path) = std::env::current_exe() else {
+        return;
+    };
+    let _ = std::process::Command::new(&exe_path).spawn();
+}
+
+/// 启动清理：删除上一次更新遗留的旧版备份（exe.old，等待者退出后即可删）
+/// 与已空的 update 目录（best-effort；失败留给下次启动再清）。
+#[cfg(target_os = "windows")]
+pub fn cleanup_leftovers_on_startup() {
+    let Ok(exe_path) = std::env::current_exe() else {
+        return;
+    };
+    let old_path = exe_path.with_extension("exe.old");
+    if old_path.exists() {
+        // 等待者可能刚退出还没释放映像，短重试几次
+        for _ in 0..10 {
+            match std::fs::remove_file(&old_path) {
+                Ok(_) => {
+                    log::info!("[updater] 已清理旧版备份: {}", old_path.display());
+                    break;
+                }
+                Err(_) => std::thread::sleep(std::time::Duration::from_millis(200)),
+            }
+        }
+    }
+    if let Some(dir) = exe_path.parent() {
+        let update_dir = dir.join("update");
+        if update_dir.is_dir() {
+            let _ = std::fs::remove_dir(&update_dir); // 仅空目录可删
+        }
     }
 }

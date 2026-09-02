@@ -686,6 +686,15 @@ pub struct Preset {
     pub mcp_enabled: bool, // MCP 功能总开关（无启用 server 时不拼接参数）
     #[serde(default)]
     pub mcp_server_states: std::collections::BTreeMap<String, bool>, // 每个 MCP server 的启用状态（按名称）
+
+    // 外部引入标记（通过分享码导入的预设 = true；用于列表显示"引入"标签
+    // 与"配置"按钮；配置完成后保留标记，配置内容可随时再改。不进分享码）
+    #[serde(default)]
+    pub imported: bool,
+
+    // 引入时的依赖声明 JSON（ShareDecl 序列化；感叹号阅读窗口用。不进分享码）
+    #[serde(default)]
+    pub imported_decl: Option<String>,
 }
 
 impl Default for Preset {
@@ -803,6 +812,8 @@ impl Default for Preset {
             rocm_gpu_target: default_rocm_gpu_target(),
             mcp_enabled: false,
             mcp_server_states: std::collections::BTreeMap::new(),
+            imported: false,
+            imported_decl: None,
         }
     }
 }
@@ -923,6 +934,8 @@ impl Preset {
             rocm_gpu_target: settings.rocm_gpu_target.clone(),
             mcp_enabled: settings.mcp_enabled,
             mcp_server_states: settings.mcp_server_states.clone(),
+            imported: false, // 新保存的预设非外部引入
+            imported_decl: None,
         }
     }
 
