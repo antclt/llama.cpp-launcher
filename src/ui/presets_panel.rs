@@ -3,127 +3,6 @@ use crate::engine::rpc::RpcManager;
 use crate::i18n;
 use crate::ui::preset_share::{ParamsExport, PresetShareUi};
 use crate::ui::widgets;
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-
-// 导出/导入兼容旧文件的默认值（与 settings.rs 保持一致）
-fn default_reasoning() -> String {
-    "auto".to_string()
-}
-fn default_reasoning_format() -> String {
-    "auto".to_string()
-}
-fn default_reasoning_effort() -> String {
-    "default".to_string()
-}
-fn default_reasoning_budget() -> i32 {
-    -1
-}
-fn default_jinja_enabled() -> bool {
-    true
-}
-
-/// 导出/导入的“参数面板”专用结构（不包含 Server/RPC/模型路径等）
-#[derive(Serialize, Deserialize)]
-struct ParamsExport {
-    context: usize,
-    batch_size: usize,
-    ubatch_size: f32,
-    temperature: f32,
-    top_p: f32,
-    top_k: i32,
-    repeat_penalty: f32,
-    presence_penalty: f32,
-    enable_temperature: bool,
-    enable_top_p: bool,
-    enable_top_k: bool,
-    enable_repeat_penalty: bool,
-    enable_presence_penalty: bool,
-    flash_attn: String,
-
-    spec_type: String,
-    spec_draft_n_max: usize,
-    spec_draft_n_min: usize,
-    spec_draft_p_min: f32,
-    spec_draft_p_split: f32,
-    spec_ngram_size_n: usize,
-    spec_ngram_size_m: usize,
-    spec_ngram_min_hits: usize,
-    spec_ngram_mod_n_min: usize,
-    spec_ngram_mod_n_max: usize,
-    spec_ngram_mod_n_match: usize,
-
-    kv_offload: bool,
-    cache_type_k: String,
-    cache_type_v: String,
-    kv_mlock: bool,
-    kv_mmap: bool,
-    kv_unified: bool,
-    swa_full: bool,
-
-    gpu_layers_mode: GpuLayersMode,
-    split_mode: String,
-    tensor_split: String,
-    cpu_moe: bool,
-    n_cpu_moe: usize,
-
-    // 思考与会话
-    #[serde(default = "default_reasoning")]
-    reasoning: String,
-    #[serde(default = "default_reasoning_format")]
-    reasoning_format: String,
-    #[serde(default = "default_reasoning_effort")]
-    reasoning_effort: String,
-    #[serde(default = "default_reasoning_budget")]
-    reasoning_budget: i32,
-    #[serde(default)]
-    reasoning_preserve: Option<bool>,
-    #[serde(default = "default_jinja_enabled")]
-    jinja_enabled: bool,
-    #[serde(default)]
-    chat_template: String,
-    #[serde(default)]
-    chat_template_file: PathBuf,
-}
-
-impl ParamsExport {
-    fn from_settings(s: &AppSettings) -> Self {
-        Self {
-            context: s.context,
-            batch_size: s.batch_size,
-            ubatch_size: s.ubatch_size,
-            temperature: s.temperature,
-            top_p: s.top_p,
-            top_k: s.top_k,
-            repeat_penalty: s.repeat_penalty,
-            presence_penalty: s.presence_penalty,
-            enable_temperature: s.enable_temperature,
-            enable_top_p: s.enable_top_p,
-            enable_top_k: s.enable_top_k,
-            enable_repeat_penalty: s.enable_repeat_penalty,
-            enable_presence_penalty: s.enable_presence_penalty,
-            flash_attn: s.flash_attn.clone(),
-
-            spec_type: s.spec_type.clone(),
-            spec_draft_n_max: s.spec_draft_n_max,
-            spec_draft_n_min: s.spec_draft_n_min,
-            spec_draft_p_min: s.spec_draft_p_min,
-            spec_draft_p_split: s.spec_draft_p_split,
-            spec_ngram_size_n: s.spec_ngram_size_n,
-            spec_ngram_size_m: s.spec_ngram_size_m,
-            spec_ngram_min_hits: s.spec_ngram_min_hits,
-            spec_ngram_mod_n_min: s.spec_ngram_mod_n_min,
-            spec_ngram_mod_n_max: s.spec_ngram_mod_n_max,
-            spec_ngram_mod_n_match: s.spec_ngram_mod_n_match,
-
-            kv_offload: s.kv_offload,
-            cache_type_k: s.cache_type_k.clone(),
-            cache_type_v: s.cache_type_v.clone(),
-            kv_mlock: s.kv_mlock,
-            kv_mmap: s.kv_mmap,
-            kv_unified: s.kv_unified,
-            swa_full: s.swa_full,
-
 
 /// 预设面板对 app 层的动作请求（面板只发请求，执行在 app 层完成）
 #[derive(Debug, PartialEq)]
@@ -138,67 +17,15 @@ pub enum PresetPanelRequest {
     OpenConfig(usize),
 }
 
-    fn apply_to(self, s: &mut AppSettings) {
-        s.context = self.context;
-        s.batch_size = self.batch_size;
-        s.ubatch_size = self.ubatch_size;
-        s.temperature = self.temperature;
-        s.top_p = self.top_p;
-        s.top_k = self.top_k;
-        s.repeat_penalty = self.repeat_penalty;
-        s.presence_penalty = self.presence_penalty;
-        s.enable_temperature = self.enable_temperature;
-        s.enable_top_p = self.enable_top_p;
-        s.enable_top_k = self.enable_top_k;
-        s.enable_repeat_penalty = self.enable_repeat_penalty;
-        s.enable_presence_penalty = self.enable_presence_penalty;
-        s.flash_attn = self.flash_attn;
-
-        s.spec_type = self.spec_type;
-        s.spec_draft_n_max = self.spec_draft_n_max;
-        s.spec_draft_n_min = self.spec_draft_n_min;
-        s.spec_draft_p_min = self.spec_draft_p_min;
-        s.spec_draft_p_split = self.spec_draft_p_split;
-        s.spec_ngram_size_n = self.spec_ngram_size_n;
-        s.spec_ngram_size_m = self.spec_ngram_size_m;
-        s.spec_ngram_min_hits = self.spec_ngram_min_hits;
-        s.spec_ngram_mod_n_min = self.spec_ngram_mod_n_min;
-        s.spec_ngram_mod_n_max = self.spec_ngram_mod_n_max;
-        s.spec_ngram_mod_n_match = self.spec_ngram_mod_n_match;
-
-        s.kv_offload = self.kv_offload;
-        s.cache_type_k = self.cache_type_k;
-        s.cache_type_v = self.cache_type_v;
-        s.kv_mlock = self.kv_mlock;
-        s.kv_mmap = self.kv_mmap;
-        s.kv_unified = self.kv_unified;
-        s.swa_full = self.swa_full;
-
-        s.gpu_layers_mode = self.gpu_layers_mode;
-        s.split_mode = self.split_mode;
-        s.tensor_split = self.tensor_split;
-        s.cpu_moe = self.cpu_moe;
-        s.n_cpu_moe = self.n_cpu_moe;
-        s.reasoning = self.reasoning;
-        s.reasoning_format = self.reasoning_format;
-        s.reasoning_effort = self.reasoning_effort;
-        s.reasoning_budget = self.reasoning_budget;
-        s.reasoning_preserve = self.reasoning_preserve;
-        s.jinja_enabled = self.jinja_enabled;
-        s.chat_template = self.chat_template;
-        s.chat_template_file = self.chat_template_file;
-    }
-}
-
-        pub fn ui(
-        ui: &mut egui::Ui,
-        settings: &mut AppSettings,
-        lang: &i18n::Language,
-        share: &mut PresetShareUi,
-        config: &mut crate::ui::preset_share::PresetConfigUi,
-        rpc_manager: &RpcManager,
-        notice: &Option<(bool, String, f64)>,
-        ) -> PresetPanelRequest {
+pub fn ui(
+    ui: &mut egui::Ui,
+    settings: &mut AppSettings,
+    lang: &i18n::Language,
+    share: &mut PresetShareUi,
+    config: &mut crate::ui::preset_share::PresetConfigUi,
+    rpc_manager: &RpcManager,
+    notice: &Option<(bool, String, f64)>,
+) -> PresetPanelRequest {
     let accent = crate::theme::accent_color(&settings.accent_color);
     let mut start_server = false;
     let mut start_rpc = false;

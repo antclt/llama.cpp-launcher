@@ -1002,16 +1002,12 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             if settings.spec_type == "ngram-mod" {
                 ui.horizontal(|ui| {
                     ui.label(i18n::t(i18n::Key::SpecNgramModNMinLabel, lang));
-                    ui.add(
-                        egui::DragValue::new(&mut settings.spec_ngram_mod_n_min).range(1..=256),
-                    );
+                    ui.add(egui::DragValue::new(&mut settings.spec_ngram_mod_n_min).range(1..=256));
                     helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecNgramModNMin, lang));
                 });
                 ui.horizontal(|ui| {
                     ui.label(i18n::t(i18n::Key::SpecNgramModNMaxLabel, lang));
-                    ui.add(
-                        egui::DragValue::new(&mut settings.spec_ngram_mod_n_max).range(1..=256),
-                    );
+                    ui.add(egui::DragValue::new(&mut settings.spec_ngram_mod_n_max).range(1..=256));
                     helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecNgramModNMax, lang));
                 });
                 ui.horizontal(|ui| {
