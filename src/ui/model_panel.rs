@@ -823,6 +823,17 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                         settings.model_dir = std::path::PathBuf::from("");
                     }
                 }
+                let model_dir_exists = auto_detect_model_dir().is_some();
+                let btn = egui::Button::new(i18n::t(i18n::Key::BtnCreateModelDir, lang));
+                if ui.add_enabled(!model_dir_exists, btn).clicked() {
+                    if let Ok(exe_dir) = std::env::current_exe() {
+                        if let Some(parent) = exe_dir.parent() {
+                            let models_dir = parent.join("models");
+                            let _ = std::fs::create_dir_all(&models_dir);
+                            settings.model_dir = models_dir;
+                        }
+                    }
+                }
             });
         },
     );
