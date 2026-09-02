@@ -473,7 +473,7 @@ pub struct Preset {
     // Server 配置
     pub host: String,
     pub port: u16,
-    pub parallel_slots: usize,
+    pub parallel_slots: i64,
     // 推理参数（以 k 为单位存储，1k = 1024）
     #[serde(
         default = "default_context",
@@ -755,7 +755,7 @@ impl Default for Preset {
             name: String::new(),
             host: "127.0.0.1".to_string(),
             port: 9931,
-            parallel_slots: 1,
+            parallel_slots: -1,
             context: 4,       // 4k = 4096
             batch_size: 2,    // 2k = 2048
             ubatch_size: 0.5, // 0.5k = 512
@@ -1191,7 +1191,7 @@ pub struct AppSettings {
     pub server_path: PathBuf,
     pub host: String,
     pub port: u16,
-    pub parallel_slots: usize,
+    pub parallel_slots: i64,
 
     // 模型
     pub model_path: PathBuf,
@@ -1596,7 +1596,7 @@ impl Default for AppSettings {
             server_path: PathBuf::new(),
             host: "127.0.0.1".to_string(),
             port: 9931,
-            parallel_slots: 1,
+            parallel_slots: -1,
             model_path: PathBuf::new(),
             mmproj_path: PathBuf::new(),
             // 多模态

@@ -1317,7 +1317,10 @@ fn render_server_network_card(ui: &mut egui::Ui, s: &mut AppSettings, lang: &i18
             ui.label(i18n::t(i18n::Key::LabelPort, lang));
             ui.add(egui::DragValue::new(&mut s.port).range(1..=65535));
             ui.label(i18n::t(i18n::Key::LabelParallelSlots, lang));
-            ui.add(egui::DragValue::new(&mut s.parallel_slots).range(1..=1024));
+            ui.add(egui::DragValue::new(&mut s.parallel_slots).range(-1..=1024));
+            if s.parallel_slots == 0 {
+                s.parallel_slots = 1;
+            }
         });
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::LabelSessionTimeout, lang));
