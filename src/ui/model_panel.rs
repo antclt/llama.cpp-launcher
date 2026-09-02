@@ -590,14 +590,15 @@ fn render_file_list(
             const GROUP_GAP: f32 = 16.0;
             const HEADER_GAP: f32 = 6.0;
             const ITEM_GAP: f32 = 8.0;
-            const HEADER_LINE_LEN: f32 = 24.0;
             ui.spacing_mut().item_spacing.y = 0.0;
             let mut last_parent_dir: Option<PathBuf> = None;
             let mut first_item = true;
             let mut pending_space = 0.0_f32;
 
-            // 渲染分片合并条目
-            for (base_name, shards) in shard_groups {
+            // 渲染分片合并条目（按 base_name 排序，确保顺序稳定）
+            let mut sorted_shard_groups: Vec<_> = shard_groups.into_iter().collect();
+            sorted_shard_groups.sort_by_key(|(base_name, _)| base_name.clone());
+            for (base_name, shards) in sorted_shard_groups {
                 let total_count = shards.len();
                 let first_shard = shards.first().cloned().unwrap_or_default();
                 // 从文件名中提取总分片数（如 my-model-00001-of-00003.gguf → 3）
@@ -634,18 +635,6 @@ fn render_file_list(
                                         .unwrap_or_default(),
                                 )
                                 .color(header_color),
-                            );
-                            let (rect, _) = ui.allocate_exact_size(
-                                egui::vec2(HEADER_LINE_LEN, 2.0),
-                                egui::Sense::hover(),
-                            );
-                            let y = rect.center().y;
-                            ui.painter().line_segment(
-                                [
-                                    egui::Pos2::new(rect.left(), y),
-                                    egui::Pos2::new(rect.right(), y),
-                                ],
-                                egui::Stroke::new(1.0_f32, header_color.gamma_multiply(0.6_f32)),
                             );
                         });
                         pending_space = HEADER_GAP;
@@ -740,18 +729,6 @@ fn render_file_list(
                                         .unwrap_or_default(),
                                 )
                                 .color(header_color),
-                            );
-                            let (rect, _) = ui.allocate_exact_size(
-                                egui::vec2(HEADER_LINE_LEN, 2.0),
-                                egui::Sense::hover(),
-                            );
-                            let y = rect.center().y;
-                            ui.painter().line_segment(
-                                [
-                                    egui::Pos2::new(rect.left(), y),
-                                    egui::Pos2::new(rect.right(), y),
-                                ],
-                                egui::Stroke::new(1.0_f32, header_color.gamma_multiply(0.6_f32)),
                             );
                         });
                         pending_space = HEADER_GAP;
