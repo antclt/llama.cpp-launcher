@@ -152,8 +152,8 @@ pub enum DownloadVariant {
     WinCuda134Arm64,
     /// Windows x64 ROCm 7.14 Lemonade（携带 GPU 目标数据，如 "gfx103X"）
     WinRocmLemonade(String),
-    /// Windows x64 ROCm 7.14（官方 ggml-org 版本）
-    WinRocm714,
+    /// Windows x64 ROCm 10（官方 ggml-org 版本）
+    WinRocm10,
     /// Windows x64 Vulkan
     WinVulkan,
     /// Windows arm64 CPU
@@ -168,8 +168,8 @@ pub enum DownloadVariant {
     LinuxVulkanArm64,
     /// Linux x64 ROCm 7.14 Lemonade（携带 GPU 目标数据，如 "gfx103X"）
     LinuxRocmLemonade(String),
-    /// Linux x64 ROCm 7.14（官方 ggml-org 版本）
-    LinuxRocm714,
+    /// Linux x64 ROCm 10（官方 ggml-org 版本）
+    LinuxRocm10,
 }
 
 impl DownloadVariant {
@@ -184,8 +184,8 @@ impl DownloadVariant {
             DownloadVariant::WinRocmLemonade(gpu_target) => {
                 format!("llama-.*-windows-rocm-{}-x64\\.zip", gpu_target)
             }
-            // 官方 ggml-org ROCm 7.14（无 GPU 目标后缀）
-            DownloadVariant::WinRocm714 => "llama-.*-bin-win-rocm-7.14-x64\\.zip".to_string(),
+            // 官方 ggml-org ROCm 10（无 GPU 目标后缀）
+            DownloadVariant::WinRocm10 => "llama-.*-bin-win-rocm-10-x64\\.zip".to_string(),
             DownloadVariant::WinVulkan => "bin-win-vulkan-x64".to_string(),
             DownloadVariant::WinCpuArm64 => "bin-win-cpu-arm64".to_string(),
             DownloadVariant::LinuxCpu => "bin-ubuntu-x64".to_string(),
@@ -196,9 +196,9 @@ impl DownloadVariant {
             DownloadVariant::LinuxRocmLemonade(gpu_target) => {
                 format!("llama-.*-ubuntu-rocm-{}-x64\\.zip", gpu_target)
             }
-            // 官方 ggml-org ROCm 7.14 Linux 版本（无 GPU 目标后缀）
-            DownloadVariant::LinuxRocm714 => {
-                "llama-.*-bin-ubuntu-rocm-7.14-x64\\.tar\\.gz".to_string()
+            // 官方 ggml-org ROCm 10 Linux 版本（无 GPU 目标后缀）
+            DownloadVariant::LinuxRocm10 => {
+                "llama-.*-bin-ubuntu-rocm-10-x64\\.tar\\.gz".to_string()
             }
         }
     }
@@ -218,7 +218,7 @@ impl DownloadVariant {
             | DownloadVariant::LinuxArm64
             | DownloadVariant::LinuxVulkan
             | DownloadVariant::LinuxVulkanArm64
-            | DownloadVariant::LinuxRocm714 => ".tar.gz",
+            | DownloadVariant::LinuxRocm10 => ".tar.gz",
             // lemonade-sdk 的 Linux 版本也使用 zip 格式
             DownloadVariant::LinuxRocmLemonade(_) => ".zip",
             _ => ".zip",
@@ -227,8 +227,8 @@ impl DownloadVariant {
 
     /// 根据配置中的 download_variant 值与当前平台解析出实际下载变体
     ///
-    /// - 配置值（与 UI 选项一致）：`cpu` / `cuda124` / `cuda133` / `rocm714` / `rocm7` / `vulkan`
-    /// - GPU 变体仅在对应平台有效：cuda124/cuda133/rocm714/rocm7 仅 Windows；vulkan 全平台
+    /// - 配置值（与 UI 选项一致）：`cpu` / `cuda124` / `cuda133` / `rocm714` / `rocm10` / `vulkan`
+    /// - GPU 变体仅在对应平台有效：cuda124/cuda133/rocm714/rocm10 仅 Windows；vulkan 全平台
     /// - 兼容旧版 `"gpu"`：Windows → CUDA 12.4，Linux → Vulkan
     /// - 兜底：CPU（Linux x64 / Windows arm64 / Windows x64）
     pub fn from_settings_value(value: &str) -> Self {
@@ -255,11 +255,11 @@ impl DownloadVariant {
                     DownloadVariant::WinRocmLemonade(gpu_target.to_string())
                 }
             }
-            "rocm7" => {
+            "rocm10" => {
                 if is_linux {
-                    DownloadVariant::LinuxRocm714
+                    DownloadVariant::LinuxRocm10
                 } else {
-                    DownloadVariant::WinRocm714
+                    DownloadVariant::WinRocm10
                 }
             }
             "vulkan" => {
@@ -1187,8 +1187,8 @@ mod tests {
                 DownloadVariant::LinuxRocmLemonade("gfx103X".to_string())
             );
             assert_eq!(
-                DownloadVariant::from_settings_value("rocm7"),
-                DownloadVariant::LinuxRocm714
+                DownloadVariant::from_settings_value("rocm10"),
+                DownloadVariant::LinuxRocm10
             );
         } else {
             let expected_cpu = if cfg!(target_arch = "aarch64") {
@@ -1216,8 +1216,8 @@ mod tests {
                 DownloadVariant::WinRocmLemonade("gfx103X".to_string())
             );
             assert_eq!(
-                DownloadVariant::from_settings_value("rocm7"),
-                DownloadVariant::WinRocm714
+                DownloadVariant::from_settings_value("rocm10"),
+                DownloadVariant::WinRocm10
             );
             assert_eq!(
                 DownloadVariant::from_settings_value("vulkan"),
@@ -1378,10 +1378,10 @@ mod tests {
             },
             Asset {
                 // ggml-org 使用 tar.gz 格式
-                name: "llama-b1313-bin-ubuntu-rocm-7.14-x64.tar.gz".to_string(),
+                name: "llama-b1313-bin-ubuntu-rocm-10-x64.tar.gz".to_string(),
                 size: 1000,
                 browser_download_url:
-                    "https://example.com/llama-b1313-bin-ubuntu-rocm-7.14-x64.tar.gz".to_string(),
+                    "https://example.com/llama-b1313-bin-ubuntu-rocm-10-x64.tar.gz".to_string(),
             },
         ];
         // 测试 Linux ROCm Lemonade 变体（zip 格式）
@@ -1393,13 +1393,13 @@ mod tests {
             "llama-b1313-ubuntu-rocm-gfx103X-x64.zip"
         );
 
-        // 测试 Linux ROCm 7 官方变体（tar.gz 格式）
-        let variant_rocm7 = DownloadVariant::LinuxRocm714;
-        let picked_rocm7 = pick_asset(&assets, &variant_rocm7);
-        assert!(picked_rocm7.is_some());
+        // 测试 Linux ROCm 10 官方变体（tar.gz 格式）
+        let variant_rocm10 = DownloadVariant::LinuxRocm10;
+        let picked_rocm10 = pick_asset(&assets, &variant_rocm10);
+        assert!(picked_rocm10.is_some());
         assert_eq!(
-            picked_rocm7.unwrap().name,
-            "llama-b1313-bin-ubuntu-rocm-7.14-x64.tar.gz"
+            picked_rocm10.unwrap().name,
+            "llama-b1313-bin-ubuntu-rocm-10-x64.tar.gz"
         );
     }
 
@@ -1411,11 +1411,11 @@ mod tests {
         assert!(asset_name_lemonade.contains("ubuntu-rocm-gfx103X"));
         assert!(asset_name_lemonade.contains(".zip"));
 
-        // 测试 Linux ROCm 7 资产名模式（tar.gz 格式）
-        let variant_rocm7 = DownloadVariant::LinuxRocm714;
-        let asset_name_rocm7 = variant_rocm7.asset_name();
-        assert!(asset_name_rocm7.contains("ubuntu-rocm-7.14"));
-        assert!(asset_name_rocm7.contains(".tar\\.gz"));
+        // 测试 Linux ROCm 10 资产名模式（tar.gz 格式）
+        let variant_rocm10 = DownloadVariant::LinuxRocm10;
+        let asset_name_rocm10 = variant_rocm10.asset_name();
+        assert!(asset_name_rocm10.contains("ubuntu-rocm-10"));
+        assert!(asset_name_rocm10.contains(".tar\\.gz"));
     }
 
     #[test]
@@ -1424,8 +1424,8 @@ mod tests {
         let variant_lemonade = DownloadVariant::LinuxRocmLemonade("gfx103X".to_string());
         assert_eq!(variant_lemonade.extension(), ".zip");
 
-        // 测试 Linux ROCm 7 变体扩展名（tar.gz 格式）
-        let variant_rocm7 = DownloadVariant::LinuxRocm714;
-        assert_eq!(variant_rocm7.extension(), ".tar.gz");
+        // 测试 Linux ROCm 10 变体扩展名（tar.gz 格式）
+        let variant_rocm10 = DownloadVariant::LinuxRocm10;
+        assert_eq!(variant_rocm10.extension(), ".tar.gz");
     }
 }

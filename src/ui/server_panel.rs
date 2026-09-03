@@ -145,8 +145,8 @@ pub fn ui(
                 );
                 ui.selectable_value(
                     &mut settings.download_variant,
-                    "rocm7".to_string(),
-                    i18n::t(i18n::Key::VariantGpuRocm7, lang),
+                    "rocm10".to_string(),
+                    i18n::t(i18n::Key::VariantGpuRocm10, lang),
                 );
                 ui.selectable_value(
                     &mut settings.download_variant,
@@ -155,9 +155,9 @@ pub fn ui(
                 );
             });
 
-            // 当选择 ROCm 7.14 时：固定发布通道为 preview + 显示 GPU 目标选择（新行）
+            // 当选择 ROCm 10 时：固定发布通道为 preview + 显示 GPU 目标选择（新行）
             if settings.download_variant == "rocm_lemonade" {
-                // Lemonade ROCm 7 只有 preview 通道，强制设置
+                // Lemonade ROCm 10 只有 preview 通道，强制设置
                 if settings.release_channel != "preview" {
                     settings.release_channel = "preview".to_string();
                 }
@@ -191,7 +191,7 @@ pub fn ui(
                 &settings.rocm_gpu_target,
             );
 
-            // 发布通道选择（stable/preview）— Lemonade ROCm 7 不需要（发布通道无作用）
+            // 发布通道选择（stable/preview）— Lemonade ROCm 10 不需要（发布通道无作用）
             if settings.download_variant != "rocm_lemonade" {
                 ui.horizontal(|ui| {
                     ui.label(i18n::t(i18n::Key::ReleaseChannelLabel, lang));

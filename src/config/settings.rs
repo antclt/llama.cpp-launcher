@@ -1543,7 +1543,7 @@ pub struct AppSettings {
     pub language: String,
 
     // llama.cpp 下载变体偏好：
-    // "cpu" | "cuda124" | "cuda133" | "rocm_lemonade" | "rocm7" | "vulkan"
+    // "cpu" | "cuda124" | "cuda133" | "rocm_lemonade" | "rocm10" | "vulkan"
     // （兼容旧值 "gpu"：Windows→cuda124, Linux→vulkan）
     #[serde(default = "default_download_variant")]
     pub download_variant: String,
