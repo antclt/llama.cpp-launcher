@@ -604,6 +604,11 @@ fn run_download(
     // 3) 流式下载（partial 文件 + rename 原子落盘）；官方/镜像两源依次尝试
     set_running(status, Phase::Downloading, 0, Some(asset.size));
     let llama_dir = base_dir.join("llama");
+    // 清理 llama 目录（避免旧版本文件干扰新版本解压）
+    if llama_dir.exists() {
+        fs::remove_dir_all(&llama_dir)
+            .map_err(|e| format!("清理 llama 目录失败: {}", e))?;
+    }
     fs::create_dir_all(&llama_dir).map_err(|e| format!("create dir failed: {}", e))?;
     let partial = llama_dir.join(format!(".partial.{}", asset.name));
     // 构造官方与镜像两组下载 URL
