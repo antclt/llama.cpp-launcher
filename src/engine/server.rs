@@ -342,7 +342,7 @@ impl ServerManager {
                 .arg(&settings.reasoning_format);
         }
         if !settings.reasoning_effort.is_empty() && settings.reasoning_effort != "default" {
-            cmd.arg("--chat-template-kwargs")
+            cmd.arg("--reasoning-effort")
                 .arg(&settings.reasoning_effort);
         }
         if settings.reasoning_budget != -1 {

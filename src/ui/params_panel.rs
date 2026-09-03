@@ -225,19 +225,19 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningFormat, lang));
             });
 
-            // 推理强度 (--chat-template-kwargs)：值以 JSON 形式传给对话模板；default = 不拼接
+            // 推理强度 (--reasoning-effort)：纯字符串值；default = 不拼接
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelReasoningEffort, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningEffort, lang));
             });
             let effort_vals = [
                 "default",
-                "{\"reasoning_effort\": \"minimal\"}",
-                "{\"reasoning_effort\": \"low\"}",
-                "{\"reasoning_effort\": \"medium\"}",
-                "{\"reasoning_effort\": \"high\"}",
-                "{\"reasoning_effort\": \"xhigh\"}",
-                "{\"reasoning_effort\": \"max\"}",
+                "minimal",
+                "low",
+                "medium",
+                "high",
+                "xhigh",
+                "max",
             ];
             let effort_labels = [
                 i18n::t(i18n::Key::EffortDefault, lang),

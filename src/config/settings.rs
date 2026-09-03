@@ -414,7 +414,7 @@ fn default_reasoning_format() -> String {
 }
 
 fn default_reasoning_effort() -> String {
-    "default".to_string() // --chat-template-kwargs: JSON 值（如 {"reasoning_effort": "high"}）；default = 不拼接
+    "default".to_string() // --reasoning-effort: 纯字符串值（如 high）；default = 不拼接
 }
 
 fn default_reasoning_budget() -> i32 {
@@ -719,7 +719,7 @@ pub struct Preset {
     #[serde(default = "default_reasoning_format")]
     pub reasoning_format: String, // --reasoning-format
     #[serde(default = "default_reasoning_effort")]
-    pub reasoning_effort: String, // --chat-template-kwargs：JSON 值（如 {"reasoning_effort": "high"}）
+    pub reasoning_effort: String, // --reasoning-effort：纯字符串值（如 high）
     #[serde(default = "default_reasoning_budget")]
     pub reasoning_budget: i32, // --reasoning-budget: -1 = 不限制
     #[serde(default)]
@@ -1443,7 +1443,7 @@ pub struct AppSettings {
     #[serde(default = "default_reasoning_format")]
     pub reasoning_format: String, // --reasoning-format
     #[serde(default = "default_reasoning_effort")]
-    pub reasoning_effort: String, // --chat-template-kwargs：JSON 值（如 {"reasoning_effort": "high"}）
+    pub reasoning_effort: String, // --reasoning-effort：纯字符串值（如 high）
     #[serde(default = "default_reasoning_budget")]
     pub reasoning_budget: i32, // --reasoning-budget: -1 = 不限制
     #[serde(default)]
