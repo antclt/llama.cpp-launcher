@@ -769,23 +769,21 @@ fn run_download(
         }
     }
 
-    // 5) Linux：将 build/bin/* 提升到 llama/ 根目录（简化目录结构）
+    // 5) Linux：将 asset_stem 目录内容提升到 llama/ 根目录（简化目录结构）
     if !cfg!(target_os = "windows") {
         let stem = asset_stem(&asset.name);
-        let build_bin = llama_dir.join(&stem).join("build").join("bin");
-        if build_bin.is_dir() {
-            // 移动 build/bin/ 下所有文件到 llama_dir
-            if let Ok(entries) = fs::read_dir(&build_bin) {
+        let stem_dir = llama_dir.join(&stem);
+        if stem_dir.is_dir() {
+            // 移动 asset_stem 目录下所有内容到 llama_dir
+            if let Ok(entries) = fs::read_dir(&stem_dir) {
                 for entry in entries.flatten() {
                     let src = entry.path();
-                    if src.is_file() {
-                        let dst = llama_dir.join(entry.file_name());
-                        let _ = fs::rename(&src, &dst);
-                    }
+                    let dst = llama_dir.join(entry.file_name());
+                    let _ = fs::rename(&src, &dst);
                 }
             }
             // 删除空的 asset_stem 目录（best-effort，递归删除）
-            let _ = fs::remove_dir_all(llama_dir.join(&stem));
+            let _ = fs::remove_dir_all(&stem_dir);
         }
     }
 
