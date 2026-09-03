@@ -305,9 +305,14 @@ pub fn ui(
                                         .and_then(|s| s.split(':').next())
                                         .map(|s| s.trim().to_string())
                                         .map(|device_id| {
-                                            if line.contains("AMD") || line.contains("Radeon") || line.contains("ROCm") {
+                                            if line.contains("AMD")
+                                                || line.contains("Radeon")
+                                                || line.contains("ROCm")
+                                            {
                                                 format!("ROCm{}", device_id)
-                                            } else if line.contains("NVIDIA") || line.contains("CUDA") {
+                                            } else if line.contains("NVIDIA")
+                                                || line.contains("CUDA")
+                                            {
                                                 format!("CUDA{}", device_id)
                                             } else {
                                                 device_id
