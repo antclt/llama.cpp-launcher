@@ -606,8 +606,7 @@ fn run_download(
     let llama_dir = base_dir.join("llama");
     // 清理 llama 目录（避免旧版本文件干扰新版本解压）
     if llama_dir.exists() {
-        fs::remove_dir_all(&llama_dir)
-            .map_err(|e| format!("清理 llama 目录失败: {}", e))?;
+        fs::remove_dir_all(&llama_dir).map_err(|e| format!("清理 llama 目录失败: {}", e))?;
     }
     fs::create_dir_all(&llama_dir).map_err(|e| format!("create dir failed: {}", e))?;
     let partial = llama_dir.join(format!(".partial.{}", asset.name));

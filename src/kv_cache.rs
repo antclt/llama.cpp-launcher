@@ -248,6 +248,9 @@ fn cache_type_precision_bytes(cache_type: &str) -> f64 {
         "q8_0" => 1.0,
         "q5_0" | "q5_1" => 0.625,          // 5 bits per element
         "q4_0" | "q4_1" | "iq4_nl" => 0.5, // 4 bits per element
+        "turbo4_0" => 0.5625,              // 4.5 bits per element (3.8x compression)
+        "turbo3_0" => 0.4375,              // 3.5 bits per element (4.9x compression)
+        "turbo2_0" => 0.3125,              // 2.5 bits per element (6.4x compression)
         _ => 2.0,                          // 默认 f16
     }
 }
