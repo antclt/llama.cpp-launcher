@@ -482,19 +482,27 @@ impl ServerManager {
 
         // 3) --spec-draft-*: 仅在 spec_type 为 draft-* 时写入
         if settings.spec_type.starts_with("draft-") {
-            cmd.arg("--spec-draft-n-max")
-                .arg(settings.spec_draft_n_max.to_string());
-            cmd.arg("--spec-draft-n-min")
-                .arg(settings.spec_draft_n_min.to_string());
-            cmd.arg("--spec-draft-p-min")
-                .arg(format!("{}", settings.spec_draft_p_min));
-            cmd.arg("--spec-draft-p-split")
-                .arg(format!("{}", settings.spec_draft_p_split));
-            if !settings.spec_draft_type_k.is_empty() {
+            if settings.enable_spec_draft_n_max {
+                cmd.arg("--spec-draft-n-max")
+                    .arg(settings.spec_draft_n_max.to_string());
+            }
+            if settings.enable_spec_draft_n_min {
+                cmd.arg("--spec-draft-n-min")
+                    .arg(settings.spec_draft_n_min.to_string());
+            }
+            if settings.enable_spec_draft_p_min {
+                cmd.arg("--spec-draft-p-min")
+                    .arg(format!("{}", settings.spec_draft_p_min));
+            }
+            if settings.enable_spec_draft_p_split {
+                cmd.arg("--spec-draft-p-split")
+                    .arg(format!("{}", settings.spec_draft_p_split));
+            }
+            if settings.enable_spec_draft_type_k && !settings.spec_draft_type_k.is_empty() {
                 cmd.arg("--spec-draft-type-k")
                     .arg(&settings.spec_draft_type_k);
             }
-            if !settings.spec_draft_type_v.is_empty() {
+            if settings.enable_spec_draft_type_v && !settings.spec_draft_type_v.is_empty() {
                 cmd.arg("--spec-draft-type-v")
                     .arg(&settings.spec_draft_type_v);
             }

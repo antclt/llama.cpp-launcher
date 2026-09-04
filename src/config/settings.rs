@@ -612,6 +612,19 @@ pub struct Preset {
     pub spec_draft_type_k: String, // --spec-draft-type-k
     #[serde(default = "default_spec_draft_type_v")]
     pub spec_draft_type_v: String, // --spec-draft-type-v
+    // draft-* 参数启用开关（关闭时忽略对应配置）
+    #[serde(default)]
+    pub enable_spec_draft_n_max: bool,
+    #[serde(default)]
+    pub enable_spec_draft_n_min: bool,
+    #[serde(default)]
+    pub enable_spec_draft_p_min: bool,
+    #[serde(default)]
+    pub enable_spec_draft_p_split: bool,
+    #[serde(default)]
+    pub enable_spec_draft_type_k: bool,
+    #[serde(default)]
+    pub enable_spec_draft_type_v: bool,
     // ngram 参数（ngram-simple / ngram-map-k / ngram-map-k4v 共用）
     #[serde(default = "default_spec_ngram_size_n")]
     pub spec_ngram_size_n: usize, // --spec-ngram-*-size-n
@@ -810,11 +823,17 @@ impl Default for Preset {
             numa: default_numa(),
             spec_type: default_spec_type(),
             spec_draft_n_max: default_spec_draft_n_max(),
+            enable_spec_draft_n_max: false,
             spec_draft_n_min: 0,
             spec_draft_p_min: default_spec_draft_p_min(),
             spec_draft_p_split: default_spec_draft_p_split(),
             spec_draft_type_k: default_spec_draft_type_k(),
             spec_draft_type_v: default_spec_draft_type_v(),
+            enable_spec_draft_n_min: false,
+            enable_spec_draft_p_min: false,
+            enable_spec_draft_p_split: false,
+            enable_spec_draft_type_k: false,
+            enable_spec_draft_type_v: false,
             spec_ngram_size_n: default_spec_ngram_size_n(),
             spec_ngram_size_m: default_spec_ngram_size_m(),
             spec_ngram_min_hits: default_spec_ngram_min_hits(),
@@ -942,11 +961,17 @@ impl Preset {
             numa: settings.numa.clone(),
             spec_type: settings.spec_type.clone(),
             spec_draft_n_max: settings.spec_draft_n_max,
+            enable_spec_draft_n_max: settings.enable_spec_draft_n_max,
             spec_draft_n_min: settings.spec_draft_n_min,
             spec_draft_p_min: settings.spec_draft_p_min,
             spec_draft_p_split: settings.spec_draft_p_split,
             spec_draft_type_k: settings.spec_draft_type_k.clone(),
             spec_draft_type_v: settings.spec_draft_type_v.clone(),
+            enable_spec_draft_n_min: settings.enable_spec_draft_n_min,
+            enable_spec_draft_p_min: settings.enable_spec_draft_p_min,
+            enable_spec_draft_p_split: settings.enable_spec_draft_p_split,
+            enable_spec_draft_type_k: settings.enable_spec_draft_type_k,
+            enable_spec_draft_type_v: settings.enable_spec_draft_type_v,
             spec_ngram_size_n: settings.spec_ngram_size_n,
             spec_ngram_size_m: settings.spec_ngram_size_m,
             spec_ngram_min_hits: settings.spec_ngram_min_hits,
@@ -1076,11 +1101,17 @@ impl Preset {
         // 推测解码（Speculative Decoding）配置
         settings.spec_type = self.spec_type;
         settings.spec_draft_n_max = self.spec_draft_n_max;
+        settings.enable_spec_draft_n_max = self.enable_spec_draft_n_max;
         settings.spec_draft_n_min = self.spec_draft_n_min;
         settings.spec_draft_p_min = self.spec_draft_p_min;
         settings.spec_draft_p_split = self.spec_draft_p_split;
         settings.spec_draft_type_k = self.spec_draft_type_k;
         settings.spec_draft_type_v = self.spec_draft_type_v;
+        settings.enable_spec_draft_n_min = self.enable_spec_draft_n_min;
+        settings.enable_spec_draft_p_min = self.enable_spec_draft_p_min;
+        settings.enable_spec_draft_p_split = self.enable_spec_draft_p_split;
+        settings.enable_spec_draft_type_k = self.enable_spec_draft_type_k;
+        settings.enable_spec_draft_type_v = self.enable_spec_draft_type_v;
         settings.spec_ngram_size_n = self.spec_ngram_size_n;
         settings.spec_ngram_size_m = self.spec_ngram_size_m;
         settings.spec_ngram_min_hits = self.spec_ngram_min_hits;
@@ -1360,6 +1391,19 @@ pub struct AppSettings {
     pub spec_draft_type_k: String, // --spec-draft-type-k
     #[serde(default = "default_spec_draft_type_v")]
     pub spec_draft_type_v: String, // --spec-draft-type-v
+    // draft-* 参数启用开关（关闭时忽略对应配置）
+    #[serde(default)]
+    pub enable_spec_draft_n_max: bool,
+    #[serde(default)]
+    pub enable_spec_draft_n_min: bool,
+    #[serde(default)]
+    pub enable_spec_draft_p_min: bool,
+    #[serde(default)]
+    pub enable_spec_draft_p_split: bool,
+    #[serde(default)]
+    pub enable_spec_draft_type_k: bool,
+    #[serde(default)]
+    pub enable_spec_draft_type_v: bool,
     // ngram 参数（ngram-simple / ngram-map-k / ngram-map-k4v 共用）
     #[serde(default = "default_spec_ngram_size_n")]
     pub spec_ngram_size_n: usize,
@@ -1666,11 +1710,17 @@ impl Default for AppSettings {
             numa: default_numa(),
             spec_type: default_spec_type(),
             spec_draft_n_max: default_spec_draft_n_max(),
+            enable_spec_draft_n_max: false,
             spec_draft_n_min: 0,
             spec_draft_p_min: default_spec_draft_p_min(),
             spec_draft_p_split: default_spec_draft_p_split(),
             spec_draft_type_k: default_spec_draft_type_k(),
             spec_draft_type_v: default_spec_draft_type_v(),
+            enable_spec_draft_n_min: false,
+            enable_spec_draft_p_min: false,
+            enable_spec_draft_p_split: false,
+            enable_spec_draft_type_k: false,
+            enable_spec_draft_type_v: false,
             spec_ngram_size_n: default_spec_ngram_size_n(),
             spec_ngram_size_m: default_spec_ngram_size_m(),
             spec_ngram_min_hits: default_spec_ngram_min_hits(),

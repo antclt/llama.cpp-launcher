@@ -231,13 +231,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpReasoningEffort, lang));
             });
             let effort_vals = [
-                "default",
-                "minimal",
-                "low",
-                "medium",
-                "high",
-                "xhigh",
-                "max",
+                "default", "minimal", "low", "medium", "high", "xhigh", "max",
             ];
             let effort_labels = [
                 i18n::t(i18n::Key::EffortDefault, lang),
@@ -779,7 +773,8 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCacheTypeK, lang));
         });
         let k_types = [
-            "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1",
+            "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1", "turbo2_0",
+            "turbo3_0", "turbo4_0",
         ];
 
         ui.horizontal_wrapped(|ui| {
@@ -799,7 +794,8 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCacheTypeV, lang));
         });
         let v_types = [
-            "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1",
+            "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1", "turbo2_0",
+            "turbo3_0", "turbo4_0",
         ];
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
@@ -907,19 +903,25 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             // draft-* 算法参数（draft-simple / draft-eagle3 / draft-mtp / draft-dflash / draft-dspark）
             let is_draft = settings.spec_type.starts_with("draft-");
             if is_draft {
-                // 最大推测数量 --spec-draft-n-max（DragValue）
+                // 最大推测数量 --spec-draft-n-max（DragValue + 启用开关）
                 ui.horizontal(|ui| {
                     ui.label(i18n::t(i18n::Key::SpecDraftNMaxLabel, lang));
                     ui.add(egui::DragValue::new(&mut settings.spec_draft_n_max).range(0..=64));
                     helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftNMax, lang));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        widgets::toggle(ui, &mut settings.enable_spec_draft_n_max, "", accent);
+                    });
                 });
-                // 最小推测数量 --spec-draft-n-min（DragValue）
+                // 最小推测数量 --spec-draft-n-min（DragValue + 启用开关）
                 ui.horizontal(|ui| {
                     ui.label(i18n::t(i18n::Key::SpecDraftNMinLabel, lang));
                     ui.add(egui::DragValue::new(&mut settings.spec_draft_n_min).range(0..=32));
                     helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftNMin, lang));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        widgets::toggle(ui, &mut settings.enable_spec_draft_n_min, "", accent);
+                    });
                 });
-                // 信任度 --spec-draft-p-min（Slider）
+                // 信任度 --spec-draft-p-min（Slider + 启用开关）
                 ui.horizontal(|ui| {
                     ui.label(i18n::t(i18n::Key::SpecDraftPMinLabel, lang));
                     ui.add(
@@ -929,8 +931,11 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     );
                     ui.label(format!("{:.2}", settings.spec_draft_p_min));
                     helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftPMin, lang));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        widgets::toggle(ui, &mut settings.enable_spec_draft_p_min, "", accent);
+                    });
                 });
-                // 分裂概率 --spec-draft-p-split（Slider）
+                // 分裂概率 --spec-draft-p-split（Slider + 启用开关）
                 ui.horizontal(|ui| {
                     ui.label(i18n::t(i18n::Key::SpecDraftPSplitLabel, lang));
                     ui.add(
@@ -940,11 +945,17 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     );
                     ui.label(format!("{:.2}", settings.spec_draft_p_split));
                     helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftPSplit, lang));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        widgets::toggle(ui, &mut settings.enable_spec_draft_p_split, "", accent);
+                    });
                 });
-                // 推测解码 KV 类型 K
+                // 推测解码 KV 类型 K + 启用开关
                 ui.horizontal(|ui| {
                     ui.label(i18n::t(i18n::Key::LabelSpecDraftTypeK, lang));
                     helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftTypeK, lang));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        widgets::toggle(ui, &mut settings.enable_spec_draft_type_k, "", accent);
+                    });
                 });
                 let spec_k_types = [
                     "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1",
@@ -958,10 +969,13 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                         }
                     }
                 });
-                // 推测解码 KV 类型 V
+                // 推测解码 KV 类型 V + 启用开关
                 ui.horizontal(|ui| {
                     ui.label(i18n::t(i18n::Key::LabelSpecDraftTypeV, lang));
                     helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSpecDraftTypeV, lang));
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        widgets::toggle(ui, &mut settings.enable_spec_draft_type_v, "", accent);
+                    });
                 });
                 let spec_v_types = [
                     "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1",

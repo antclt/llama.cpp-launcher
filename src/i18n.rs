@@ -333,6 +333,13 @@ pub enum Key {
     LabelSpecDraftTypeV,
     HelpSpecDraftTypeK,
     HelpSpecDraftTypeV,
+    // draft-* 参数启用开关标签
+    EnableSpecDraftNMax,
+    EnableSpecDraftNMin,
+    EnableSpecDraftPMin,
+    EnableSpecDraftPSplit,
+    EnableSpecDraftTypeK,
+    EnableSpecDraftTypeV,
     // ngram 参数标签
     SpecNgramSizeNLabel,
     SpecNgramSizeMLabel,
@@ -1252,6 +1259,19 @@ impl Key {
             (Key::HelpSpecDraftTypeK, &Language::En) => "Speculative decoding draft model K cache quantization type",
             (Key::HelpSpecDraftTypeV, &Language::Zh) => "推测解码草稿模型 V 缓存量化类型",
             (Key::HelpSpecDraftTypeV, &Language::En) => "Speculative decoding draft model V cache quantization type",
+            // draft-* 参数启用开关标签
+            (Key::EnableSpecDraftNMax, &Language::Zh) => "启用最大推测数量",
+            (Key::EnableSpecDraftNMax, &Language::En) => "Enable Max Draft N",
+            (Key::EnableSpecDraftNMin, &Language::Zh) => "启用最小推测数量",
+            (Key::EnableSpecDraftNMin, &Language::En) => "Enable Min Draft N",
+            (Key::EnableSpecDraftPMin, &Language::Zh) => "启用信任度",
+            (Key::EnableSpecDraftPMin, &Language::En) => "Enable Trust Threshold",
+            (Key::EnableSpecDraftPSplit, &Language::Zh) => "启用分裂概率",
+            (Key::EnableSpecDraftPSplit, &Language::En) => "Enable Split Probability",
+            (Key::EnableSpecDraftTypeK, &Language::Zh) => "启用 KV 类型 K",
+            (Key::EnableSpecDraftTypeK, &Language::En) => "Enable Draft Type K",
+            (Key::EnableSpecDraftTypeV, &Language::Zh) => "启用 KV 类型 V",
+            (Key::EnableSpecDraftTypeV, &Language::En) => "Enable Draft Type V",
             // ngram 参数标签
             (Key::SpecNgramSizeNLabel, &Language::Zh) => "N-gram 查找长度 (--spec-*-size-n):",
             (Key::SpecNgramSizeNLabel, &Language::En) => "N-gram lookup length (--spec-*-size-n):",

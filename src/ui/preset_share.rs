@@ -88,9 +88,15 @@ pub struct ParamsExport {
 
     pub spec_type: String,
     pub spec_draft_n_max: usize,
+    pub enable_spec_draft_n_max: bool,
     pub spec_draft_n_min: usize,
     pub spec_draft_p_min: f32,
     pub spec_draft_p_split: f32,
+    pub enable_spec_draft_n_min: bool,
+    pub enable_spec_draft_p_min: bool,
+    pub enable_spec_draft_p_split: bool,
+    pub enable_spec_draft_type_k: bool,
+    pub enable_spec_draft_type_v: bool,
 
     pub kv_offload: bool,
     pub cache_type_k: String,
@@ -162,9 +168,15 @@ impl ParamsExport {
             flash_attn: s.flash_attn.clone(),
             spec_type: s.spec_type.clone(),
             spec_draft_n_max: s.spec_draft_n_max,
+            enable_spec_draft_n_max: s.enable_spec_draft_n_max,
             spec_draft_n_min: s.spec_draft_n_min,
             spec_draft_p_min: s.spec_draft_p_min,
             spec_draft_p_split: s.spec_draft_p_split,
+            enable_spec_draft_n_min: s.enable_spec_draft_n_min,
+            enable_spec_draft_p_min: s.enable_spec_draft_p_min,
+            enable_spec_draft_p_split: s.enable_spec_draft_p_split,
+            enable_spec_draft_type_k: s.enable_spec_draft_type_k,
+            enable_spec_draft_type_v: s.enable_spec_draft_type_v,
             kv_offload: s.kv_offload,
             cache_type_k: s.cache_type_k.clone(),
             cache_type_v: s.cache_type_v.clone(),
@@ -214,9 +226,15 @@ impl ParamsExport {
         s.flash_attn = self.flash_attn;
         s.spec_type = self.spec_type;
         s.spec_draft_n_max = self.spec_draft_n_max;
+        s.enable_spec_draft_n_max = self.enable_spec_draft_n_max;
         s.spec_draft_n_min = self.spec_draft_n_min;
         s.spec_draft_p_min = self.spec_draft_p_min;
         s.spec_draft_p_split = self.spec_draft_p_split;
+        s.enable_spec_draft_n_min = self.enable_spec_draft_n_min;
+        s.enable_spec_draft_p_min = self.enable_spec_draft_p_min;
+        s.enable_spec_draft_p_split = self.enable_spec_draft_p_split;
+        s.enable_spec_draft_type_k = self.enable_spec_draft_type_k;
+        s.enable_spec_draft_type_v = self.enable_spec_draft_type_v;
         s.kv_offload = self.kv_offload;
         s.cache_type_k = self.cache_type_k;
         s.cache_type_v = self.cache_type_v;
@@ -268,9 +286,15 @@ impl ParamsExport {
             flash_attn: p.flash_attn.clone(),
             spec_type: p.spec_type.clone(),
             spec_draft_n_max: p.spec_draft_n_max,
+            enable_spec_draft_n_max: p.enable_spec_draft_n_max,
             spec_draft_n_min: p.spec_draft_n_min,
             spec_draft_p_min: p.spec_draft_p_min,
             spec_draft_p_split: p.spec_draft_p_split,
+            enable_spec_draft_n_min: p.enable_spec_draft_n_min,
+            enable_spec_draft_p_min: p.enable_spec_draft_p_min,
+            enable_spec_draft_p_split: p.enable_spec_draft_p_split,
+            enable_spec_draft_type_k: p.enable_spec_draft_type_k,
+            enable_spec_draft_type_v: p.enable_spec_draft_type_v,
             kv_offload: p.kv_offload,
             cache_type_k: p.cache_type_k.clone(),
             cache_type_v: p.cache_type_v.clone(),
@@ -323,9 +347,15 @@ impl ParamsExport {
         p.flash_attn = self.flash_attn;
         p.spec_type = self.spec_type;
         p.spec_draft_n_max = self.spec_draft_n_max;
+        p.enable_spec_draft_n_max = self.enable_spec_draft_n_max;
         p.spec_draft_n_min = self.spec_draft_n_min;
         p.spec_draft_p_min = self.spec_draft_p_min;
         p.spec_draft_p_split = self.spec_draft_p_split;
+        p.enable_spec_draft_n_min = self.enable_spec_draft_n_min;
+        p.enable_spec_draft_p_min = self.enable_spec_draft_p_min;
+        p.enable_spec_draft_p_split = self.enable_spec_draft_p_split;
+        p.enable_spec_draft_type_k = self.enable_spec_draft_type_k;
+        p.enable_spec_draft_type_v = self.enable_spec_draft_type_v;
         p.kv_offload = self.kv_offload;
         p.cache_type_k = self.cache_type_k;
         p.cache_type_v = self.cache_type_v;
