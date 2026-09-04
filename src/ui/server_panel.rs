@@ -133,6 +133,7 @@ pub fn ui(
 
             // Lemonade ROCm 分支：固定为 rocm_lemonade 变体 + 显示 GPU 目标选择
             let is_lemonade_branch = settings.llama_branch == "lemonade_rocm";
+            let is_turboquant_branch = settings.llama_branch == "turboquant";
             if is_lemonade_branch {
                 settings.download_variant = "rocm_lemonade".to_string();
                 // Lemonade ROCm 只有 preview 通道
@@ -163,7 +164,9 @@ pub fn ui(
                 });
             } else {
                 // 兼容旧版：把历史 "gpu" 归一化为当前平台默认 GPU 变体（幂等）
-                if settings.download_variant == "gpu" || settings.download_variant == "rocm_lemonade" {
+                if settings.download_variant == "gpu"
+                    || settings.download_variant == "rocm_lemonade"
+                {
                     settings.download_variant = if is_linux {
                         "vulkan".to_string()
                     } else {
@@ -189,11 +192,14 @@ pub fn ui(
                             i18n::t(i18n::Key::VariantGpuCuda133, lang),
                         );
                     }
-                    ui.selectable_value(
-                        &mut settings.download_variant,
-                        "rocm10".to_string(),
-                        i18n::t(i18n::Key::VariantGpuRocm10, lang),
-                    );
+                    // TurboQuant 分支在 Windows 下不显示 ROCm10 选项
+                    if !(is_turboquant_branch && !is_linux) {
+                        ui.selectable_value(
+                            &mut settings.download_variant,
+                            "rocm10".to_string(),
+                            i18n::t(i18n::Key::VariantGpuRocm10, lang),
+                        );
+                    }
                     ui.selectable_value(
                         &mut settings.download_variant,
                         "vulkan".to_string(),
@@ -208,8 +214,8 @@ pub fn ui(
                 &settings.rocm_gpu_target,
             );
 
-            // 发布通道选择（stable/preview）— Lemonade ROCm 分支不需要（固定 preview）
-            if !is_lemonade_branch {
+            // 发布通道选择（stable/preview）— Lemonade ROCm 分支和 TurboQuant 分支不需要
+            if !is_lemonade_branch && !is_turboquant_branch {
                 ui.horizontal(|ui| {
                     ui.label(i18n::t(i18n::Key::ReleaseChannelLabel, lang));
                     ui.selectable_value(
@@ -225,8 +231,9 @@ pub fn ui(
                 });
             }
 
-            // 下载内嵌 CUDA 库开关：仅 Windows + CUDA 12/13 变体时显示
+            // 下载内嵌 CUDA 库开关：仅 Windows + CUDA 12/13 变体时显示，TurboQuant 分支不显示
             if cfg!(target_os = "windows")
+                && !is_turboquant_branch
                 && (settings.download_variant == "cuda124"
                     || settings.download_variant == "cuda133")
             {
