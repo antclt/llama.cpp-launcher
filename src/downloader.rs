@@ -200,7 +200,7 @@ impl DownloadVariant {
                 format!("llama-.*-windows-rocm-{}-x64\\.zip", gpu_target)
             }
             // 官方 ggml-org ROCm 10（无 GPU 目标后缀）
-            DownloadVariant::WinRocm10 => "llama-.*-bin-win-rocm-10-x64\\.zip".to_string(),
+            DownloadVariant::WinRocm10 => "llama-.*-bin-win-rocm-10\\.0-x64\\.zip".to_string(),
             DownloadVariant::WinVulkan => "bin-win-vulkan-x64".to_string(),
             DownloadVariant::WinCpuArm64 => "bin-win-cpu-arm64".to_string(),
             DownloadVariant::LinuxCpu => "bin-ubuntu-x64".to_string(),
@@ -213,7 +213,7 @@ impl DownloadVariant {
             }
             // 官方 ggml-org ROCm 10 Linux 版本（无 GPU 目标后缀）
             DownloadVariant::LinuxRocm10 => {
-                "llama-.*-bin-ubuntu-rocm-10-x64\\.tar\\.gz".to_string()
+                "llama-.*-bin-ubuntu-rocm-10\\.0-x64\\.tar\\.gz".to_string()
             }
         }
     }
