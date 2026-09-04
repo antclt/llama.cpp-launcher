@@ -560,11 +560,51 @@ pub fn fetch_latest_tag(
     release_channel: &str,
     llama_branch: &str,
 ) -> Result<String, String> {
-    if release_channel == "stable" {
+    if llama_branch == "turboquant" {
+        // TurboQuant: 直接使用专用函数获取最新 tag（格式为 b[NUM]-[VERSION]）
+        fetch_turboquant_latest_tag()
+    } else if release_channel == "stable" {
         fetch_nightly_tag_from_latest(&variant, llama_branch)
     } else {
         fetch_latest_nightly_release(&variant, llama_branch).map(|r| r.tag_name)
     }
+}
+
+// ======================= TurboQuant 专用函数 =======================
+
+/// TurboQuant: 获取最新 release（tag 格式为 b10269-1.5.1）
+/// tag 以 'b' 开头，后跟数字，然后是 '-' 和版本号
+fn fetch_turboquant_latest_release() -> Result<ReleaseInfo, String> {
+    let official_url = format!(
+        "{}/releases?per_page=10",
+        api_base(&DownloadVariant::WinCpu, "turboquant")
+    );
+    let mirror = mirror_url(&official_url);
+    let body = fetch_with_fallback(&official_url, &mirror, false)?;
+    let releases: Vec<ReleaseInfo> = serde_json::from_str(&body).map_err(|e| e.to_string())?;
+    // 找到第一个 tag 匹配 b[NUM]-[VERSION] 格式的 release（最新的 TurboQuant release）
+    releases
+        .into_iter()
+        .find(|r| {
+            let tag = &r.tag_name;
+            // 匹配 b10269-1.5.1 格式：以 b 开头，数字部分，然后是 - 和版本号
+            if let Some(rest) = tag.strip_prefix('b') {
+                if let Some(dash_pos) = rest.find('-') {
+                    let num_part = &rest[..dash_pos];
+                    let version_part = &rest[dash_pos + 1..];
+                    return !num_part.is_empty()
+                        && num_part.chars().all(|c| c.is_ascii_digit())
+                        && !version_part.is_empty();
+                }
+            }
+            false
+        })
+        .ok_or_else(|| "no TurboQuant release found".to_string())
+}
+
+/// TurboQuant: 获取最新 tag_name（如 "b10269-1.5.1"），供"检查更新"使用
+pub fn fetch_turboquant_latest_tag() -> Result<String, String> {
+    fetch_turboquant_latest_release().map(|r| r.tag_name)
 }
 
 // ======================= 下载流程（后台线程） =======================
@@ -621,7 +661,10 @@ fn run_download(
 ) -> Result<String, String> {
     // 1) 获取最新版本信息（根据发布通道）
     set_running(status, Phase::FetchingRelease, 0, None);
-    let release = if release_channel == "stable" {
+    let release = if llama_branch == "turboquant" {
+        // TurboQuant: 直接使用专用函数获取最新 release（tag 格式为 b[NUM]-[VERSION]）
+        fetch_turboquant_latest_release()?
+    } else if release_channel == "stable" {
         // stable: 先读取 vX.Y.Z 的 nightly-tag.txt，获取确认的 nightly 版本
         let nightly_tag = fetch_nightly_tag_from_latest(&variant, llama_branch)?;
         fetch_release_by_tag(&nightly_tag, variant.is_rocm_lemonade(), llama_branch)?
@@ -826,6 +869,29 @@ fn run_download(
             }
             // 删除空的 asset_stem 目录（best-effort，递归删除）
             let _ = fs::remove_dir_all(&stem_dir);
+        }
+    }
+
+    // 5.5) TurboQuant：将 build/bin 目录内容移动到 llama/ 根目录
+    if llama_branch == "turboquant" {
+        let build_bin_dir = llama_dir.join("build").join("bin");
+        if build_bin_dir.is_dir() {
+            log::info!("[download] TurboQuant: 移动 build/bin 内容到 llama/");
+            if let Ok(entries) = fs::read_dir(&build_bin_dir) {
+                for entry in entries.flatten() {
+                    let src = entry.path();
+                    let dst = llama_dir.join(entry.file_name());
+                    if let Err(e) = fs::rename(&src, &dst) {
+                        log::warn!(
+                            "[download] TurboQuant: 移动文件失败 {}: {}",
+                            src.display(),
+                            e
+                        );
+                    }
+                }
+            }
+            // 删除空的 build/bin 目录
+            let _ = fs::remove_dir_all(llama_dir.join("build"));
         }
     }
 
