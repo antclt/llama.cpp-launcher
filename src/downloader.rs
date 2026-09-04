@@ -175,7 +175,22 @@ pub enum DownloadVariant {
 impl DownloadVariant {
     /// 资产名匹配模式（官方资产命名的特征子串）
     /// 例：官方资产 llama-b10549-bin-win-cuda-12.4-x64.zip
-    pub fn asset_name(&self) -> String {
+    /// TurboQuant 资产命名：llama-turboquant-windows-x64-cpu.zip
+    pub fn asset_name(&self, llama_branch: &str) -> String {
+        // TurboQuant 分支使用不同的命名格式
+        if llama_branch == "turboquant" {
+            return match self {
+                DownloadVariant::WinCpu => "turboquant-windows-x64-cpu".to_string(),
+                DownloadVariant::WinCuda124 => "turboquant-windows-x64-cuda-12".to_string(),
+                DownloadVariant::WinCuda133 => "turboquant-windows-x64-cuda-13".to_string(),
+                DownloadVariant::WinVulkan => "turboquant-windows-x64-vulkan".to_string(),
+                DownloadVariant::LinuxCpu => "turboquant-linux-x64-cpu".to_string(),
+                DownloadVariant::LinuxVulkan => "turboquant-linux-x64-vulkan".to_string(),
+                _ => "turboquant".to_string(), // 兜底
+            };
+        }
+
+        // ggml-org / lemonade-sdk 默认命名格式
         match self {
             DownloadVariant::WinCpu => "bin-win-cpu-x64".to_string(),
             DownloadVariant::WinCuda124 => "bin-win-cuda-12.4-x64".to_string(),
@@ -616,10 +631,10 @@ fn run_download(
     };
 
     // 2) 按变体匹配资产
-    let asset = pick_asset(&release.assets, &variant).ok_or_else(|| {
+    let asset = pick_asset(&release.assets, &variant, llama_branch).ok_or_else(|| {
         format!(
             "no matching asset for pattern '{}' in release {}",
-            variant.asset_name(),
+            variant.asset_name(llama_branch),
             release.tag_name
         )
     })?;
@@ -932,8 +947,12 @@ fn set_running(status: &Arc<Mutex<DownloadStatus>>, phase: Phase, done: u64, tot
 /// - 排除 name 以 "cudart-" 开头的资产（CUDA runtime，非启动器所需）；
 /// - ROCm 变体使用正则表达式匹配（pattern 含 `.*` 或 `\.`）；
 /// - 其他变体使用 substring 匹配
-pub fn pick_asset<'a>(assets: &'a [Asset], variant: &'a DownloadVariant) -> Option<&'a Asset> {
-    let pattern = variant.asset_name();
+pub fn pick_asset<'a>(
+    assets: &'a [Asset],
+    variant: &'a DownloadVariant,
+    llama_branch: &str,
+) -> Option<&'a Asset> {
+    let pattern = variant.asset_name(llama_branch);
     let ext = variant.extension();
 
     // 检查是否为正则模式（ROCm 变体使用正则）
@@ -1092,7 +1111,7 @@ mod tests {
             asset("llama-b10549-bin-win-cuda-12.4-x64.zip"),
             asset("llama-b10549-bin-win-cpu-x64.zip"),
         ];
-        let picked = pick_asset(&assets, &DownloadVariant::WinCpu).expect("应匹配 WinCpu 资产");
+        let picked = pick_asset(&assets, &DownloadVariant::WinCpu, "main").expect("应匹配 WinCpu 资产");
         assert_eq!(picked.name, "llama-b10549-bin-win-cpu-x64.zip");
     }
 
@@ -1103,10 +1122,10 @@ mod tests {
             asset("llama-b10549-bin-win-cuda-13.3-x64.zip"),
         ];
         let p124 =
-            pick_asset(&assets, &DownloadVariant::WinCuda124).expect("应匹配 CUDA 12.4 资产");
+            pick_asset(&assets, &DownloadVariant::WinCuda124, "main").expect("应匹配 CUDA 12.4 资产");
         assert_eq!(p124.name, "llama-b10549-bin-win-cuda-12.4-x64.zip");
         let p133 =
-            pick_asset(&assets, &DownloadVariant::WinCuda133).expect("应匹配 CUDA 13.3 资产");
+            pick_asset(&assets, &DownloadVariant::WinCuda133, "main").expect("应匹配 CUDA 13.3 资产");
         assert_eq!(p133.name, "llama-b10549-bin-win-cuda-13.3-x64.zip");
     }
 
@@ -1116,24 +1135,24 @@ mod tests {
             asset("llama-b10549-bin-win-cpu-x64.zip"),
             asset("llama-b10549-bin-win-cpu-arm64.zip"),
         ];
-        let picked = pick_asset(&assets, &DownloadVariant::WinCpuArm64).expect("应匹配 arm64 资产");
+        let picked = pick_asset(&assets, &DownloadVariant::WinCpuArm64, "main").expect("应匹配 arm64 资产");
         assert_eq!(picked.name, "llama-b10549-bin-win-cpu-arm64.zip");
         // x64 变体不应命中 arm64 资产
-        assert!(pick_asset(&[assets[1].clone()], &DownloadVariant::WinCpu).is_none());
+        assert!(pick_asset(&[assets[1].clone()], &DownloadVariant::WinCpu, "main").is_none());
     }
 
     #[test]
     fn pick_asset_excludes_cudart() {
         // 仅 cudart-* 资产 → None
         let only_cudart = vec![asset("cudart-llama-b10549-bin-win-cuda-12.4-x64.zip")];
-        assert!(pick_asset(&only_cudart, &DownloadVariant::WinCuda124).is_none());
+        assert!(pick_asset(&only_cudart, &DownloadVariant::WinCuda124, "main").is_none());
         // cudart 与官方资产并存 → 选官方资产
         let mixed = vec![
             asset("cudart-llama-b10549-bin-win-cuda-12.4-x64.zip"),
             asset("llama-b10549-bin-win-cuda-12.4-x64.zip"),
         ];
         let picked =
-            pick_asset(&mixed, &DownloadVariant::WinCuda124).expect("应跳过 cudart 选中官方资产");
+            pick_asset(&mixed, &DownloadVariant::WinCuda124, "main").expect("应跳过 cudart 选中官方资产");
         assert_eq!(picked.name, "llama-b10549-bin-win-cuda-12.4-x64.zip");
     }
 
@@ -1143,10 +1162,10 @@ mod tests {
             asset("llama-b10549-bin-ubuntu-vulkan-x64.tar.gz"),
             asset("llama-b10549-bin-ubuntu-x64.tar.gz"),
         ];
-        let cpu = pick_asset(&assets, &DownloadVariant::LinuxCpu).expect("应匹配 Linux CPU 资产");
+        let cpu = pick_asset(&assets, &DownloadVariant::LinuxCpu, "main").expect("应匹配 Linux CPU 资产");
         assert_eq!(cpu.name, "llama-b10549-bin-ubuntu-x64.tar.gz");
         let vulkan =
-            pick_asset(&assets, &DownloadVariant::LinuxVulkan).expect("应匹配 Vulkan 资产");
+            pick_asset(&assets, &DownloadVariant::LinuxVulkan, "main").expect("应匹配 Vulkan 资产");
         assert_eq!(vulkan.name, "llama-b10549-bin-ubuntu-vulkan-x64.tar.gz");
     }
 
@@ -1157,14 +1176,14 @@ mod tests {
             asset("llama-b10549-bin-ubuntu-arm64.tar.gz"),
         ];
         let cpu =
-            pick_asset(&assets, &DownloadVariant::LinuxArm64).expect("应匹配 Linux ARM64 CPU 资产");
+            pick_asset(&assets, &DownloadVariant::LinuxArm64, "main").expect("应匹配 Linux ARM64 CPU 资产");
         assert_eq!(cpu.name, "llama-b10549-bin-ubuntu-arm64.tar.gz");
-        let vulkan = pick_asset(&assets, &DownloadVariant::LinuxVulkanArm64)
+        let vulkan = pick_asset(&assets, &DownloadVariant::LinuxVulkanArm64, "main")
             .expect("应匹配 Linux ARM64 Vulkan 资产");
         assert_eq!(vulkan.name, "llama-b10549-bin-ubuntu-vulkan-arm64.tar.gz");
         // x64 变体不应命中 arm64 资产
-        assert!(pick_asset(&[assets[1].clone()], &DownloadVariant::LinuxCpu).is_none());
-        assert!(pick_asset(&[assets[0].clone()], &DownloadVariant::LinuxVulkan).is_none());
+        assert!(pick_asset(&[assets[1].clone()], &DownloadVariant::LinuxCpu, "main").is_none());
+        assert!(pick_asset(&[assets[0].clone()], &DownloadVariant::LinuxVulkan, "main").is_none());
     }
 
     #[test]
@@ -1175,10 +1194,10 @@ mod tests {
             asset("llama-b10549-bin-win-cuda-13.3-x64.zip"),
         ];
         let rocm_variant = DownloadVariant::WinRocmLemonade("gfx1030".to_string());
-        let rocm = pick_asset(&assets, &rocm_variant).expect("应匹配 ROCm 7.14 资产");
+        let rocm = pick_asset(&assets, &rocm_variant, "main").expect("应匹配 ROCm 7.14 资产");
         assert_eq!(rocm.name, "llama-b10549-windows-rocm-gfx1030-x64.zip");
         let vulkan =
-            pick_asset(&assets, &DownloadVariant::WinVulkan).expect("应匹配 Win Vulkan 资产");
+            pick_asset(&assets, &DownloadVariant::WinVulkan, "main").expect("应匹配 Win Vulkan 资产");
         assert_eq!(vulkan.name, "llama-b10549-bin-win-vulkan-x64.zip");
     }
 
@@ -1265,14 +1284,14 @@ mod tests {
             asset("llama-b10690-bin-win-cuda-13.3-x64.zip"),
             asset("llama-b10690-bin-win-cuda-12.4-x64.zip"),
         ];
-        let cuda134_arm64 = pick_asset(&assets, &DownloadVariant::WinCuda134Arm64)
+        let cuda134_arm64 = pick_asset(&assets, &DownloadVariant::WinCuda134Arm64, "main")
             .expect("应匹配 Win CUDA 13.4 ARM64 资产");
         assert_eq!(
             cuda134_arm64.name,
             "llama-b10690-bin-win-cuda-13.4-arm64.zip"
         );
         // x64 变体不应命中 arm64 资产
-        assert!(pick_asset(&[assets[0].clone()], &DownloadVariant::WinCuda133).is_none());
+        assert!(pick_asset(&[assets[0].clone()], &DownloadVariant::WinCuda133, "main").is_none());
     }
 
     #[test]
@@ -1314,8 +1333,8 @@ mod tests {
     #[test]
     fn pick_asset_no_match_returns_none() {
         let assets = vec![asset("llama-b10549-bin-win-cpu-x64.zip")];
-        assert!(pick_asset(&assets, &DownloadVariant::LinuxVulkan).is_none());
-        assert!(pick_asset(&[], &DownloadVariant::WinCpu).is_none());
+        assert!(pick_asset(&assets, &DownloadVariant::LinuxVulkan, "main").is_none());
+        assert!(pick_asset(&[], &DownloadVariant::WinCpu, "main").is_none());
     }
 
     #[test]
@@ -1347,7 +1366,7 @@ mod tests {
     #[test]
     fn test_win_rocm_lemonade_asset_name() {
         let variant = DownloadVariant::WinRocmLemonade("gfx103X".to_string());
-        let asset_name = variant.asset_name();
+        let asset_name = variant.asset_name("main");
         assert!(asset_name.contains("llama-.*-windows-rocm-gfx103X-x64\\.zip"));
     }
 
@@ -1379,7 +1398,7 @@ mod tests {
             },
         ];
         let variant = DownloadVariant::WinRocmLemonade("gfx103X".to_string());
-        let picked = pick_asset(&assets, &variant);
+        let picked = pick_asset(&assets, &variant, "main");
         assert!(picked.is_some());
         assert_eq!(
             picked.unwrap().name,
@@ -1413,7 +1432,7 @@ mod tests {
         ];
         // 测试 Linux ROCm Lemonade 变体（zip 格式）
         let variant_lemonade = DownloadVariant::LinuxRocmLemonade("gfx103X".to_string());
-        let picked_lemonade = pick_asset(&assets, &variant_lemonade);
+        let picked_lemonade = pick_asset(&assets, &variant_lemonade, "main");
         assert!(picked_lemonade.is_some());
         assert_eq!(
             picked_lemonade.unwrap().name,
@@ -1422,7 +1441,7 @@ mod tests {
 
         // 测试 Linux ROCm 10 官方变体（tar.gz 格式）
         let variant_rocm10 = DownloadVariant::LinuxRocm10;
-        let picked_rocm10 = pick_asset(&assets, &variant_rocm10);
+        let picked_rocm10 = pick_asset(&assets, &variant_rocm10, "main");
         assert!(picked_rocm10.is_some());
         assert_eq!(
             picked_rocm10.unwrap().name,
@@ -1434,13 +1453,13 @@ mod tests {
     fn test_linux_rocm_variant_asset_name() {
         // 测试 Linux ROCm Lemonade 资产名模式（zip 格式）
         let variant_lemonade = DownloadVariant::LinuxRocmLemonade("gfx103X".to_string());
-        let asset_name_lemonade = variant_lemonade.asset_name();
+        let asset_name_lemonade = variant_lemonade.asset_name("main");
         assert!(asset_name_lemonade.contains("ubuntu-rocm-gfx103X"));
         assert!(asset_name_lemonade.contains(".zip"));
 
         // 测试 Linux ROCm 10 资产名模式（tar.gz 格式）
         let variant_rocm10 = DownloadVariant::LinuxRocm10;
-        let asset_name_rocm10 = variant_rocm10.asset_name();
+        let asset_name_rocm10 = variant_rocm10.asset_name("main");
         assert!(asset_name_rocm10.contains("ubuntu-rocm-10"));
         assert!(asset_name_rocm10.contains(".tar\\.gz"));
     }
