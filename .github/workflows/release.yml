@@ -118,64 +118,6 @@ jobs:
       - name: Build release
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Create AppImage
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: |
-          # 安装 AppImage 工具
-          sudo apt-get update
-          sudo apt-get install -y wget file fuse libfuse2
-          
-          # 下载 appimagetool
-          wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
-          chmod +x appimagetool
-          
-          # 从 Cargo.toml 读取版本号
-          VERSION=$(awk -F '"' '/^\[package\]/ {p=1} p && /^version/ {print $2; exit}' Cargo.toml | tr -d '\n\r')
-          echo "创建 AppImage: v${VERSION}"
-          
-          # 创建 AppDir 结构
-          APPDIR="AppDir"
-          mkdir -p ${APPDIR}/usr/bin
-          mkdir -p ${APPDIR}/usr/share/applications
-          mkdir -p ${APPDIR}/usr/share/icons/hicolor/256x256/apps
-          
-          # 复制图标到 AppDir 根目录（解决 appimagetool 的报错）
-          cp llama-cpp-launcher.png ${APPDIR}/llama-cpp-launcher.png
-          
-          # 复制图标到 Linux 标准图标目录（让系统能正确显示图标）
-          cp llama-cpp-launcher.png ${APPDIR}/usr/share/icons/hicolor/256x256/apps/llama-cpp-launcher.png
-          
-          # 复制二进制文件
-          cp "target/${{ matrix.target }}/release/llama_cpp_launcher" "${APPDIR}/usr/bin/"
-          
-          # 创建 .desktop 文件
-          cat > ${APPDIR}/llama-cpp-launcher.desktop << 'EOF'
-          [Desktop Entry]
-          Type=Application
-          Name=Llama.cpp Launcher
-          Exec=llama_cpp_launcher
-          Icon=llama-cpp-launcher
-          Categories=Development;
-          Terminal=false
-          Comment=A lightweight launcher for llama.cpp server
-          EOF
-          
-          # 创建 AppRun 脚本
-          cat > ${APPDIR}/AppRun << 'EOF'
-          #!/bin/sh
-          HERE="$(dirname "$(readlink -f "${0}")")"
-          "${HERE}/usr/bin/llama_cpp_launcher" "$@"
-          EOF
-          chmod +x ${APPDIR}/AppRun
-          
-          # 构建 AppImage
-          ARCH=x86_64 ./appimagetool --appimage-extract-and-run ${APPDIR} "llama_cpp_launcher_v${VERSION}_x86_64.AppImage"
-          
-          # 移动到 dist 目录
-          mkdir -p dist
-          mv "llama_cpp_launcher_v${VERSION}_x86_64.AppImage" dist/
-          echo "已创建: llama_cpp_launcher_v${VERSION}_x86_64.AppImage"
-
       - name: Prepare artifacts
         run: |
           # 从 Cargo.toml 读取版本号
@@ -202,12 +144,6 @@ jobs:
           name: llama-cpp-launcher-linux-${{ matrix.arch }}
           path: dist/
 
-      - name: Upload AppImage artifact
-        if: matrix.target == 'x86_64-unknown-linux-gnu'
-        uses: actions/upload-artifact@v4
-        with:
-          name: llama-cpp-launcher-linux-x86_64-appimage
-          path: dist/*.AppImage
 
   release:
     needs: [ build-windows, build-windows-arm64, build-linux ]
@@ -241,11 +177,6 @@ jobs:
           name: llama-cpp-launcher-linux-aarch64
           path: dist/
 
-      - name: Download Linux AppImage
-        uses: actions/download-artifact@v4
-        with:
-          name: llama-cpp-launcher-linux-x86_64-appimage
-          path: dist/
 
       - name: List artifacts
         run: ls -la dist/
