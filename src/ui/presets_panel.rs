@@ -1,5 +1,6 @@
 use crate::config::settings::{AppSettings, Preset};
 use crate::engine::rpc::RpcManager;
+use crate::engine::server::ServerManager;
 use crate::i18n;
 use crate::ui::preset_share::{ParamsExport, PresetShareUi};
 use crate::ui::widgets;
@@ -24,6 +25,7 @@ pub fn ui(
     share: &mut PresetShareUi,
     config: &mut crate::ui::preset_share::PresetConfigUi,
     rpc_manager: &RpcManager,
+    server_manager: &ServerManager,
     notice: &Option<(bool, String, f64)>,
 ) -> PresetPanelRequest {
     let accent = crate::theme::accent_color(&settings.accent_color);
@@ -268,6 +270,16 @@ pub fn ui(
                                     load_index = Some(i);
                                     start_rpc = true;
                                 }
+
+                                // ── Linux 服务文件按钮 ──
+                                ui.separator();
+                                if ui
+                                    .small_button(i18n::t(i18n::Key::BtnLinuxServiceFile, lang))
+                                    .on_hover_text(i18n::t(i18n::Key::LinuxServiceFileHint, lang))
+                                    .clicked()
+                                {
+                                    settings.show_linux_service_file = true;
+                                }
                             });
                             ui.separator();
                         }
@@ -366,6 +378,100 @@ pub fn ui(
     crate::ui::preset_share::config_window(ui.ctx(), settings, config, share, lang);
     // 依赖声明阅读窗口（配置窗口/分享窗口内按钮打开；egui 窗口均为顶层区域，可叠加）
     crate::ui::preset_share::decl_window(ui.ctx(), share, lang);
+
+    // ── Linux 服务文件窗口 ──
+    if settings.show_linux_service_file {
+        let mut open = settings.show_linux_service_file;
+        egui::Window::new(i18n::t(i18n::Key::LinuxServiceFileWindowTitle, lang))
+            .collapsible(false)
+            .resizable(true)
+            .default_width(520.0)
+            .default_height(400.0)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .open(&mut open)
+            .show(ui.ctx(), |ui| {
+                ui.label(i18n::t(i18n::Key::LinuxServiceFileHint, lang));
+                ui.separator();
+
+                // 获取服务器启动命令，替换模板中的 ExecStart 行
+                let template = i18n::t(i18n::Key::LinuxServiceFileContent, lang);
+                let content = {
+                    // 根据当前设置构建启动命令
+                    let cmd = server_manager.build_launch_command(settings);
+                    // 将启动命令按行分割，替换 ExecStart 行
+                    let mut lines: Vec<String> = template.lines().map(String::from).collect();
+                    let mut in_exec_start = false;
+                    for line in &mut lines {
+                        if line.starts_with("ExecStart=") {
+                            *line = format!("ExecStart={}", cmd);
+                            in_exec_start = true;
+                        } else if in_exec_start && line.starts_with("    ") {
+                            // 跳过原模板中 ExecStart 的续行
+                            line.clear();
+                        } else {
+                            in_exec_start = false;
+                        }
+                    }
+                    // 移除连续的空行
+                    let mut result = Vec::new();
+                    let mut prev_empty = false;
+                    for line in lines {
+                        let is_empty = line.trim().is_empty();
+                        if !is_empty || !prev_empty {
+                            result.push(line);
+                        }
+                        prev_empty = is_empty;
+                    }
+                    result.join("\n")
+                };
+
+                let mut content = content;
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.add(
+                        egui::TextEdit::multiline(&mut content)
+                            .font(egui::TextStyle::Monospace)
+                            .desired_width(f32::INFINITY),
+                    );
+                });
+
+                ui.separator();
+                ui.horizontal(|ui| {
+                    // 复制到剪贴板
+                    let copy_label = if settings.linux_service_file_copied {
+                        "✓"
+                    } else {
+                        &i18n::t(i18n::Key::BtnCopyServiceFile, lang)
+                    };
+                    if ui.button(copy_label).clicked() {
+                        ui.ctx().copy_text(content.to_string());
+                        settings.linux_service_file_copied = true;
+                    }
+                    // 重置复制状态（下次点击前）
+                    if settings.linux_service_file_copied {
+                        ui.ctx().request_repaint();
+                    }
+
+                    // 保存为文件
+                    if ui
+                        .button(i18n::t(i18n::Key::BtnSaveServiceFile, lang))
+                        .clicked()
+                    {
+                        if let Some(path) = rfd::FileDialog::new()
+                            .set_title(i18n::t(i18n::Key::LinuxServiceFileWindowTitle, lang))
+                            .add_filter("Service File", &["service"])
+                            .save_file()
+                        {
+                            let _ = std::fs::write(&path, &content);
+                        }
+                    }
+                });
+            });
+        settings.show_linux_service_file = open;
+        // 仅在窗口关闭时重置复制状态
+        if !open {
+            settings.linux_service_file_copied = false;
+        }
+    }
 
     if start_server {
         PresetPanelRequest::StartServer

@@ -757,6 +757,7 @@ impl eframe::App for LlamaLauncherApp {
                                     &mut self.preset_share,
                                     &mut self.preset_config,
                                     &self.rpc_manager,
+                                    &self.server_manager,
                                     &self.preset_start_notice,
                                 ) {
                                     crate::ui::presets_panel::PresetPanelRequest::None => {}

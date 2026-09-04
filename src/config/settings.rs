@@ -1529,6 +1529,12 @@ pub struct AppSettings {
     #[serde(skip, default)]
     pub server_device_list_output: String,
 
+    // Linux 服务文件窗口 UI 状态（不序列化）
+    #[serde(skip, default)]
+    pub show_linux_service_file: bool,
+    #[serde(skip, default)]
+    pub linux_service_file_copied: bool,
+
     // RPC 节点地址输入框临时状态（不序列化）
     #[serde(skip, default)]
     pub rpc_endpoint_input: String,
@@ -1775,6 +1781,8 @@ impl Default for AppSettings {
             device_list_output: String::new(),
             show_server_device_list: false,
             server_device_list_output: String::new(),
+            show_linux_service_file: false,
+            linux_service_file_copied: false,
             rpc_endpoint_input: String::new(),
             rpc_endpoint_multi_gpu: false,
             presets: Vec::new(),

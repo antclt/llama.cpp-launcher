@@ -209,6 +209,440 @@ impl ServerManager {
         self.launch_command.clone()
     }
 
+    /// 根据当前设置构建启动命令字符串（不启动服务器）
+    pub fn build_launch_command(&self, settings: &AppSettings) -> String {
+        let server_path = &settings.server_path;
+        let model_path = &settings.model_path;
+
+        let mut args: Vec<String> = Vec::new();
+
+        // RPC 模式
+        if settings.rpc_mode {
+            let clean_endpoints: String = settings
+                .rpc_endpoints
+                .split(',')
+                .map(|s| s.trim().trim_end_matches('+').to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+            args.push("--rpc".to_string());
+            args.push(clean_endpoints);
+        }
+
+        args.push("--model".to_string());
+        args.push(model_path.display().to_string());
+        args.push("--host".to_string());
+        args.push(settings.host.clone());
+        args.push("--port".to_string());
+        args.push(settings.port.to_string());
+        args.push("--ctx-size".to_string());
+        args.push(settings.context_actual().to_string());
+        args.push("--parallel".to_string());
+        args.push(settings.parallel_slots.to_string());
+        args.push("--batch-size".to_string());
+        args.push(settings.batch_size_actual().to_string());
+        args.push("--ubatch-size".to_string());
+        args.push(settings.ubatch_size_actual().to_string());
+        args.push("--timeout".to_string());
+        args.push(settings.session_timeout.to_string());
+        args.push("--gpu-layers".to_string());
+        args.push(settings.gpu_layers_mode.to_arg());
+
+        // 采样参数
+        if settings.enable_temperature {
+            args.push("--temperature".to_string());
+            args.push(settings.temperature.to_string());
+        }
+        if settings.enable_top_p {
+            args.push("--top-p".to_string());
+            args.push(settings.top_p.to_string());
+        }
+        if settings.enable_top_k {
+            args.push("--top-k".to_string());
+            args.push(settings.top_k.to_string());
+        }
+        if settings.enable_repeat_penalty {
+            args.push("--repeat-penalty".to_string());
+            args.push(settings.repeat_penalty.to_string());
+        }
+        if settings.enable_presence_penalty {
+            args.push("--presence-penalty".to_string());
+            args.push(settings.presence_penalty.to_string());
+        }
+
+        // 思考参数
+        if !settings.reasoning.is_empty() && settings.reasoning != "auto" {
+            args.push("--reasoning".to_string());
+            args.push(settings.reasoning.clone());
+        }
+        if !settings.reasoning_format.is_empty() && settings.reasoning_format != "auto" {
+            args.push("--reasoning-format".to_string());
+            args.push(settings.reasoning_format.clone());
+        }
+        if !settings.reasoning_effort.is_empty() && settings.reasoning_effort != "default" {
+            args.push("--reasoning-effort".to_string());
+            args.push(settings.reasoning_effort.clone());
+        }
+        if settings.reasoning_budget != -1 {
+            args.push("--reasoning-budget".to_string());
+            args.push(settings.reasoning_budget.to_string());
+        }
+        if settings.reasoning_preserve == Some(true) {
+            args.push("--reasoning-preserve".to_string());
+        } else if settings.reasoning_preserve == Some(false) {
+            args.push("--no-reasoning-preserve".to_string());
+        }
+
+        // 会话模板参数
+        if !settings.chat_template.is_empty() {
+            args.push("--chat-template".to_string());
+            args.push(settings.chat_template.clone());
+        }
+        if !settings.chat_template_file.as_os_str().is_empty() {
+            args.push("--chat-template-file".to_string());
+            args.push(settings.chat_template_file.display().to_string());
+        }
+        if settings.jinja_enabled {
+            args.push("--jinja".to_string());
+        } else {
+            args.push("--no-jinja".to_string());
+        }
+
+        // 采样器扩展
+        if settings.enable_min_p && settings.min_p > 0.0 {
+            args.push("--min-p".to_string());
+            args.push(settings.min_p.to_string());
+        }
+        if settings.enable_top_n_sigma && settings.top_n_sigma > 0.0 {
+            args.push("--top-n-sigma".to_string());
+            args.push(settings.top_n_sigma.to_string());
+        }
+        if settings.enable_xtc && settings.xtc_probability > 0.0 {
+            args.push("--xtc-probability".to_string());
+            args.push(settings.xtc_probability.to_string());
+            if settings.xtc_threshold < 1.0 {
+                args.push("--xtc-threshold".to_string());
+                args.push(settings.xtc_threshold.to_string());
+            }
+        }
+        if settings.enable_typical_p && settings.typical_p < 1.0 {
+            args.push("--typical-p".to_string());
+            args.push(settings.typical_p.to_string());
+        }
+        if settings.enable_mirostat && settings.mirostat != 0 {
+            args.push("--mirostat".to_string());
+            args.push(settings.mirostat.to_string());
+            if settings.mirostat_lr != 0.10 {
+                args.push("--mirostat-lr".to_string());
+                args.push(settings.mirostat_lr.to_string());
+            }
+            if settings.mirostat_ent != 5.00 {
+                args.push("--mirostat-ent".to_string());
+                args.push(settings.mirostat_ent.to_string());
+            }
+        }
+        if settings.enable_dynatemp && settings.dynatemp_range > 0.0 {
+            args.push("--dynatemp-range".to_string());
+            args.push(settings.dynatemp_range.to_string());
+            if settings.dynatemp_exp != 1.0 {
+                args.push("--dynatemp-exp".to_string());
+                args.push(settings.dynatemp_exp.to_string());
+            }
+        }
+        if !settings.sampler_seq.is_empty() {
+            args.push("--sampler-seq".to_string());
+            args.push(settings.sampler_seq.clone());
+        }
+
+        // Flash Attention
+        if !settings.flash_attn.is_empty() {
+            args.push("--flash-attn".to_string());
+            args.push(settings.flash_attn.clone());
+        }
+
+        // 多模态投影
+        if !settings.mmproj_path.as_os_str().is_empty() {
+            args.push("--mmproj".to_string());
+            args.push(settings.mmproj_path.display().to_string());
+        }
+
+        // 多模态参数
+        if settings.mmproj_auto {
+            args.push("--mmproj-auto".to_string());
+        } else {
+            args.push("--no-mmproj".to_string());
+        }
+        if settings.mmproj_offload {
+            args.push("--mmproj-offload".to_string());
+        } else {
+            args.push("--no-mmproj-offload".to_string());
+        }
+        if settings.mmproj_device != "auto" {
+            args.push("--mmproj-device".to_string());
+            args.push(settings.mmproj_device.clone());
+        }
+        if settings.image_min_tokens > 0 {
+            args.push("--image-min-tokens".to_string());
+            args.push(settings.image_min_tokens.to_string());
+        }
+        if settings.image_max_tokens > 0 {
+            args.push("--image-max-tokens".to_string());
+            args.push(settings.image_max_tokens.to_string());
+        }
+        if settings.mtmd_batch_max_tokens != 1024 {
+            args.push("--mtmd-batch-max-tokens".to_string());
+            args.push(settings.mtmd_batch_max_tokens.to_string());
+        }
+        if (settings.video_fps - 4.0).abs() > f32::EPSILON {
+            args.push("--video-fps".to_string());
+            args.push(format!("{}", settings.video_fps));
+        }
+        if settings.video_timestamp_interval != 5000 {
+            args.push("--video-timestamp-interval".to_string());
+            args.push(settings.video_timestamp_interval.to_string());
+        }
+        if !settings.video_ffmpeg_dir.is_empty() {
+            args.push("--video-ffmpeg-dir".to_string());
+            args.push(settings.video_ffmpeg_dir.clone());
+        }
+
+        // 模型别名
+        if !settings.alias.is_empty() {
+            args.push("--alias".to_string());
+            args.push(settings.alias.clone());
+        }
+
+        // DFlash / Speculative Decoding 参数
+        if !settings.dflash_path.as_os_str().is_empty() {
+            args.push("--model-draft".to_string());
+            args.push(settings.dflash_path.display().to_string());
+        }
+        if settings.spec_type != "none" {
+            args.push("--spec-type".to_string());
+            args.push(settings.spec_type.clone());
+        }
+        if settings.spec_type.starts_with("draft-") {
+            if settings.enable_spec_draft_n_max {
+                args.push("--spec-draft-n-max".to_string());
+                args.push(settings.spec_draft_n_max.to_string());
+            }
+            if settings.enable_spec_draft_n_min {
+                args.push("--spec-draft-n-min".to_string());
+                args.push(settings.spec_draft_n_min.to_string());
+            }
+            if settings.enable_spec_draft_p_min {
+                args.push("--spec-draft-p-min".to_string());
+                args.push(format!("{}", settings.spec_draft_p_min));
+            }
+            if settings.enable_spec_draft_p_split {
+                args.push("--spec-draft-p-split".to_string());
+                args.push(format!("{}", settings.spec_draft_p_split));
+            }
+            if settings.enable_spec_draft_type_k && !settings.spec_draft_type_k.is_empty() {
+                args.push("--spec-draft-type-k".to_string());
+                args.push(settings.spec_draft_type_k.clone());
+            }
+            if settings.enable_spec_draft_type_v && !settings.spec_draft_type_v.is_empty() {
+                args.push("--spec-draft-type-v".to_string());
+                args.push(settings.spec_draft_type_v.clone());
+            }
+        }
+
+        // ngram 参数
+        if matches!(
+            settings.spec_type.as_str(),
+            "ngram-simple" | "ngram-map-k" | "ngram-map-k4v"
+        ) {
+            let prefix = format!("--spec-{}", settings.spec_type);
+            args.push(format!("{}-size-n", prefix));
+            args.push(settings.spec_ngram_size_n.to_string());
+            args.push(format!("{}-size-m", prefix));
+            args.push(settings.spec_ngram_size_m.to_string());
+            args.push(format!("{}-min-hits", prefix));
+            args.push(settings.spec_ngram_min_hits.to_string());
+        }
+        if settings.spec_type == "ngram-map-k" || settings.spec_type == "ngram-map-k4v" {
+            let prefix = format!("--spec-{}", settings.spec_type);
+            args.push(format!("{}-mod-n-min", prefix));
+            args.push(settings.spec_ngram_mod_n_min.to_string());
+            args.push(format!("{}-mod-n-max", prefix));
+            args.push(settings.spec_ngram_mod_n_max.to_string());
+            args.push(format!("{}-mod-n-match", prefix));
+            args.push(settings.spec_ngram_mod_n_match.to_string());
+        }
+
+        // KV 缓存
+        if settings.kv_offload {
+            args.push("--kv-offload".to_string());
+        }
+        args.push("--cache-type-k".to_string());
+        args.push(settings.cache_type_k.clone());
+        args.push("--cache-type-v".to_string());
+        args.push(settings.cache_type_v.clone());
+        if settings.kv_mlock {
+            args.push("--mlock".to_string());
+        }
+        if !settings.kv_mmap {
+            args.push("--no-mmap".to_string());
+        }
+        if settings.kv_unified {
+            args.push("--kv-unified".to_string());
+        }
+        if settings.swa_full {
+            args.push("--swa-full".to_string());
+        }
+
+        // 上下文检查点
+        if settings.ctx_checkpoints != 32 {
+            args.push("--ctx-checkpoints".to_string());
+            args.push(settings.ctx_checkpoints.to_string());
+        }
+        if settings.checkpoint_min_step != 512 {
+            args.push("--checkpoint-min-step".to_string());
+            args.push(settings.checkpoint_min_step.to_string());
+        }
+
+        // GPU 与设备分配
+        if !settings.split_mode.is_empty() && settings.split_mode != "layer" {
+            args.push("--split-mode".to_string());
+            args.push(settings.split_mode.clone());
+        }
+        if !settings.tensor_split.is_empty() {
+            args.push("--tensor-split".to_string());
+            args.push(settings.tensor_split.clone());
+        }
+        if settings.cpu_moe {
+            args.push("--cpu-moe".to_string());
+        }
+        if !settings.cpu_moe && settings.n_cpu_moe > 0 {
+            args.push("--n-cpu-moe".to_string());
+            args.push(settings.n_cpu_moe.to_string());
+        }
+        if !settings.override_tensor.is_empty() {
+            args.push("--override-tensor".to_string());
+            args.push(settings.override_tensor.clone());
+        }
+
+        // CPU 线程数
+        if settings.threads >= 0 {
+            args.push("--threads".to_string());
+            args.push(settings.threads.to_string());
+        }
+        if settings.threads_batch >= 0 {
+            args.push("--threads-batch".to_string());
+            args.push(settings.threads_batch.to_string());
+        }
+        if settings.n_predict >= 0 {
+            args.push("--n-predict".to_string());
+            args.push(settings.n_predict.to_string());
+        }
+        if settings.keep > 0 {
+            args.push("--keep".to_string());
+            args.push(settings.keep.to_string());
+        }
+        if settings.seed >= 0 {
+            args.push("--seed".to_string());
+            args.push(settings.seed.to_string());
+        }
+        if settings.main_gpu != 0 {
+            args.push("--main-gpu".to_string());
+            args.push(settings.main_gpu.to_string());
+        }
+        if !settings.device.is_empty() {
+            args.push("--device".to_string());
+            args.push(settings.device.clone());
+        }
+
+        // 长上下文 / 提示缓存
+        if settings.cache_prompt {
+            args.push("--cache-prompt".to_string());
+        } else {
+            args.push("--no-cache-prompt".to_string());
+        }
+        if settings.cache_reuse > 0 {
+            args.push("--cache-reuse".to_string());
+            args.push(settings.cache_reuse.to_string());
+        }
+        if settings.context_shift {
+            args.push("--context-shift".to_string());
+        }
+
+        // 结构化输出
+        if !settings.json_schema.is_empty() {
+            args.push("--json-schema".to_string());
+            args.push(settings.json_schema.clone());
+        }
+        if !settings.grammar.is_empty() {
+            args.push("--grammar".to_string());
+            args.push(settings.grammar.clone());
+        }
+
+        if settings.verbose {
+            args.push("--verbose".to_string());
+        }
+
+        // 日志时间戳
+        if settings.log_timestamps {
+            args.push("--log-timestamps".to_string());
+        } else {
+            args.push("--no-log-timestamps".to_string());
+        }
+
+        // 日志级别
+        if settings.log_verbosity > 0 {
+            args.push("--log-verbosity".to_string());
+            args.push(settings.log_verbosity.to_string());
+        }
+
+        // 加载模式
+        if !settings.load_mode.is_empty() && settings.load_mode != "auto" {
+            args.push("--load-mode".to_string());
+            args.push(settings.load_mode.clone());
+        }
+        if !settings.tensor_read_lazy.is_empty() && settings.tensor_read_lazy != "auto" {
+            args.push("--lazy-mode".to_string());
+            args.push(settings.tensor_read_lazy.clone());
+        }
+
+        // API 安全 / 部署
+        if !settings.api_key.is_empty() {
+            args.push("--api-key".to_string());
+            args.push(settings.api_key.clone());
+        }
+        if !settings.api_prefix.is_empty() {
+            args.push("--api-prefix".to_string());
+            args.push(settings.api_prefix.clone());
+        }
+        if !settings.cors_origins.is_empty() {
+            args.push("--cors-origins".to_string());
+            args.push(settings.cors_origins.clone());
+        }
+        if !settings.ssl_cert_file.as_os_str().is_empty() {
+            args.push("--ssl-cert-file".to_string());
+            args.push(settings.ssl_cert_file.display().to_string());
+        }
+        if !settings.ssl_key_file.as_os_str().is_empty() {
+            args.push("--ssl-key-file".to_string());
+            args.push(settings.ssl_key_file.display().to_string());
+        }
+        if settings.reuse_port {
+            args.push("--reuse-port".to_string());
+        }
+        if !settings.numa.is_empty() {
+            args.push("--numa".to_string());
+            args.push(settings.numa.clone());
+        }
+
+        // MCP 配置
+        if settings.mcp_enabled {
+            if let Some(mcp_json) = settings.build_effective_mcp_json() {
+                args.push("--mcp-servers-config".to_string());
+                args.push(mcp_json.to_string());
+            }
+        }
+
+        format!("{} {}", server_path.display(), args.join(" "))
+    }
+
     /// 检查 llama-server 文件是否存在
     pub fn check_server(&self, path: &std::path::Path) -> bool {
         if path.as_os_str().is_empty() {
