@@ -442,7 +442,7 @@ struct ReleaseInfo {
 
 /// GitHub API 基址（官方直连）
 fn api_base(variant: &DownloadVariant, llama_branch: &str) -> &'static str {
-    if variant.is_rocm_lemonade() {
+    if llama_branch == "lemonade_rocm" {
         "https://api.github.com/repos/lemonade-sdk/llamacpp-rocm"
     } else if llama_branch == "turboquant" {
         "https://api.github.com/repos/AtomicBot-ai/atomic-llama-cpp-turboquant"

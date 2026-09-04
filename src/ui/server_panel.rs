@@ -121,58 +121,21 @@ pub fn ui(
                 );
                 ui.selectable_value(
                     &mut settings.llama_branch,
+                    "lemonade_rocm".to_string(),
+                    i18n::t(i18n::Key::BranchLemonadeRocm, lang),
+                );
+                ui.selectable_value(
+                    &mut settings.llama_branch,
                     "turboquant".to_string(),
                     i18n::t(i18n::Key::BranchTurboQuant, lang),
                 );
             });
 
-            // 兼容旧版：把历史 "gpu" 归一化为当前平台默认 GPU 变体（幂等）
-            if settings.download_variant == "gpu" {
-                settings.download_variant = if is_linux {
-                    "vulkan".to_string()
-                } else {
-                    "cuda124".to_string()
-                };
-            }
-
-            ui.horizontal(|ui| {
-                ui.selectable_value(
-                    &mut settings.download_variant,
-                    "cpu".to_string(),
-                    i18n::t(i18n::Key::VariantCpu, lang),
-                );
-                if !is_linux {
-                    ui.selectable_value(
-                        &mut settings.download_variant,
-                        "cuda124".to_string(),
-                        i18n::t(i18n::Key::VariantGpuCuda, lang),
-                    );
-                    ui.selectable_value(
-                        &mut settings.download_variant,
-                        "cuda133".to_string(),
-                        i18n::t(i18n::Key::VariantGpuCuda133, lang),
-                    );
-                }
-                ui.selectable_value(
-                    &mut settings.download_variant,
-                    "rocm_lemonade".to_string(),
-                    i18n::t(i18n::Key::VariantGpuRocmLemonade, lang),
-                );
-                ui.selectable_value(
-                    &mut settings.download_variant,
-                    "rocm10".to_string(),
-                    i18n::t(i18n::Key::VariantGpuRocm10, lang),
-                );
-                ui.selectable_value(
-                    &mut settings.download_variant,
-                    "vulkan".to_string(),
-                    i18n::t(i18n::Key::VariantGpuVulkan, lang),
-                );
-            });
-
-            // 当选择 ROCm 10 时：固定发布通道为 preview + 显示 GPU 目标选择（新行）
-            if settings.download_variant == "rocm_lemonade" {
-                // Lemonade ROCm 10 只有 preview 通道，强制设置
+            // Lemonade ROCm 分支：固定为 rocm_lemonade 变体 + 显示 GPU 目标选择
+            let is_lemonade_branch = settings.llama_branch == "lemonade_rocm";
+            if is_lemonade_branch {
+                settings.download_variant = "rocm_lemonade".to_string();
+                // Lemonade ROCm 只有 preview 通道
                 if settings.release_channel != "preview" {
                     settings.release_channel = "preview".to_string();
                 }
@@ -198,6 +161,45 @@ pub fn ui(
                         settings.rocm_gpu_target = gpu_targets[gpu_idx].0.to_string();
                     }
                 });
+            } else {
+                // 兼容旧版：把历史 "gpu" 归一化为当前平台默认 GPU 变体（幂等）
+                if settings.download_variant == "gpu" || settings.download_variant == "rocm_lemonade" {
+                    settings.download_variant = if is_linux {
+                        "vulkan".to_string()
+                    } else {
+                        "cuda124".to_string()
+                    };
+                }
+
+                ui.horizontal(|ui| {
+                    ui.selectable_value(
+                        &mut settings.download_variant,
+                        "cpu".to_string(),
+                        i18n::t(i18n::Key::VariantCpu, lang),
+                    );
+                    if !is_linux {
+                        ui.selectable_value(
+                            &mut settings.download_variant,
+                            "cuda124".to_string(),
+                            i18n::t(i18n::Key::VariantGpuCuda, lang),
+                        );
+                        ui.selectable_value(
+                            &mut settings.download_variant,
+                            "cuda133".to_string(),
+                            i18n::t(i18n::Key::VariantGpuCuda133, lang),
+                        );
+                    }
+                    ui.selectable_value(
+                        &mut settings.download_variant,
+                        "rocm10".to_string(),
+                        i18n::t(i18n::Key::VariantGpuRocm10, lang),
+                    );
+                    ui.selectable_value(
+                        &mut settings.download_variant,
+                        "vulkan".to_string(),
+                        i18n::t(i18n::Key::VariantGpuVulkan, lang),
+                    );
+                });
             }
 
             // 解析当前选中配置对应的下载变体（平台感知 + 兜底，使用用户选择的 GPU 目标）
@@ -206,8 +208,8 @@ pub fn ui(
                 &settings.rocm_gpu_target,
             );
 
-            // 发布通道选择（stable/preview）— Lemonade ROCm 10 不需要（发布通道无作用）
-            if settings.download_variant != "rocm_lemonade" {
+            // 发布通道选择（stable/preview）— Lemonade ROCm 分支不需要（固定 preview）
+            if !is_lemonade_branch {
                 ui.horizontal(|ui| {
                     ui.label(i18n::t(i18n::Key::ReleaseChannelLabel, lang));
                     ui.selectable_value(
