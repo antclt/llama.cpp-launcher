@@ -373,6 +373,7 @@ impl DownloadHandle {
         variant: DownloadVariant,
         release_channel: String,
         download_cuda_lib: bool,
+        llama_branch: String,
     ) {
         {
             let mut st = self.status.lock().unwrap();
@@ -398,6 +399,7 @@ impl DownloadHandle {
                     variant,
                     release_channel,
                     download_cuda_lib,
+                    llama_branch,
                     cancel,
                     status,
                 )
@@ -439,9 +441,11 @@ struct ReleaseInfo {
 }
 
 /// GitHub API 基址（官方直连）
-fn api_base(variant: &DownloadVariant) -> &'static str {
+fn api_base(variant: &DownloadVariant, llama_branch: &str) -> &'static str {
     if variant.is_rocm_lemonade() {
         "https://api.github.com/repos/lemonade-sdk/llamacpp-rocm"
+    } else if llama_branch == "turboquant" {
+        "https://api.github.com/repos/AtomicBot-ai/atomic-llama-cpp-turboquant"
     } else {
         "https://api.github.com/repos/ggml-org/llama.cpp"
     }
@@ -457,8 +461,8 @@ fn mirror_url(official: &str) -> String {
 
 /// 请求 GitHub latest release API：官方直连失败（超时/网络错误）时自动尝试镜像。
 /// 全部源失败返回 ERR_NETWORK（固定标记，UI 展示"获取失败：网络错误"）。
-fn fetch_release(variant: &DownloadVariant) -> Result<ReleaseInfo, String> {
-    let official_url = format!("{}/releases/latest", api_base(variant));
+fn fetch_release(variant: &DownloadVariant, llama_branch: &str) -> Result<ReleaseInfo, String> {
+    let official_url = format!("{}/releases/latest", api_base(variant, llama_branch));
     let mirror_url = mirror_url(&official_url);
     let body = fetch_with_fallback(&official_url, &mirror_url, false)?;
     serde_json::from_str::<ReleaseInfo>(&body).map_err(|e| e.to_string())
@@ -466,9 +470,15 @@ fn fetch_release(variant: &DownloadVariant) -> Result<ReleaseInfo, String> {
 
 /// 获取指定 tag 的 release 信息（用于 stable 模式获取 nightly release）。
 /// 官方直连失败（超时/网络错误）时自动尝试镜像；全部失败返回 ERR_NETWORK。
-fn fetch_release_by_tag(tag: &str, is_rocm: bool) -> Result<ReleaseInfo, String> {
+fn fetch_release_by_tag(
+    tag: &str,
+    is_rocm: bool,
+    llama_branch: &str,
+) -> Result<ReleaseInfo, String> {
     let variant_base = if is_rocm {
         "https://api.github.com/repos/lemonade-sdk/llamacpp-rocm"
+    } else if llama_branch == "turboquant" {
+        "https://api.github.com/repos/Turbo-Quant/llama.cpp"
     } else {
         "https://api.github.com/repos/ggml-org/llama.cpp"
     };
@@ -481,8 +491,11 @@ fn fetch_release_by_tag(tag: &str, is_rocm: bool) -> Result<ReleaseInfo, String>
 /// 从 latest release 的 assets 中下载 nightly-tag.txt 的内容
 /// 返回 nightly tag 名（如 "b10549"）
 /// 官方直连失败（超时/网络错误）时自动尝试镜像；全部失败返回 ERR_NETWORK。
-fn fetch_nightly_tag_from_latest(variant: &DownloadVariant) -> Result<String, String> {
-    let release = fetch_release(variant)?;
+fn fetch_nightly_tag_from_latest(
+    variant: &DownloadVariant,
+    llama_branch: &str,
+) -> Result<String, String> {
+    let release = fetch_release(variant, llama_branch)?;
     // 找到 nightly-tag.txt 资产
     let asset = release
         .assets
@@ -506,8 +519,11 @@ fn fetch_nightly_tag_from_latest(variant: &DownloadVariant) -> Result<String, St
 /// 获取最新 nightly release（preview 模式使用）
 /// 通过 GitHub releases API 获取所有 releases，找到 tag 匹配 b[NUM] 格式的最新 release。
 /// 官方直连失败（超时/网络错误）时自动尝试镜像；全部失败返回 ERR_NETWORK。
-fn fetch_latest_nightly_release(variant: &DownloadVariant) -> Result<ReleaseInfo, String> {
-    let official_url = format!("{}/releases?per_page=10", api_base(variant));
+fn fetch_latest_nightly_release(
+    variant: &DownloadVariant,
+    llama_branch: &str,
+) -> Result<ReleaseInfo, String> {
+    let official_url = format!("{}/releases?per_page=10", api_base(variant, llama_branch));
     let mirror = mirror_url(&official_url);
     let body = fetch_with_fallback(&official_url, &mirror, false)?;
     let releases: Vec<ReleaseInfo> = serde_json::from_str(&body).map_err(|e| e.to_string())?;
@@ -524,11 +540,15 @@ fn fetch_latest_nightly_release(variant: &DownloadVariant) -> Result<ReleaseInfo
 /// 获取最新 release 的 tag_name（如 "b10549"），供"检查更新"使用
 /// stable: 通过 nightly-tag.txt 获取 vX.Y.Z 确认的 nightly tag
 /// preview: 直接获取最新 nightly tag（b[NUM]）
-pub fn fetch_latest_tag(variant: DownloadVariant, release_channel: &str) -> Result<String, String> {
+pub fn fetch_latest_tag(
+    variant: DownloadVariant,
+    release_channel: &str,
+    llama_branch: &str,
+) -> Result<String, String> {
     if release_channel == "stable" {
-        fetch_nightly_tag_from_latest(&variant)
+        fetch_nightly_tag_from_latest(&variant, llama_branch)
     } else {
-        fetch_latest_nightly_release(&variant).map(|r| r.tag_name)
+        fetch_latest_nightly_release(&variant, llama_branch).map(|r| r.tag_name)
     }
 }
 
@@ -540,6 +560,7 @@ pub fn download_in_background(
     variant: DownloadVariant,
     release_channel: String,
     download_cuda_lib: bool,
+    llama_branch: String,
     cancel: Arc<AtomicBool>,
     status: Arc<Mutex<DownloadStatus>>,
 ) {
@@ -548,6 +569,7 @@ pub fn download_in_background(
         variant,
         &release_channel,
         download_cuda_lib,
+        &llama_branch,
         &cancel,
         &status,
     ) {
@@ -578,6 +600,7 @@ fn run_download(
     variant: DownloadVariant,
     release_channel: &str,
     download_cuda_lib: bool,
+    llama_branch: &str,
     cancel: &AtomicBool,
     status: &Arc<Mutex<DownloadStatus>>,
 ) -> Result<String, String> {
@@ -585,11 +608,11 @@ fn run_download(
     set_running(status, Phase::FetchingRelease, 0, None);
     let release = if release_channel == "stable" {
         // stable: 先读取 vX.Y.Z 的 nightly-tag.txt，获取确认的 nightly 版本
-        let nightly_tag = fetch_nightly_tag_from_latest(&variant)?;
-        fetch_release_by_tag(&nightly_tag, variant.is_rocm_lemonade())?
+        let nightly_tag = fetch_nightly_tag_from_latest(&variant, llama_branch)?;
+        fetch_release_by_tag(&nightly_tag, variant.is_rocm_lemonade(), llama_branch)?
     } else {
         // preview: 直接获取最新 nightly release（不经过 vX.Y.Z 确认）
-        fetch_latest_nightly_release(&variant)?
+        fetch_latest_nightly_release(&variant, llama_branch)?
     };
 
     // 2) 按变体匹配资产

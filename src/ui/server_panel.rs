@@ -111,6 +111,21 @@ pub fn ui(
             let busy = downloader.is_busy();
             let is_linux = cfg!(target_os = "linux");
 
+            // 版本分支选择（在变体选择之前）
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::BranchLabel, lang));
+                ui.selectable_value(
+                    &mut settings.llama_branch,
+                    "main".to_string(),
+                    i18n::t(i18n::Key::BranchMain, lang),
+                );
+                ui.selectable_value(
+                    &mut settings.llama_branch,
+                    "turboquant".to_string(),
+                    i18n::t(i18n::Key::BranchTurboQuant, lang),
+                );
+            });
+
             // 兼容旧版：把历史 "gpu" 归一化为当前平台默认 GPU 变体（幂等）
             if settings.download_variant == "gpu" {
                 settings.download_variant = if is_linux {
@@ -235,6 +250,7 @@ pub fn ui(
                         variant,
                         settings.release_channel.clone(),
                         settings.download_cuda_lib,
+                        settings.llama_branch.clone(),
                     );
                 }
 
@@ -257,13 +273,17 @@ pub fn ui(
                     );
                     let server_path = settings.server_path.clone();
                     let release_channel = settings.release_channel.clone();
+                    let llama_branch = settings.llama_branch.clone();
                     *check_update = Some(poll_promise::Promise::spawn_thread(
                         "check-update",
                         move || {
                             let llama_version =
                                 super::server_panel::get_local_llama_version(&server_path);
-                            let result =
-                                crate::downloader::fetch_latest_tag(variant, &release_channel);
+                            let result = crate::downloader::fetch_latest_tag(
+                                variant,
+                                &release_channel,
+                                &llama_branch,
+                            );
                             match result {
                                 Ok(latest) => {
                                     let build_tag =

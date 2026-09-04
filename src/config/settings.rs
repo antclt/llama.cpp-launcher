@@ -263,6 +263,11 @@ fn default_download_variant() -> String {
     "cpu".to_string()
 }
 
+// llama.cpp 版本分支默认值
+fn default_llama_branch() -> String {
+    "main".to_string()
+}
+
 // ROCm GPU 目标型号默认值
 fn default_rocm_gpu_target() -> String {
     "gfx103X".to_string()
@@ -1598,6 +1603,12 @@ pub struct AppSettings {
     #[serde(default = "default_download_variant")]
     pub download_variant: String,
 
+    // llama.cpp 版本分支："main" | "turboquant"
+    // main: 官方 ggml-org/llama.cpp 仓库
+    // turboquant: TurboQuant fork 仓库
+    #[serde(default = "default_llama_branch")]
+    pub llama_branch: String,
+
     // 发布通道："stable" | "preview"
     // stable: 读取 vX.Y.Z 的 nightly-tag.txt 获取对应 nightly 版本的预编译资产
     // preview: 直接获取最新 nightly release 的预编译资产
@@ -1799,6 +1810,7 @@ impl Default for AppSettings {
             accent_color: default_accent_color(),
             language: String::new(),
             download_variant: default_download_variant(),
+            llama_branch: default_llama_branch(),
             release_channel: default_release_channel(),
             rocm_gpu_target: default_rocm_gpu_target(),
             download_cuda_lib: true,
