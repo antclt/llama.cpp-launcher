@@ -773,8 +773,8 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCacheTypeK, lang));
         });
         let k_types = [
-            "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1", "turbo2_0",
-            "turbo3_0", "turbo4_0",
+            "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1", "turbo2",
+            "turbo3", "turbo4",
         ];
 
         ui.horizontal_wrapped(|ui| {
@@ -794,8 +794,8 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             helper::help_button_inline(ui, i18n::t(i18n::Key::HelpCacheTypeV, lang));
         });
         let v_types = [
-            "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1", "turbo2_0",
-            "turbo3_0", "turbo4_0",
+            "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1", "turbo2",
+            "turbo3", "turbo4",
         ];
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
