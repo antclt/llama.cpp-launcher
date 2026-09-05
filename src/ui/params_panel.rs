@@ -79,6 +79,9 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ui.label("k");
                 ui.small(i18n::t(i18n::Key::HintKUnit, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpBatchSize, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.enable_batch_size, "", accent);
+                });
             });
             // 物理批次大小 (--ubatch-size) (k)
             ui.horizontal(|ui| {
@@ -91,6 +94,9 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ui.label("k");
                 ui.small(i18n::t(i18n::Key::HintKUnit, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpUBatchSize, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.enable_ubatch_size, "", accent);
+                });
             });
 
             ui.horizontal(|ui| {
@@ -102,6 +108,9 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ); // 60~3600秒，步进10
                 ui.label(i18n::t(i18n::Key::HintSUnit, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpSessionTimeout, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.enable_session_timeout, "", accent);
+                });
             });
 
             ui.horizontal(|ui| {

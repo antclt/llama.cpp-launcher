@@ -238,12 +238,18 @@ impl ServerManager {
         args.push(settings.context_actual().to_string());
         args.push("--parallel".to_string());
         args.push(settings.parallel_slots.to_string());
-        args.push("--batch-size".to_string());
-        args.push(settings.batch_size_actual().to_string());
-        args.push("--ubatch-size".to_string());
-        args.push(settings.ubatch_size_actual().to_string());
-        args.push("--timeout".to_string());
-        args.push(settings.session_timeout.to_string());
+        if settings.enable_batch_size {
+            args.push("--batch-size".to_string());
+            args.push(settings.batch_size_actual().to_string());
+        }
+        if settings.enable_ubatch_size {
+            args.push("--ubatch-size".to_string());
+            args.push(settings.ubatch_size_actual().to_string());
+        }
+        if settings.enable_session_timeout {
+            args.push("--timeout".to_string());
+            args.push(settings.session_timeout.to_string());
+        }
         args.push("--gpu-layers".to_string());
         args.push(settings.gpu_layers_mode.to_arg());
 

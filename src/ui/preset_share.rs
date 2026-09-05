@@ -74,11 +74,15 @@ pub struct ParamsExport {
     pub context: usize,
     pub batch_size: usize,
     pub ubatch_size: f32,
+    pub session_timeout: usize,
     pub temperature: f32,
     pub top_p: f32,
     pub top_k: i32,
     pub repeat_penalty: f32,
     pub presence_penalty: f32,
+    pub enable_batch_size: bool,
+    pub enable_ubatch_size: bool,
+    pub enable_session_timeout: bool,
     pub enable_temperature: bool,
     pub enable_top_p: bool,
     pub enable_top_k: bool,
@@ -155,11 +159,15 @@ impl ParamsExport {
             context: s.context,
             batch_size: s.batch_size,
             ubatch_size: s.ubatch_size,
+            session_timeout: s.session_timeout,
             temperature: s.temperature,
             top_p: s.top_p,
             top_k: s.top_k,
             repeat_penalty: s.repeat_penalty,
             presence_penalty: s.presence_penalty,
+            enable_batch_size: s.enable_batch_size,
+            enable_ubatch_size: s.enable_ubatch_size,
+            enable_session_timeout: s.enable_session_timeout,
             enable_temperature: s.enable_temperature,
             enable_top_p: s.enable_top_p,
             enable_top_k: s.enable_top_k,
@@ -213,11 +221,15 @@ impl ParamsExport {
         s.context = self.context;
         s.batch_size = self.batch_size;
         s.ubatch_size = self.ubatch_size;
+        s.session_timeout = self.session_timeout;
         s.temperature = self.temperature;
         s.top_p = self.top_p;
         s.top_k = self.top_k;
         s.repeat_penalty = self.repeat_penalty;
         s.presence_penalty = self.presence_penalty;
+        s.enable_batch_size = self.enable_batch_size;
+        s.enable_ubatch_size = self.enable_ubatch_size;
+        s.enable_session_timeout = self.enable_session_timeout;
         s.enable_temperature = self.enable_temperature;
         s.enable_top_p = self.enable_top_p;
         s.enable_top_k = self.enable_top_k;
@@ -273,11 +285,15 @@ impl ParamsExport {
             context: p.context,
             batch_size: p.batch_size,
             ubatch_size: p.ubatch_size,
+            session_timeout: p.session_timeout,
             temperature: p.temperature,
             top_p: p.top_p,
             top_k: p.top_k,
             repeat_penalty: p.repeat_penalty,
             presence_penalty: p.presence_penalty,
+            enable_batch_size: p.enable_batch_size,
+            enable_ubatch_size: p.enable_ubatch_size,
+            enable_session_timeout: p.enable_session_timeout,
             enable_temperature: p.enable_temperature,
             enable_top_p: p.enable_top_p,
             enable_top_k: p.enable_top_k,
@@ -334,11 +350,15 @@ impl ParamsExport {
         p.context = self.context;
         p.batch_size = self.batch_size;
         p.ubatch_size = self.ubatch_size;
+        p.session_timeout = self.session_timeout;
         p.temperature = self.temperature;
         p.top_p = self.top_p;
         p.top_k = self.top_k;
         p.repeat_penalty = self.repeat_penalty;
         p.presence_penalty = self.presence_penalty;
+        p.enable_batch_size = self.enable_batch_size;
+        p.enable_ubatch_size = self.enable_ubatch_size;
+        p.enable_session_timeout = self.enable_session_timeout;
         p.enable_temperature = self.enable_temperature;
         p.enable_top_p = self.enable_top_p;
         p.enable_top_k = self.enable_top_k;

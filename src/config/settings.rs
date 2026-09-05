@@ -500,6 +500,13 @@ pub struct Preset {
     pub top_k: i32,
     pub repeat_penalty: f32,
     pub presence_penalty: f32,
+    // 批次/超时参数启用标志（勾选时拼接启动命令）
+    #[serde(default)]
+    pub enable_batch_size: bool,
+    #[serde(default)]
+    pub enable_ubatch_size: bool,
+    #[serde(default)]
+    pub enable_session_timeout: bool,
     // 采样参数启用标志（勾选时拼接启动命令）
     #[serde(default)]
     pub enable_temperature: bool,
@@ -782,6 +789,9 @@ impl Default for Preset {
             top_k: 40,
             repeat_penalty: 1.1,
             presence_penalty: 0.0,
+            enable_batch_size: false,
+            enable_ubatch_size: false,
+            enable_session_timeout: false,
             enable_temperature: false,
             enable_top_p: false,
             enable_top_k: false,
@@ -920,6 +930,9 @@ impl Preset {
             top_k: settings.top_k,
             repeat_penalty: settings.repeat_penalty,
             presence_penalty: settings.presence_penalty,
+            enable_batch_size: settings.enable_batch_size,
+            enable_ubatch_size: settings.enable_ubatch_size,
+            enable_session_timeout: settings.enable_session_timeout,
             enable_temperature: settings.enable_temperature,
             enable_top_p: settings.enable_top_p,
             enable_top_k: settings.enable_top_k,
@@ -1053,6 +1066,9 @@ impl Preset {
         settings.top_k = self.top_k;
         settings.repeat_penalty = self.repeat_penalty;
         settings.presence_penalty = self.presence_penalty;
+        settings.enable_batch_size = self.enable_batch_size;
+        settings.enable_ubatch_size = self.enable_ubatch_size;
+        settings.enable_session_timeout = self.enable_session_timeout;
         settings.enable_temperature = self.enable_temperature;
         settings.enable_top_p = self.enable_top_p;
         settings.enable_top_k = self.enable_top_k;
@@ -1279,6 +1295,13 @@ pub struct AppSettings {
     pub top_k: i32,
     pub repeat_penalty: f32,
     pub presence_penalty: f32,
+    // 批次/超时参数启用标志（勾选时拼接启动命令）
+    #[serde(default)]
+    pub enable_batch_size: bool,
+    #[serde(default)]
+    pub enable_ubatch_size: bool,
+    #[serde(default)]
+    pub enable_session_timeout: bool,
     // 采样参数启用标志（勾选时拼接启动命令）
     #[serde(default)]
     pub enable_temperature: bool,
@@ -1681,6 +1704,9 @@ impl Default for AppSettings {
             top_k: 40,
             repeat_penalty: 1.1,
             presence_penalty: 0.0,
+            enable_batch_size: false,
+            enable_ubatch_size: false,
+            enable_session_timeout: false,
             enable_temperature: false,
             enable_top_p: false,
             enable_top_k: false,
