@@ -202,7 +202,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelFitTarget, lang));
                 ui.add(egui::TextEdit::singleline(&mut settings.fit_target).desired_width(180.0));
-                ui.small("MiB");
+                ui.label("MiB");
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpFitTarget, lang));
             });
             // ── 最小上下文 --fit-ctx ──
