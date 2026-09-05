@@ -98,6 +98,18 @@ fn default_flash_attn() -> String {
     "auto".to_string()
 }
 
+fn default_fit() -> String {
+    "on".to_string() // --fit，"on" = 开启内存自动调优
+}
+
+fn default_fit_target() -> String {
+    "1024".to_string() // --fit-target，默认 1024 MiB
+}
+
+fn default_fit_ctx() -> i64 {
+    4096 // --fit-ctx，默认 4096
+}
+
 fn default_load_mode() -> String {
     "auto".to_string() // --load-mode，"auto" = 不拼接并沿用旧版 --mmap/--mlock
 }
@@ -520,6 +532,13 @@ pub struct Preset {
     pub enable_presence_penalty: bool,
     #[serde(default = "default_flash_attn")]
     pub flash_attn: String,
+    // 内存自动调优 (--fit / --fit-target / --fit-ctx)
+    #[serde(default = "default_fit")]
+    pub fit: String, // --fit on/off
+    #[serde(default = "default_fit_target")]
+    pub fit_target: String, // --fit-target MiB（逗号分隔多卡）
+    #[serde(default = "default_fit_ctx")]
+    pub fit_ctx: i64, // --fit-ctx（最小上下文）
 
     // 加载模式（新版 --load-mode；"auto" 时沿用旧版 --mmap/--mlock 行为）
     #[serde(default = "default_load_mode")]
@@ -798,6 +817,9 @@ impl Default for Preset {
             enable_repeat_penalty: false,
             enable_presence_penalty: false,
             flash_attn: default_flash_attn(),
+            fit: default_fit(),
+            fit_target: default_fit_target(),
+            fit_ctx: default_fit_ctx(),
             load_mode: default_load_mode(),
             tensor_read_lazy: default_tensor_read_lazy(),
             threads: default_threads(),
@@ -939,6 +961,9 @@ impl Preset {
             enable_repeat_penalty: settings.enable_repeat_penalty,
             enable_presence_penalty: settings.enable_presence_penalty,
             flash_attn: settings.flash_attn.clone(),
+            fit: settings.fit.clone(),
+            fit_target: settings.fit_target.clone(),
+            fit_ctx: settings.fit_ctx,
             load_mode: settings.load_mode.clone(),
             tensor_read_lazy: settings.tensor_read_lazy.clone(),
             threads: settings.threads,
@@ -1075,6 +1100,9 @@ impl Preset {
         settings.enable_repeat_penalty = self.enable_repeat_penalty;
         settings.enable_presence_penalty = self.enable_presence_penalty;
         settings.flash_attn = self.flash_attn;
+        settings.fit = self.fit;
+        settings.fit_target = self.fit_target;
+        settings.fit_ctx = self.fit_ctx;
         // 加载模式
         settings.load_mode = self.load_mode;
         settings.tensor_read_lazy = self.tensor_read_lazy;
@@ -1315,6 +1343,13 @@ pub struct AppSettings {
     pub enable_presence_penalty: bool,
     #[serde(default = "default_flash_attn")]
     pub flash_attn: String,
+    // 内存自动调优 (--fit / --fit-target / --fit-ctx)
+    #[serde(default = "default_fit")]
+    pub fit: String, // --fit on/off
+    #[serde(default = "default_fit_target")]
+    pub fit_target: String, // --fit-target MiB（逗号分隔多卡）
+    #[serde(default = "default_fit_ctx")]
+    pub fit_ctx: i64, // --fit-ctx（最小上下文）
 
     // 加载模式（新版 --load-mode；"auto" 时沿用旧版 --mmap/--mlock 行为）
     #[serde(default = "default_load_mode")]
@@ -1713,6 +1748,9 @@ impl Default for AppSettings {
             enable_repeat_penalty: false,
             enable_presence_penalty: false,
             flash_attn: default_flash_attn(),
+            fit: default_fit(),
+            fit_target: default_fit_target(),
+            fit_ctx: default_fit_ctx(),
             load_mode: default_load_mode(),
             tensor_read_lazy: default_tensor_read_lazy(),
             threads: default_threads(),

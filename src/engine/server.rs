@@ -365,6 +365,20 @@ impl ServerManager {
             args.push(settings.flash_attn.clone());
         }
 
+        // 内存自动调优
+        if !settings.fit.is_empty() {
+            args.push("--fit".to_string());
+            args.push(settings.fit.clone());
+        }
+        if !settings.fit_target.is_empty() && settings.fit_target != "1024" {
+            args.push("--fit-target".to_string());
+            args.push(settings.fit_target.clone());
+        }
+        if settings.fit_ctx != 4096 && settings.fit_ctx > 0 {
+            args.push("--fit-ctx".to_string());
+            args.push(settings.fit_ctx.to_string());
+        }
+
         // 多模态投影
         if !settings.mmproj_path.as_os_str().is_empty() {
             args.push("--mmproj".to_string());
@@ -856,6 +870,17 @@ impl ServerManager {
         // Flash Attention
         if !settings.flash_attn.is_empty() {
             cmd.arg("--flash-attn").arg(&settings.flash_attn);
+        }
+
+        // 内存自动调优
+        if !settings.fit.is_empty() {
+            cmd.arg("--fit").arg(&settings.fit);
+        }
+        if !settings.fit_target.is_empty() && settings.fit_target != "1024" {
+            cmd.arg("--fit-target").arg(&settings.fit_target);
+        }
+        if settings.fit_ctx != 4096 && settings.fit_ctx > 0 {
+            cmd.arg("--fit-ctx").arg(settings.fit_ctx.to_string());
         }
 
         // 多模态投影

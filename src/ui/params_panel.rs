@@ -182,6 +182,39 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 settings.flash_attn = fa_vals[fa_idx].to_string();
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpFlashAttn, lang));
             });
+            // ── 内存自动调优 --fit ──
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelFit, lang));
+                let fit_vals = ["on", "off"];
+                let fit_labels = [
+                    i18n::t(i18n::Key::FitModeOn, lang),
+                    i18n::t(i18n::Key::FitModeOff, lang),
+                ];
+                let mut fit_idx = fit_vals
+                    .iter()
+                    .position(|v| *v == settings.fit)
+                    .unwrap_or(0);
+                widgets::segmented(ui, &fit_labels, &mut fit_idx, accent);
+                settings.fit = fit_vals[fit_idx].to_string();
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpFit, lang));
+            });
+            // ── 显存预留 --fit-target ──
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelFitTarget, lang));
+                ui.add(egui::TextEdit::singleline(&mut settings.fit_target).desired_width(180.0));
+                ui.small("MiB");
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpFitTarget, lang));
+            });
+            // ── 最小上下文 --fit-ctx ──
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::LabelFitCtx, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.fit_ctx)
+                        .range(512..=131072)
+                        .speed(512),
+                );
+                helper::help_button_inline(ui, i18n::t(i18n::Key::HelpFitCtx, lang));
+            });
         },
     );
 

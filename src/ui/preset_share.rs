@@ -67,6 +67,15 @@ fn default_video_timestamp_interval() -> usize {
 fn default_video_ffmpeg_dir() -> String {
     String::new()
 }
+fn default_fit() -> String {
+    "on".to_string()
+}
+fn default_fit_target() -> String {
+    "1024".to_string()
+}
+fn default_fit_ctx() -> i64 {
+    4096
+}
 
 /// 导出/导入/分享的"参数面板"专用结构（不包含 Server/RPC/模型路径/密钥等）
 #[derive(Serialize, Deserialize, Clone)]
@@ -89,6 +98,12 @@ pub struct ParamsExport {
     pub enable_repeat_penalty: bool,
     pub enable_presence_penalty: bool,
     pub flash_attn: String,
+    #[serde(default = "default_fit")]
+    pub fit: String,
+    #[serde(default = "default_fit_target")]
+    pub fit_target: String,
+    #[serde(default = "default_fit_ctx")]
+    pub fit_ctx: i64,
 
     pub spec_type: String,
     pub spec_draft_n_max: usize,
@@ -174,6 +189,9 @@ impl ParamsExport {
             enable_repeat_penalty: s.enable_repeat_penalty,
             enable_presence_penalty: s.enable_presence_penalty,
             flash_attn: s.flash_attn.clone(),
+            fit: s.fit.clone(),
+            fit_target: s.fit_target.clone(),
+            fit_ctx: s.fit_ctx,
             spec_type: s.spec_type.clone(),
             spec_draft_n_max: s.spec_draft_n_max,
             enable_spec_draft_n_max: s.enable_spec_draft_n_max,
@@ -236,6 +254,9 @@ impl ParamsExport {
         s.enable_repeat_penalty = self.enable_repeat_penalty;
         s.enable_presence_penalty = self.enable_presence_penalty;
         s.flash_attn = self.flash_attn;
+        s.fit = self.fit;
+        s.fit_target = self.fit_target;
+        s.fit_ctx = self.fit_ctx;
         s.spec_type = self.spec_type;
         s.spec_draft_n_max = self.spec_draft_n_max;
         s.enable_spec_draft_n_max = self.enable_spec_draft_n_max;
@@ -300,6 +321,9 @@ impl ParamsExport {
             enable_repeat_penalty: p.enable_repeat_penalty,
             enable_presence_penalty: p.enable_presence_penalty,
             flash_attn: p.flash_attn.clone(),
+            fit: p.fit.clone(),
+            fit_target: p.fit_target.clone(),
+            fit_ctx: p.fit_ctx,
             spec_type: p.spec_type.clone(),
             spec_draft_n_max: p.spec_draft_n_max,
             enable_spec_draft_n_max: p.enable_spec_draft_n_max,
@@ -365,6 +389,9 @@ impl ParamsExport {
         p.enable_repeat_penalty = self.enable_repeat_penalty;
         p.enable_presence_penalty = self.enable_presence_penalty;
         p.flash_attn = self.flash_attn;
+        p.fit = self.fit;
+        p.fit_target = self.fit_target;
+        p.fit_ctx = self.fit_ctx;
         p.spec_type = self.spec_type;
         p.spec_draft_n_max = self.spec_draft_n_max;
         p.enable_spec_draft_n_max = self.enable_spec_draft_n_max;
