@@ -204,6 +204,9 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ui.add(egui::TextEdit::singleline(&mut settings.fit_target).desired_width(180.0));
                 ui.label("MiB");
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpFitTarget, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.enable_fit_target, "", accent);
+                });
             });
             // ── 最小上下文 --fit-ctx ──
             ui.horizontal(|ui| {
@@ -216,6 +219,9 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ui.label("k");
                 ui.small(i18n::t(i18n::Key::HintKUnit, lang));
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpFitCtx, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.enable_fit_ctx, "", accent);
+                });
             });
         },
     );

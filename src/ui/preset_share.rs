@@ -104,6 +104,10 @@ pub struct ParamsExport {
     pub fit_target: String,
     #[serde(default = "default_fit_ctx")]
     pub fit_ctx: usize,
+    #[serde(default)]
+    pub enable_fit_target: bool,
+    #[serde(default)]
+    pub enable_fit_ctx: bool,
 
     pub spec_type: String,
     pub spec_draft_n_max: usize,
@@ -192,6 +196,8 @@ impl ParamsExport {
             fit: s.fit.clone(),
             fit_target: s.fit_target.clone(),
             fit_ctx: s.fit_ctx,
+            enable_fit_target: s.enable_fit_target,
+            enable_fit_ctx: s.enable_fit_ctx,
             spec_type: s.spec_type.clone(),
             spec_draft_n_max: s.spec_draft_n_max,
             enable_spec_draft_n_max: s.enable_spec_draft_n_max,
@@ -257,6 +263,8 @@ impl ParamsExport {
         s.fit = self.fit;
         s.fit_target = self.fit_target;
         s.fit_ctx = self.fit_ctx;
+        s.enable_fit_target = self.enable_fit_target;
+        s.enable_fit_ctx = self.enable_fit_ctx;
         s.spec_type = self.spec_type;
         s.spec_draft_n_max = self.spec_draft_n_max;
         s.enable_spec_draft_n_max = self.enable_spec_draft_n_max;
@@ -324,6 +332,8 @@ impl ParamsExport {
             fit: p.fit.clone(),
             fit_target: p.fit_target.clone(),
             fit_ctx: p.fit_ctx,
+            enable_fit_target: p.enable_fit_target,
+            enable_fit_ctx: p.enable_fit_ctx,
             spec_type: p.spec_type.clone(),
             spec_draft_n_max: p.spec_draft_n_max,
             enable_spec_draft_n_max: p.enable_spec_draft_n_max,
@@ -392,6 +402,8 @@ impl ParamsExport {
         p.fit = self.fit;
         p.fit_target = self.fit_target;
         p.fit_ctx = self.fit_ctx;
+        p.enable_fit_target = self.enable_fit_target;
+        p.enable_fit_ctx = self.enable_fit_ctx;
         p.spec_type = self.spec_type;
         p.spec_draft_n_max = self.spec_draft_n_max;
         p.enable_spec_draft_n_max = self.enable_spec_draft_n_max;

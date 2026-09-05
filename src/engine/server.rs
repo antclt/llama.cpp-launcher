@@ -370,11 +370,11 @@ impl ServerManager {
             args.push("--fit".to_string());
             args.push(settings.fit.clone());
         }
-        if !settings.fit_target.is_empty() && settings.fit_target != "1024" {
+        if settings.enable_fit_target && !settings.fit_target.is_empty() {
             args.push("--fit-target".to_string());
             args.push(settings.fit_target.clone());
         }
-        if settings.fit_ctx != 4 && settings.fit_ctx > 0 {
+        if settings.enable_fit_ctx && settings.fit_ctx > 0 {
             args.push("--fit-ctx".to_string());
             args.push(settings.fit_ctx_actual().to_string());
         }
@@ -876,11 +876,12 @@ impl ServerManager {
         if !settings.fit.is_empty() {
             cmd.arg("--fit").arg(&settings.fit);
         }
-        if !settings.fit_target.is_empty() && settings.fit_target != "1024" {
+        if settings.enable_fit_target && !settings.fit_target.is_empty() {
             cmd.arg("--fit-target").arg(&settings.fit_target);
         }
-        if settings.fit_ctx != 4 && settings.fit_ctx > 0 {
-            cmd.arg("--fit-ctx").arg(settings.fit_ctx_actual().to_string());
+        if settings.enable_fit_ctx && settings.fit_ctx > 0 {
+            cmd.arg("--fit-ctx")
+                .arg(settings.fit_ctx_actual().to_string());
         }
 
         // 多模态投影

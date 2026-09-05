@@ -539,6 +539,10 @@ pub struct Preset {
     pub fit_target: String, // --fit-target MiB（逗号分隔多卡）
     #[serde(default = "default_fit_ctx")]
     pub fit_ctx: usize, // --fit-ctx（最小上下文，k 单位）
+    #[serde(default)]
+    pub enable_fit_target: bool,
+    #[serde(default)]
+    pub enable_fit_ctx: bool,
 
     // 加载模式（新版 --load-mode；"auto" 时沿用旧版 --mmap/--mlock 行为）
     #[serde(default = "default_load_mode")]
@@ -820,6 +824,8 @@ impl Default for Preset {
             fit: default_fit(),
             fit_target: default_fit_target(),
             fit_ctx: default_fit_ctx(),
+            enable_fit_target: false,
+            enable_fit_ctx: false,
             load_mode: default_load_mode(),
             tensor_read_lazy: default_tensor_read_lazy(),
             threads: default_threads(),
@@ -964,6 +970,8 @@ impl Preset {
             fit: settings.fit.clone(),
             fit_target: settings.fit_target.clone(),
             fit_ctx: settings.fit_ctx,
+            enable_fit_target: settings.enable_fit_target,
+            enable_fit_ctx: settings.enable_fit_ctx,
             load_mode: settings.load_mode.clone(),
             tensor_read_lazy: settings.tensor_read_lazy.clone(),
             threads: settings.threads,
@@ -1103,6 +1111,8 @@ impl Preset {
         settings.fit = self.fit;
         settings.fit_target = self.fit_target;
         settings.fit_ctx = self.fit_ctx;
+        settings.enable_fit_target = self.enable_fit_target;
+        settings.enable_fit_ctx = self.enable_fit_ctx;
         // 加载模式
         settings.load_mode = self.load_mode;
         settings.tensor_read_lazy = self.tensor_read_lazy;
@@ -1350,6 +1360,10 @@ pub struct AppSettings {
     pub fit_target: String, // --fit-target MiB（逗号分隔多卡）
     #[serde(default = "default_fit_ctx")]
     pub fit_ctx: usize, // --fit-ctx（最小上下文，k 单位）
+    #[serde(default)]
+    pub enable_fit_target: bool,
+    #[serde(default)]
+    pub enable_fit_ctx: bool,
 
     // 加载模式（新版 --load-mode；"auto" 时沿用旧版 --mmap/--mlock 行为）
     #[serde(default = "default_load_mode")]
@@ -1751,6 +1765,8 @@ impl Default for AppSettings {
             fit: default_fit(),
             fit_target: default_fit_target(),
             fit_ctx: default_fit_ctx(),
+            enable_fit_target: false,
+            enable_fit_ctx: false,
             load_mode: default_load_mode(),
             tensor_read_lazy: default_tensor_read_lazy(),
             threads: default_threads(),
