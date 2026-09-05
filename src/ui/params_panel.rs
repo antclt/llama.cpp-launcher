@@ -210,7 +210,7 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ui.label(i18n::t(i18n::Key::LabelFitCtx, lang));
                 ui.add(
                     egui::DragValue::new(&mut settings.fit_ctx)
-                        .range(1..=128)
+                        .range(1..=1024)
                         .speed(1),
                 );
                 ui.label("k");

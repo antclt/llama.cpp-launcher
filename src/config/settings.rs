@@ -331,23 +331,6 @@ mod deserialize_batch_size {
     }
 }
 
-mod deserialize_fit_ctx {
-    use serde::{self, Deserialize};
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<usize, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let v = usize::deserialize(deserializer)?;
-        // 兼容旧版原始值（如 4096 → 自动转为 4）；>64 视为原始值
-        if v > 64 {
-            Ok(v / 1024)
-        } else {
-            Ok(v.max(1))
-        }
-    }
-}
-
 mod deserialize_ubatch_size {
     use serde::{self, Deserialize};
 
@@ -554,7 +537,7 @@ pub struct Preset {
     pub fit: String, // --fit on/off
     #[serde(default = "default_fit_target")]
     pub fit_target: String, // --fit-target MiB（逗号分隔多卡）
-    #[serde(default = "default_fit_ctx", deserialize_with = "deserialize_fit_ctx::deserialize")]
+    #[serde(default = "default_fit_ctx")]
     pub fit_ctx: usize, // --fit-ctx（最小上下文，k 单位）
 
     // 加载模式（新版 --load-mode；"auto" 时沿用旧版 --mmap/--mlock 行为）
@@ -1365,7 +1348,7 @@ pub struct AppSettings {
     pub fit: String, // --fit on/off
     #[serde(default = "default_fit_target")]
     pub fit_target: String, // --fit-target MiB（逗号分隔多卡）
-    #[serde(default = "default_fit_ctx", deserialize_with = "deserialize_fit_ctx::deserialize")]
+    #[serde(default = "default_fit_ctx")]
     pub fit_ctx: usize, // --fit-ctx（最小上下文，k 单位）
 
     // 加载模式（新版 --load-mode；"auto" 时沿用旧版 --mmap/--mlock 行为）
