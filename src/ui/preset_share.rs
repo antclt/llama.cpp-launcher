@@ -72,7 +72,7 @@ fn default_video_ffmpeg_dir() -> String {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ParamsExport {
     pub context: usize,
-    pub batch_size: usize,
+    pub batch_size: f32,
     pub ubatch_size: f32,
     pub session_timeout: usize,
     pub temperature: f32,

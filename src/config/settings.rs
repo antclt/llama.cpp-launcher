@@ -280,8 +280,8 @@ fn default_context() -> usize {
     4 // 4k = 4096
 }
 
-fn default_batch_size() -> usize {
-    2 // 2k = 2048
+fn default_batch_size() -> f32 {
+    2.0 // 2k = 2048
 }
 
 fn default_ubatch_size() -> f32 {
@@ -307,15 +307,15 @@ mod deserialize_context {
 }
 
 mod deserialize_batch_size {
-    use super::from_raw_or_k;
     use serde::{self, Deserialize};
 
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<usize, D::Error>
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<f32, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let v = usize::deserialize(deserializer)?;
-        Ok(from_raw_or_k(v))
+        // 兼容旧版 usize 值（如 2 → 2.0）
+        let v = f32::deserialize(deserializer)?;
+        Ok(v.max(0.0001))
     }
 }
 
@@ -489,12 +489,12 @@ pub struct Preset {
         default = "default_batch_size",
         deserialize_with = "deserialize_batch_size::deserialize"
     )]
-    pub batch_size: usize, // --batch-size (k)
+    pub batch_size: f32, // --batch-size (k, 0.0001 步进)
     #[serde(
         default = "default_ubatch_size",
         deserialize_with = "deserialize_ubatch_size::deserialize"
     )]
-    pub ubatch_size: f32, // --ubatch-size (k, 0.5 步进)
+    pub ubatch_size: f32, // --ubatch-size (k, 0.0001 步进)
     pub temperature: f32,
     pub top_p: f32,
     pub top_k: i32,
@@ -782,7 +782,7 @@ impl Default for Preset {
             port: 9931,
             parallel_slots: -1,
             context: 4,       // 4k = 4096
-            batch_size: 2,    // 2k = 2048
+            batch_size: 2.0,  // 2k = 2048
             ubatch_size: 0.5, // 0.5k = 512
             temperature: 0.8,
             top_p: 0.95,
@@ -1284,12 +1284,12 @@ pub struct AppSettings {
         default = "default_batch_size",
         deserialize_with = "deserialize_batch_size::deserialize"
     )]
-    pub batch_size: usize, // --batch-size (k)
+    pub batch_size: f32, // --batch-size (k, 0.0001 步进)
     #[serde(
         default = "default_ubatch_size",
         deserialize_with = "deserialize_ubatch_size::deserialize"
     )]
-    pub ubatch_size: f32, // --ubatch-size (k, 0.5 步进)
+    pub ubatch_size: f32, // --ubatch-size (k, 0.0001 步进)
     pub temperature: f32,
     pub top_p: f32,
     pub top_k: i32,
@@ -1697,7 +1697,7 @@ impl Default for AppSettings {
             model_dir: PathBuf::new(),
             alias: String::new(),
             context: 4,       // 4k = 4096
-            batch_size: 2,    // 2k = 2048
+            batch_size: 2.0,  // 2k = 2048
             ubatch_size: 0.5, // 0.5k = 512
             temperature: 0.8,
             top_p: 0.95,
@@ -1857,7 +1857,7 @@ impl AppSettings {
         self.context * 1024
     }
     pub fn batch_size_actual(&self) -> usize {
-        self.batch_size * 1024
+        (self.batch_size * 1024.0) as usize
     }
     pub fn ubatch_size_actual(&self) -> usize {
         (self.ubatch_size * 1024.0) as usize
