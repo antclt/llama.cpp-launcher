@@ -73,8 +73,8 @@ fn default_fit() -> String {
 fn default_fit_target() -> String {
     "1024".to_string()
 }
-fn default_fit_ctx() -> i64 {
-    4096
+fn default_fit_ctx() -> usize {
+    4
 }
 
 /// 导出/导入/分享的"参数面板"专用结构（不包含 Server/RPC/模型路径/密钥等）
@@ -103,7 +103,7 @@ pub struct ParamsExport {
     #[serde(default = "default_fit_target")]
     pub fit_target: String,
     #[serde(default = "default_fit_ctx")]
-    pub fit_ctx: i64,
+    pub fit_ctx: usize,
 
     pub spec_type: String,
     pub spec_draft_n_max: usize,

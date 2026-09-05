@@ -106,8 +106,8 @@ fn default_fit_target() -> String {
     "1024".to_string() // --fit-target，默认 1024 MiB
 }
 
-fn default_fit_ctx() -> i64 {
-    4096 // --fit-ctx，默认 4096
+fn default_fit_ctx() -> usize {
+    4 // 4k = 4096
 }
 
 fn default_load_mode() -> String {
@@ -331,6 +331,23 @@ mod deserialize_batch_size {
     }
 }
 
+mod deserialize_fit_ctx {
+    use serde::{self, Deserialize};
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<usize, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let v = usize::deserialize(deserializer)?;
+        // 兼容旧版原始值（如 4096 → 自动转为 4）；>64 视为原始值
+        if v > 64 {
+            Ok(v / 1024)
+        } else {
+            Ok(v.max(1))
+        }
+    }
+}
+
 mod deserialize_ubatch_size {
     use serde::{self, Deserialize};
 
@@ -537,8 +554,8 @@ pub struct Preset {
     pub fit: String, // --fit on/off
     #[serde(default = "default_fit_target")]
     pub fit_target: String, // --fit-target MiB（逗号分隔多卡）
-    #[serde(default = "default_fit_ctx")]
-    pub fit_ctx: i64, // --fit-ctx（最小上下文）
+    #[serde(default = "default_fit_ctx", deserialize_with = "deserialize_fit_ctx::deserialize")]
+    pub fit_ctx: usize, // --fit-ctx（最小上下文，k 单位）
 
     // 加载模式（新版 --load-mode；"auto" 时沿用旧版 --mmap/--mlock 行为）
     #[serde(default = "default_load_mode")]
@@ -1348,8 +1365,8 @@ pub struct AppSettings {
     pub fit: String, // --fit on/off
     #[serde(default = "default_fit_target")]
     pub fit_target: String, // --fit-target MiB（逗号分隔多卡）
-    #[serde(default = "default_fit_ctx")]
-    pub fit_ctx: i64, // --fit-ctx（最小上下文）
+    #[serde(default = "default_fit_ctx", deserialize_with = "deserialize_fit_ctx::deserialize")]
+    pub fit_ctx: usize, // --fit-ctx（最小上下文，k 单位）
 
     // 加载模式（新版 --load-mode；"auto" 时沿用旧版 --mmap/--mlock 行为）
     #[serde(default = "default_load_mode")]
@@ -1899,6 +1916,10 @@ impl AppSettings {
     }
     pub fn ubatch_size_actual(&self) -> usize {
         (self.ubatch_size * 1024.0) as usize
+    }
+    /// k 值 → 实际 --fit-ctx 参数值 (value * 1024)
+    pub fn fit_ctx_actual(&self) -> usize {
+        self.fit_ctx * 1024
     }
 
     /// 构造"当前启用"的 MCP 配置 JSON（纯逻辑，便于测试）。

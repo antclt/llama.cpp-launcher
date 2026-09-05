@@ -374,9 +374,9 @@ impl ServerManager {
             args.push("--fit-target".to_string());
             args.push(settings.fit_target.clone());
         }
-        if settings.fit_ctx != 4096 && settings.fit_ctx > 0 {
+        if settings.fit_ctx != 4 && settings.fit_ctx > 0 {
             args.push("--fit-ctx".to_string());
-            args.push(settings.fit_ctx.to_string());
+            args.push(settings.fit_ctx_actual().to_string());
         }
 
         // 多模态投影
@@ -879,8 +879,8 @@ impl ServerManager {
         if !settings.fit_target.is_empty() && settings.fit_target != "1024" {
             cmd.arg("--fit-target").arg(&settings.fit_target);
         }
-        if settings.fit_ctx != 4096 && settings.fit_ctx > 0 {
-            cmd.arg("--fit-ctx").arg(settings.fit_ctx.to_string());
+        if settings.fit_ctx != 4 && settings.fit_ctx > 0 {
+            cmd.arg("--fit-ctx").arg(settings.fit_ctx_actual().to_string());
         }
 
         // 多模态投影
