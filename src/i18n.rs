@@ -65,6 +65,12 @@ pub enum Key {
     SettingsLauncher,
     SettingsAbout,
 
+    // 系统服务面板
+    SettingsSystemService,
+    SystemServiceDescription,
+    SystemServiceNotAvailable,
+    SystemServiceGenerate,
+
     // 按钮
     BtnStartServer,
     BtnStopServer,
@@ -643,6 +649,7 @@ pub enum Key {
     DlFailed,
     CheckUpdateTooltip,
     SubSectionLlamaCppDownload,
+    WarningLlamaCppUpdate,
     ReleaseChannelLabel,
     ReleaseChannelStable,
     ReleaseChannelPreview,
@@ -785,6 +792,16 @@ impl Key {
             (Key::SettingsLauncher, &Language::En) => "Launcher",
             (Key::SettingsAbout, &Language::Zh) => "关于",
             (Key::SettingsAbout, &Language::En) => "About",
+
+            // 系统服务面板
+            (Key::SettingsSystemService, &Language::Zh) => "系统服务",
+            (Key::SettingsSystemService, &Language::En) => "System Service",
+            (Key::SystemServiceDescription, &Language::Zh) => "将 llama.cpp 的启动命令包装为 systemd 服务配置文件，仅在 Linux 下可用",
+            (Key::SystemServiceDescription, &Language::En) => "Package llama.cpp startup command as a systemd service configuration, Linux only",
+            (Key::SystemServiceNotAvailable, &Language::Zh) => "仅在 Linux 下可用",
+            (Key::SystemServiceNotAvailable, &Language::En) => "Only available on Linux",
+            (Key::SystemServiceGenerate, &Language::Zh) => "生成服务文件",
+            (Key::SystemServiceGenerate, &Language::En) => "Generate Service File",
 
             // 按钮
             (Key::BtnStartServer, &Language::Zh) => "启动 Server",
@@ -1876,6 +1893,8 @@ impl Key {
             (Key::CheckUpdateTooltip, &Language::En) => "Coming soon",
             (Key::SubSectionLlamaCppDownload, &Language::Zh) => "llama.cpp 下载与更新",
             (Key::SubSectionLlamaCppDownload, &Language::En) => "llama.cpp Download & Update",
+            (Key::WarningLlamaCppUpdate, &Language::Zh) => "⚠️ llama.cpp 更新时会清空目录，请不要将文件放到目录内",
+            (Key::WarningLlamaCppUpdate, &Language::En) => "⚠️ llama.cpp update will clear the directory. Do not place files inside.",
             (Key::ReleaseChannelLabel, &Language::Zh) => "发布通道:",
             (Key::ReleaseChannelLabel, &Language::En) => "Release Channel:",
             (Key::ReleaseChannelStable, &Language::Zh) => "稳定版",
