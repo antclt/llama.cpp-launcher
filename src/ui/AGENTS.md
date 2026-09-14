@@ -9,7 +9,9 @@
 - server_panel: llama-server 路径/端口/槽位、启停/重启、状态、RPC 模式开关
 - rpc_panel: ggml-rpc-server 路径/端口/threads/device/cache、启停、状态
 - model_panel: GGUF 目录浏览、列表、彩色标签解析、mmproj/DFlash 切换
-- params_panel: n_ctx/n_predict/temperature/top_p/top_k/repeat_penalty/kv_offload/cache_type/GPU
+- params_panel: 上下文与批处理、思考与对话、GPU 与设备、KV 缓存、推测解码、多模态、
+  线程、采样、采样器链、结构化输出；另含 5 个高级分组——长上下文缩放（RoPE/YaRN）、
+  适配器（LoRA/控制向量）、服务与运行、高级加载与性能、嵌入与重排
 - mcp_panel: MCP 服务器配置、状态管理
 - log_panel: 服务器日志 ui() + 远程调用日志 rpc_ui()，共享 render()/LogSource trait
 - rpc_log_panel: RPC 日志专用面板

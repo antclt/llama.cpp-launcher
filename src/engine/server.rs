@@ -498,12 +498,8 @@ impl ServerManager {
         args.push(settings.cache_type_k.clone());
         args.push("--cache-type-v".to_string());
         args.push(settings.cache_type_v.clone());
-        if settings.kv_mlock {
-            args.push("--mlock".to_string());
-        }
-        if !settings.kv_mmap {
-            args.push("--no-mmap".to_string());
-        }
+        // 注：--mlock / --no-mmap 已被 llama.cpp 标记为 DEPRECATED（由 --load-mode 取代），
+        // 实际启动不发送它们；此处同样不拼接，保证「启动命令」预览与真实命令一致。
         if settings.kv_unified {
             args.push("--kv-unified".to_string());
         }
@@ -650,6 +646,146 @@ impl ServerManager {
         if !settings.numa.is_empty() {
             args.push("--numa".to_string());
             args.push(settings.numa.clone());
+        }
+
+        // ===== 高级参数（长上下文 / 采样 / 适配器 / 服务 / 加载性能）=====
+        if settings.cache_ram_enabled {
+            args.push("--cache-ram".to_string());
+            args.push(settings.cache_ram.to_string());
+        }
+        if settings.no_host {
+            args.push("--no-host".to_string());
+        }
+        if !settings.rope_scaling.is_empty() {
+            args.push("--rope-scaling".to_string());
+            args.push(settings.rope_scaling.clone());
+        }
+        if (settings.rope_scale - 1.0).abs() > f32::EPSILON {
+            args.push("--rope-scale".to_string());
+            args.push(settings.rope_scale.to_string());
+        }
+        if settings.rope_freq_base > 0.0 {
+            args.push("--rope-freq-base".to_string());
+            args.push(settings.rope_freq_base.to_string());
+        }
+        if settings.rope_freq_scale > 0.0 {
+            args.push("--rope-freq-scale".to_string());
+            args.push(settings.rope_freq_scale.to_string());
+        }
+        if settings.yarn_orig_ctx > 0 {
+            args.push("--yarn-orig-ctx".to_string());
+            args.push(settings.yarn_orig_ctx.to_string());
+        }
+        if settings.yarn_ext_factor >= 0.0 {
+            args.push("--yarn-ext-factor".to_string());
+            args.push(settings.yarn_ext_factor.to_string());
+        }
+        if settings.yarn_attn_factor >= 0.0 {
+            args.push("--yarn-attn-factor".to_string());
+            args.push(settings.yarn_attn_factor.to_string());
+        }
+        if settings.yarn_beta_slow >= 0.0 {
+            args.push("--yarn-beta-slow".to_string());
+            args.push(settings.yarn_beta_slow.to_string());
+        }
+        if settings.yarn_beta_fast >= 0.0 {
+            args.push("--yarn-beta-fast".to_string());
+            args.push(settings.yarn_beta_fast.to_string());
+        }
+        if settings.frequency_penalty.abs() > f32::EPSILON {
+            args.push("--frequency-penalty".to_string());
+            args.push(settings.frequency_penalty.to_string());
+        }
+        if settings.repeat_last_n >= 0 {
+            args.push("--repeat-last-n".to_string());
+            args.push(settings.repeat_last_n.to_string());
+        }
+        if settings.dry_multiplier > 0.0 {
+            args.push("--dry-multiplier".to_string());
+            args.push(settings.dry_multiplier.to_string());
+            args.push("--dry-base".to_string());
+            args.push(settings.dry_base.to_string());
+            args.push("--dry-allowed-length".to_string());
+            args.push(settings.dry_allowed_length.to_string());
+            args.push("--dry-penalty-last-n".to_string());
+            args.push(settings.dry_penalty_last_n.to_string());
+        }
+        if !settings.dry_sequence_breaker.is_empty() {
+            args.push("--dry-sequence-breaker".to_string());
+            args.push(settings.dry_sequence_breaker.clone());
+        }
+        if !settings.logit_bias.is_empty() {
+            args.push("--logit-bias".to_string());
+            args.push(settings.logit_bias.clone());
+        }
+        if !settings.lora_path.is_empty() {
+            args.push("--lora".to_string());
+            args.push(settings.lora_path.clone());
+        }
+        if !settings.lora_scaled.is_empty() {
+            args.push("--lora-scaled".to_string());
+            args.push(settings.lora_scaled.clone());
+        }
+        if !settings.control_vector.is_empty() {
+            args.push("--control-vector".to_string());
+            args.push(settings.control_vector.clone());
+        }
+        if !settings.slot_save_path.is_empty() {
+            args.push("--slot-save-path".to_string());
+            args.push(settings.slot_save_path.clone());
+        }
+        if settings.sleep_idle_seconds > 0 {
+            args.push("--sleep-idle-seconds".to_string());
+            args.push(settings.sleep_idle_seconds.to_string());
+        }
+        if settings.threads_http > 0 {
+            args.push("--threads-http".to_string());
+            args.push(settings.threads_http.to_string());
+        }
+        if settings.metrics_enabled {
+            args.push("--metrics".to_string());
+        }
+        if !settings.api_key_file.is_empty() {
+            args.push("--api-key-file".to_string());
+            args.push(settings.api_key_file.clone());
+        }
+        if settings.direct_io {
+            args.push("--direct-io".to_string());
+        }
+        if settings.check_tensors {
+            args.push("--check-tensors".to_string());
+        }
+        if !settings.override_kv.is_empty() {
+            args.push("--override-kv".to_string());
+            args.push(settings.override_kv.clone());
+        }
+        if settings.prio != 0 {
+            args.push("--prio".to_string());
+            args.push(settings.prio.to_string());
+        }
+        if !settings.warmup_enabled {
+            args.push("--no-warmup".to_string());
+        }
+        if !settings.cont_batching {
+            args.push("--no-cont-batching".to_string());
+        }
+        if !settings.grammar_file.is_empty() {
+            args.push("--grammar-file".to_string());
+            args.push(settings.grammar_file.clone());
+        }
+        if !settings.json_schema_file.is_empty() {
+            args.push("--json-schema-file".to_string());
+            args.push(settings.json_schema_file.clone());
+        }
+        if settings.embeddings_enabled {
+            args.push("--embeddings".to_string());
+        }
+        if !settings.pooling.is_empty() {
+            args.push("--pooling".to_string());
+            args.push(settings.pooling.clone());
+        }
+        if settings.rerank_enabled {
+            args.push("--rerank".to_string());
         }
 
         // MCP 配置
@@ -1132,6 +1268,132 @@ impl ServerManager {
             cmd.arg("--no-webui");
         }
 
+        // ===== 高级参数（长上下文 / 采样 / 适配器 / 服务 / 加载性能）=====
+        if settings.cache_ram_enabled {
+            cmd.arg("--cache-ram").arg(settings.cache_ram.to_string());
+        }
+        if settings.no_host {
+            cmd.arg("--no-host");
+        }
+        if !settings.rope_scaling.is_empty() {
+            cmd.arg("--rope-scaling").arg(&settings.rope_scaling);
+        }
+        if (settings.rope_scale - 1.0).abs() > f32::EPSILON {
+            cmd.arg("--rope-scale").arg(settings.rope_scale.to_string());
+        }
+        if settings.rope_freq_base > 0.0 {
+            cmd.arg("--rope-freq-base")
+                .arg(settings.rope_freq_base.to_string());
+        }
+        if settings.rope_freq_scale > 0.0 {
+            cmd.arg("--rope-freq-scale")
+                .arg(settings.rope_freq_scale.to_string());
+        }
+        if settings.yarn_orig_ctx > 0 {
+            cmd.arg("--yarn-orig-ctx")
+                .arg(settings.yarn_orig_ctx.to_string());
+        }
+        if settings.yarn_ext_factor >= 0.0 {
+            cmd.arg("--yarn-ext-factor")
+                .arg(settings.yarn_ext_factor.to_string());
+        }
+        if settings.yarn_attn_factor >= 0.0 {
+            cmd.arg("--yarn-attn-factor")
+                .arg(settings.yarn_attn_factor.to_string());
+        }
+        if settings.yarn_beta_slow >= 0.0 {
+            cmd.arg("--yarn-beta-slow")
+                .arg(settings.yarn_beta_slow.to_string());
+        }
+        if settings.yarn_beta_fast >= 0.0 {
+            cmd.arg("--yarn-beta-fast")
+                .arg(settings.yarn_beta_fast.to_string());
+        }
+        if settings.frequency_penalty.abs() > f32::EPSILON {
+            cmd.arg("--frequency-penalty")
+                .arg(settings.frequency_penalty.to_string());
+        }
+        if settings.repeat_last_n >= 0 {
+            cmd.arg("--repeat-last-n")
+                .arg(settings.repeat_last_n.to_string());
+        }
+        if settings.dry_multiplier > 0.0 {
+            cmd.arg("--dry-multiplier")
+                .arg(settings.dry_multiplier.to_string());
+            cmd.arg("--dry-base").arg(settings.dry_base.to_string());
+            cmd.arg("--dry-allowed-length")
+                .arg(settings.dry_allowed_length.to_string());
+            cmd.arg("--dry-penalty-last-n")
+                .arg(settings.dry_penalty_last_n.to_string());
+        }
+        if !settings.dry_sequence_breaker.is_empty() {
+            cmd.arg("--dry-sequence-breaker")
+                .arg(&settings.dry_sequence_breaker);
+        }
+        if !settings.logit_bias.is_empty() {
+            cmd.arg("--logit-bias").arg(&settings.logit_bias);
+        }
+        if !settings.lora_path.is_empty() {
+            cmd.arg("--lora").arg(&settings.lora_path);
+        }
+        if !settings.lora_scaled.is_empty() {
+            cmd.arg("--lora-scaled").arg(&settings.lora_scaled);
+        }
+        if !settings.control_vector.is_empty() {
+            cmd.arg("--control-vector").arg(&settings.control_vector);
+        }
+        if !settings.slot_save_path.is_empty() {
+            cmd.arg("--slot-save-path").arg(&settings.slot_save_path);
+        }
+        if settings.sleep_idle_seconds > 0 {
+            cmd.arg("--sleep-idle-seconds")
+                .arg(settings.sleep_idle_seconds.to_string());
+        }
+        if settings.threads_http > 0 {
+            cmd.arg("--threads-http")
+                .arg(settings.threads_http.to_string());
+        }
+        if settings.metrics_enabled {
+            cmd.arg("--metrics");
+        }
+        if !settings.api_key_file.is_empty() {
+            cmd.arg("--api-key-file").arg(&settings.api_key_file);
+        }
+        if settings.direct_io {
+            cmd.arg("--direct-io");
+        }
+        if settings.check_tensors {
+            cmd.arg("--check-tensors");
+        }
+        if !settings.override_kv.is_empty() {
+            cmd.arg("--override-kv").arg(&settings.override_kv);
+        }
+        if settings.prio != 0 {
+            cmd.arg("--prio").arg(settings.prio.to_string());
+        }
+        if !settings.warmup_enabled {
+            cmd.arg("--no-warmup");
+        }
+        if !settings.cont_batching {
+            cmd.arg("--no-cont-batching");
+        }
+        if !settings.grammar_file.is_empty() {
+            cmd.arg("--grammar-file").arg(&settings.grammar_file);
+        }
+        if !settings.json_schema_file.is_empty() {
+            cmd.arg("--json-schema-file")
+                .arg(&settings.json_schema_file);
+        }
+        if settings.embeddings_enabled {
+            cmd.arg("--embeddings");
+        }
+        if !settings.pooling.is_empty() {
+            cmd.arg("--pooling").arg(&settings.pooling);
+        }
+        if settings.rerank_enabled {
+            cmd.arg("--rerank");
+        }
+
         // MCP 工具：生成"当前启用"的 MCP 配置文件并传给 llama-server
         // （无启用 server 或生成失败时函数返回 None，不拼接参数）
         if let Some(mcp_config_path) = settings.write_effective_mcp_config() {
@@ -1338,5 +1600,123 @@ impl ServerManager {
 impl Drop for ServerManager {
     fn drop(&mut self) {
         self.stop();
+    }
+}
+
+#[cfg(test)]
+mod adv_params_tests {
+    use super::*;
+    use crate::config::settings::AppSettings;
+
+    /// 高级参数默认状态不发送，设置后应出现在启动命令中
+    #[test]
+    fn test_advanced_params_in_launch_command() {
+        let mgr = ServerManager::new();
+        let mut s = AppSettings::default();
+
+        // 1) 默认状态：这些参数一个都不该出现
+        let base = mgr.build_launch_command(&s);
+        for p in [
+            "--cache-ram",
+            "--no-host",
+            "--rope-scaling",
+            "--rope-scale",
+            "--yarn-orig-ctx",
+            "--frequency-penalty",
+            "--repeat-last-n",
+            "--dry-multiplier",
+            "--logit-bias",
+            "--lora",
+            "--slot-save-path",
+            "--sleep-idle-seconds",
+            "--threads-http",
+            "--metrics",
+            "--direct-io",
+            "--check-tensors",
+            "--no-warmup",
+            "--no-cont-batching",
+            "--grammar-file",
+            "--json-schema-file",
+            "--embeddings",
+            "--pooling",
+            "--rerank",
+        ] {
+            assert!(
+                !base.contains(p),
+                "默认设置不应包含参数 {}，实际命令：\n{}",
+                p,
+                base
+            );
+        }
+
+        // 2) 全部打开后：逐个校验是否拼接正确
+        s.cache_ram_enabled = true;
+        s.cache_ram = 32768;
+        s.no_host = true;
+        s.rope_scaling = "yarn".to_string();
+        s.rope_scale = 4.0;
+        s.rope_freq_base = 1000000.0;
+        s.yarn_orig_ctx = 32768;
+        s.frequency_penalty = 0.5;
+        s.repeat_last_n = 128;
+        s.dry_multiplier = 0.8;
+        s.dry_sequence_breaker = "\n:1".to_string();
+        s.logit_bias = "EOS-inf".to_string();
+        s.lora_path = "adapter.gguf".to_string();
+        s.control_vector = "cv.gguf".to_string();
+        s.slot_save_path = "E:/slot".to_string();
+        s.sleep_idle_seconds = 600;
+        s.threads_http = 4;
+        s.metrics_enabled = true;
+        s.api_key_file = "keys.txt".to_string();
+        s.direct_io = true;
+        s.check_tensors = true;
+        s.override_kv = "general.rope=float:8".to_string();
+        s.prio = 2;
+        s.warmup_enabled = false;
+        s.cont_batching = false;
+        s.grammar_file = "g.gbnf".to_string();
+        s.json_schema_file = "s.json".to_string();
+        s.embeddings_enabled = true;
+        s.pooling = "mean".to_string();
+        s.rerank_enabled = true;
+
+        let cmd = mgr.build_launch_command(&s);
+        for p in [
+            "--cache-ram 32768",
+            "--no-host",
+            "--rope-scaling yarn",
+            "--rope-scale 4",
+            "--rope-freq-base 1000000",
+            "--yarn-orig-ctx 32768",
+            "--frequency-penalty 0.5",
+            "--repeat-last-n 128",
+            "--dry-multiplier 0.8",
+            "--dry-base 1.75",
+            "--dry-allowed-length 2",
+            "--dry-penalty-last-n 64",
+            "--dry-sequence-breaker",
+            "--logit-bias EOS-inf",
+            "--lora adapter.gguf",
+            "--control-vector cv.gguf",
+            "--slot-save-path E:/slot",
+            "--sleep-idle-seconds 600",
+            "--threads-http 4",
+            "--metrics",
+            "--api-key-file keys.txt",
+            "--direct-io",
+            "--check-tensors",
+            "--override-kv general.rope=float:8",
+            "--prio 2",
+            "--no-warmup",
+            "--no-cont-batching",
+            "--grammar-file g.gbnf",
+            "--json-schema-file s.json",
+            "--embeddings",
+            "--pooling mean",
+            "--rerank",
+        ] {
+            assert!(cmd.contains(p), "命令应包含参数 {}，实际命令：\n{}", p, cmd);
+        }
     }
 }
