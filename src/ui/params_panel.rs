@@ -810,6 +810,35 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
             });
         });
 
+        // prompt 缓存上限（--cache-ram）：prompt cache 占用的内存上限
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::AdvCacheRamEnable, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::AdvCacheRamHint, lang));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                widgets::toggle(ui, &mut settings.cache_ram_enabled, "", accent);
+            });
+        });
+        if settings.cache_ram_enabled {
+            ui.indent("cache_ram_opt", |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(i18n::t(i18n::Key::AdvCacheRam, lang));
+                    helper::help_button_inline(ui, i18n::t(i18n::Key::AdvCacheRamValueHint, lang));
+                    ui.add(
+                        egui::DragValue::new(&mut settings.cache_ram)
+                            .range(0..=1048576)
+                            .speed(512),
+                    );
+                });
+            });
+        }
+        // 绕过 host buffer（--no-host）
+        ui.horizontal(|ui| {
+            ui.label(i18n::t(i18n::Key::AdvNoHost, lang));
+            helper::help_button_inline(ui, i18n::t(i18n::Key::AdvNoHostHint, lang));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                widgets::toggle(ui, &mut settings.no_host, "", accent);
+            });
+        });
         // KV 缓存开关统一样式（与「手动指定 GPU 层数」一致）：标签 + ❓提示框 + 开关
         ui.horizontal(|ui| {
             ui.label(i18n::t(i18n::Key::CheckboxKvOffload, lang));
@@ -1245,6 +1274,86 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
         i18n::t(i18n::Key::SectionSampling, lang),
         accent,
         |ui| {
+            // 频率惩罚（--frequency-penalty）
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvFrequencyPenalty, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvFrequencyPenaltyHint, lang));
+                ui.add(
+                    egui::Slider::new(&mut settings.frequency_penalty, -2.0..=2.0)
+                        .fixed_decimals(2),
+                );
+                ui.label(format!("{:.2}", settings.frequency_penalty));
+            });
+            // 重复惩罚窗口（--repeat-last-n）
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvRepeatLastN, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvRepeatLastNHint, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.repeat_last_n)
+                        .range(-1..=65536)
+                        .speed(16),
+                );
+            });
+            // DRY 采样（--dry-*，multiplier > 0 时整组生效）
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvDryMultiplier, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvDryHint, lang));
+                ui.add(
+                    egui::Slider::new(&mut settings.dry_multiplier, 0.0..=5.0).fixed_decimals(2),
+                );
+                ui.label(format!("{:.2}", settings.dry_multiplier));
+            });
+            if settings.dry_multiplier > 0.0 {
+                ui.indent("dry_opt", |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::AdvDryBase, lang));
+                        helper::help_button_inline(ui, i18n::t(i18n::Key::AdvDryBaseHint, lang));
+                        ui.add(
+                            egui::DragValue::new(&mut settings.dry_base)
+                                .range(0.0..=10.0)
+                                .speed(0.05),
+                        );
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::AdvDryAllowedLength, lang));
+                        helper::help_button_inline(
+                            ui,
+                            i18n::t(i18n::Key::AdvDryAllowedLengthHint, lang),
+                        );
+                        ui.add(
+                            egui::DragValue::new(&mut settings.dry_allowed_length)
+                                .range(0..=64)
+                                .speed(1),
+                        );
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::AdvDryPenaltyLastN, lang));
+                        helper::help_button_inline(
+                            ui,
+                            i18n::t(i18n::Key::AdvDryPenaltyLastNHint, lang),
+                        );
+                        ui.add(
+                            egui::DragValue::new(&mut settings.dry_penalty_last_n)
+                                .range(0..=65536)
+                                .speed(16),
+                        );
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label(i18n::t(i18n::Key::AdvDrySequenceBreaker, lang));
+                        ui.text_edit_singleline(&mut settings.dry_sequence_breaker);
+                        helper::help_button_inline(
+                            ui,
+                            i18n::t(i18n::Key::AdvDrySequenceBreakerHint, lang),
+                        );
+                    });
+                });
+            }
+            // logit 偏置（--logit-bias）
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvLogitBias, lang));
+                ui.text_edit_singleline(&mut settings.logit_bias);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvLogitBiasHint, lang));
+            });
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelTemperature, lang));
                 ui.add(
@@ -1509,6 +1618,267 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                 ui.label(i18n::t(i18n::Key::LabelGrammar, lang));
                 ui.text_edit_singleline(&mut settings.grammar);
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpGrammar, lang));
+            });
+            // 语法 / Schema 的文件形式（与内联字段二选一）
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvGrammarFile, lang));
+                ui.text_edit_singleline(&mut settings.grammar_file);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvGrammarFileHint, lang));
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvJsonSchemaFile, lang));
+                ui.text_edit_singleline(&mut settings.json_schema_file);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvJsonSchemaFileHint, lang));
+            });
+        },
+    );
+
+    // ===== 长上下文缩放（RoPE / YaRN）=====
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionAdvLongContext, lang),
+        accent,
+        |ui| {
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvRopeScaling, lang));
+                let vals = ["", "none", "linear", "yarn"];
+                let labels = [
+                    i18n::t(i18n::Key::AdvNotSet, lang),
+                    vals[1],
+                    vals[2],
+                    vals[3],
+                ];
+                let mut idx = vals
+                    .iter()
+                    .position(|v| *v == settings.rope_scaling)
+                    .unwrap_or(0);
+                widgets::segmented(ui, &labels, &mut idx, accent);
+                settings.rope_scaling = vals[idx].to_string();
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvRopeScalingHint, lang));
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvRopeScale, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvRopeScaleHint, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.rope_scale)
+                        .range(0.0..=1000.0)
+                        .speed(0.01),
+                );
+                ui.label(i18n::t(i18n::Key::AdvRopeFreqBase, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvRopeFreqBaseHint, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.rope_freq_base)
+                        .range(0.0..=1.0e9)
+                        .speed(1000.0),
+                );
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvRopeFreqScale, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvRopeFreqScaleHint, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.rope_freq_scale)
+                        .range(0.0..=1000.0)
+                        .speed(0.01),
+                );
+                ui.label(i18n::t(i18n::Key::AdvYarnOrigCtx, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvYarnOrigCtxHint, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.yarn_orig_ctx)
+                        .range(0..=10_000_000)
+                        .speed(1024),
+                );
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvYarnExtFactor, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvYarnExtFactorHint, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.yarn_ext_factor)
+                        .range(-1.0..=100.0)
+                        .speed(0.01),
+                );
+                ui.label(i18n::t(i18n::Key::AdvYarnAttnFactor, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvYarnAttnFactorHint, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.yarn_attn_factor)
+                        .range(-1.0..=100.0)
+                        .speed(0.01),
+                );
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvYarnBetaSlow, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvYarnBetaSlowHint, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.yarn_beta_slow)
+                        .range(-1.0..=1000.0)
+                        .speed(0.01),
+                );
+                ui.label(i18n::t(i18n::Key::AdvYarnBetaFast, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvYarnBetaFastHint, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.yarn_beta_fast)
+                        .range(-1.0..=1000.0)
+                        .speed(0.01),
+                );
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvYarnHint, lang));
+            });
+        },
+    );
+
+    // ===== 适配器（LoRA / 控制向量）=====
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionAdvAdapter, lang),
+        accent,
+        |ui| {
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvLoraPath, lang));
+                ui.text_edit_singleline(&mut settings.lora_path);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvLoraPathHint, lang));
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvLoraScaled, lang));
+                ui.text_edit_singleline(&mut settings.lora_scaled);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvLoraScaledHint, lang));
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvControlVector, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvControlVectorHint, lang));
+                ui.text_edit_singleline(&mut settings.control_vector);
+            });
+        },
+    );
+
+    // ===== 服务与运行 =====
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionAdvRuntime, lang),
+        accent,
+        |ui| {
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvSlotSavePath, lang));
+                ui.text_edit_singleline(&mut settings.slot_save_path);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvSlotSavePathHint, lang));
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvSleepIdle, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvSleepIdleHint, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.sleep_idle_seconds)
+                        .range(-1..=604800)
+                        .speed(30),
+                );
+                ui.label(i18n::t(i18n::Key::AdvThreadsHttp, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvThreadsHttpHint, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.threads_http)
+                        .range(-1..=256)
+                        .speed(1),
+                );
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvMetrics, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvMetricsHint, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.metrics_enabled, "", accent);
+                });
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvApiKeyFile, lang));
+                ui.text_edit_singleline(&mut settings.api_key_file);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvApiKeyFileHint, lang));
+            });
+        },
+    );
+
+    // ===== 高级加载与性能 =====
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionAdvLoading, lang),
+        accent,
+        |ui| {
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvDirectIo, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvDirectIoHint, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.direct_io, "", accent);
+                });
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvCheckTensors, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvCheckTensorsHint, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.check_tensors, "", accent);
+                });
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvWarmup, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvWarmupHint, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.warmup_enabled, "", accent);
+                });
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvContBatching, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvContBatchingHint, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.cont_batching, "", accent);
+                });
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvOverrideKv, lang));
+                ui.text_edit_singleline(&mut settings.override_kv);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvOverrideKvHint, lang));
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvPrio, lang));
+                ui.add(
+                    egui::DragValue::new(&mut settings.prio)
+                        .range(-1..=3)
+                        .speed(1),
+                );
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvPrioHint, lang));
+            });
+        },
+    );
+
+    // ===== 嵌入与重排 =====
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SectionAdvEmbedding, lang),
+        accent,
+        |ui| {
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvEmbeddings, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvEmbeddingsHint, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.embeddings_enabled, "", accent);
+                });
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvPooling, lang));
+                let vals = ["", "none", "mean", "cls", "last", "rank"];
+                let labels = [
+                    i18n::t(i18n::Key::AdvNotSet, lang),
+                    vals[1],
+                    vals[2],
+                    vals[3],
+                    vals[4],
+                    vals[5],
+                ];
+                let mut idx = vals
+                    .iter()
+                    .position(|v| *v == settings.pooling)
+                    .unwrap_or(0);
+                widgets::segmented(ui, &labels, &mut idx, accent);
+                settings.pooling = vals[idx].to_string();
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvPoolingHint, lang));
+            });
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvRerank, lang));
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvRerankHint, lang));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    widgets::toggle(ui, &mut settings.rerank_enabled, "", accent);
+                });
             });
         },
     );

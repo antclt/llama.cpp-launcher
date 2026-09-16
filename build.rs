@@ -1,3 +1,42 @@
+/// 定位 MSVC 工具链中 rc.exe 所在目录（`<Windows Kits>/bin/<版本>/x64`）。
+///
+/// winres 默认通过 `reg query` 读注册表来定位 Windows SDK 安装路径；在无法访问
+/// 注册表的环境（受限沙箱、部分 CI）下会拿到空路径，导致资源编译失败、exe 丢失
+/// 图标与版本信息。这里先主动查找一次，命中即显式告知 winres；
+/// 未命中则返回 None，交由 winres 按原有逻辑自行处理（不影响正常环境）。
+fn find_msvc_rc_dir() -> Option<String> {
+    use std::path::{Path, PathBuf};
+
+    let mut candidates: Vec<PathBuf> = Vec::new();
+
+    // 1) 环境变量：WindowsSdkDir（通常带尾部分隔符）+ WindowsSDKVersion
+    if let Ok(root) = std::env::var("WindowsSdkDir") {
+        let ver = std::env::var("WindowsSDKVersion").unwrap_or_default();
+        let ver = ver.trim_end_matches(|c| c == '\\' || c == '/');
+        candidates.push(Path::new(&root).join("bin").join(ver).join("x64"));
+    }
+
+    // 2) 常见安装位置：按版本目录倒序，优先取较新的 SDK
+    for base in [
+        r"C:\Program Files (x86)\Windows Kits\10\bin",
+        r"C:\Program Files\Windows Kits\10\bin",
+    ] {
+        if let Ok(entries) = std::fs::read_dir(base) {
+            let mut dirs: Vec<PathBuf> = entries.flatten().map(|e| e.path()).collect();
+            dirs.sort();
+            dirs.reverse();
+            for d in dirs {
+                candidates.push(d.join("x64"));
+            }
+        }
+    }
+
+    candidates
+        .into_iter()
+        .find(|p| p.join("rc.exe").is_file())
+        .map(|p| p.to_string_lossy().to_string())
+}
+
 fn main() {
     // build.rs 运行在 host 上，不能用 #[cfg(windows)] 判断目标平台
     // 必须通过 CARGO_CFG_TARGET_OS 环境变量判断
@@ -5,6 +44,10 @@ fn main() {
 
     if target_os == "windows" {
         let mut res = winres::WindowsResource::new();
+        // 主动指定 rc.exe 目录，避免 winres 依赖注册表查询（受限环境下会失败）
+        if let Some(dir) = find_msvc_rc_dir() {
+            res.set_toolkit_path(&dir);
+        }
         res.set_icon("assets/llama.ico");
         res.set("ProductName", "llama.cpp launcher");
         res.set("FileDescription", "llama.cpp launcher - GUI Launcher");
@@ -15,7 +58,10 @@ fn main() {
         res.set_version_info(winres::VersionInfo::PRODUCTVERSION, 0x0000000100000000u64);
         res.set_version_info(winres::VersionInfo::FILEOS, 0x40004u64);
         res.set_version_info(winres::VersionInfo::FILETYPE, 0x2u64);
-        res.compile().unwrap();
+        // 兜底：资源编译失败也不中断构建（仅丢失图标与版本信息，不影响功能）
+        if let Err(e) = res.compile() {
+            println!("cargo:warning=winres 资源编译已跳过（缺图标/版本信息）: {e}");
+        }
     }
 
     // Linux: 将图标文件复制到 exe 同级目录

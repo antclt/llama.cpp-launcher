@@ -1522,10 +1522,10 @@ mod tests {
             },
             Asset {
                 // ggml-org 使用 tar.gz 格式
-                name: "llama-b1313-bin-ubuntu-rocm-10-x64.tar.gz".to_string(),
+                name: "llama-b1313-bin-ubuntu-rocm-10.0-x64.tar.gz".to_string(),
                 size: 1000,
                 browser_download_url:
-                    "https://example.com/llama-b1313-bin-ubuntu-rocm-10-x64.tar.gz".to_string(),
+                    "https://example.com/llama-b1313-bin-ubuntu-rocm-10.0-x64.tar.gz".to_string(),
             },
         ];
         // 测试 Linux ROCm Lemonade 变体（zip 格式）
@@ -1543,7 +1543,7 @@ mod tests {
         assert!(picked_rocm10.is_some());
         assert_eq!(
             picked_rocm10.unwrap().name,
-            "llama-b1313-bin-ubuntu-rocm-10-x64.tar.gz"
+            "llama-b1313-bin-ubuntu-rocm-10.0-x64.tar.gz"
         );
     }
 
