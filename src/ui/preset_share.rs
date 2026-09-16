@@ -124,6 +124,9 @@ pub struct ParamsExport {
     pub kv_offload: bool,
     pub cache_type_k: String,
     pub cache_type_v: String,
+    // --mlock / --no-mmap 已被 llama.cpp 弃用（由 --load-mode 取代），对应设置字段
+    // 已从 AppSettings/Preset 移除。此处保留是为了让分享码 JSON 结构保持稳定：
+    // 旧版本反序列化时这些字段没有 #[serde(default)]，缺失会导致导入失败。
     pub kv_mlock: bool,
     pub kv_mmap: bool,
     pub kv_unified: bool,
@@ -212,8 +215,8 @@ impl ParamsExport {
             kv_offload: s.kv_offload,
             cache_type_k: s.cache_type_k.clone(),
             cache_type_v: s.cache_type_v.clone(),
-            kv_mlock: s.kv_mlock,
-            kv_mmap: s.kv_mmap,
+            kv_mlock: false,
+            kv_mmap: true,
             kv_unified: s.kv_unified,
             swa_full: s.swa_full,
             gpu_layers_mode: s.gpu_layers_mode,
@@ -279,8 +282,6 @@ impl ParamsExport {
         s.kv_offload = self.kv_offload;
         s.cache_type_k = self.cache_type_k;
         s.cache_type_v = self.cache_type_v;
-        s.kv_mlock = self.kv_mlock;
-        s.kv_mmap = self.kv_mmap;
         s.kv_unified = self.kv_unified;
         s.swa_full = self.swa_full;
         s.gpu_layers_mode = self.gpu_layers_mode;
@@ -348,8 +349,8 @@ impl ParamsExport {
             kv_offload: p.kv_offload,
             cache_type_k: p.cache_type_k.clone(),
             cache_type_v: p.cache_type_v.clone(),
-            kv_mlock: p.kv_mlock,
-            kv_mmap: p.kv_mmap,
+            kv_mlock: false,
+            kv_mmap: true,
             kv_unified: p.kv_unified,
             swa_full: p.swa_full,
             gpu_layers_mode: p.gpu_layers_mode,
@@ -418,8 +419,6 @@ impl ParamsExport {
         p.kv_offload = self.kv_offload;
         p.cache_type_k = self.cache_type_k;
         p.cache_type_v = self.cache_type_v;
-        p.kv_mlock = self.kv_mlock;
-        p.kv_mmap = self.kv_mmap;
         p.kv_unified = self.kv_unified;
         p.swa_full = self.swa_full;
         p.gpu_layers_mode = self.gpu_layers_mode;

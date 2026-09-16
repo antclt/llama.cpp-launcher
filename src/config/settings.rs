@@ -230,6 +230,162 @@ fn default_numa() -> String {
     "".to_string() // --numa（空 = 不拼接）
 }
 
+fn default_cache_ram_enabled() -> bool {
+    false // --cache-ram 启用开关 (prompt cache 内存上限)
+}
+
+fn default_cache_ram() -> usize {
+    32768 // --cache-ram N (MiB, -1 不限, 0 禁用)
+}
+
+fn default_no_host() -> bool {
+    false // --no-host (绕过 host buffer 以使用额外缓冲区)
+}
+
+fn default_rope_scaling() -> String {
+    String::new() // --rope-scaling {none,linear,yarn} (空不拼接)
+}
+
+fn default_rope_scale() -> f32 {
+    1.0 // --rope-scale N (上下文扩展倍数)
+}
+
+fn default_rope_freq_base() -> f32 {
+    0.0 // --rope-freq-base N (0 不拼接)
+}
+
+fn default_rope_freq_scale() -> f32 {
+    0.0 // --rope-freq-scale N (0 不拼接)
+}
+
+fn default_yarn_orig_ctx() -> usize {
+    0 // --yarn-orig-ctx N (0 不拼接)
+}
+
+fn default_yarn_ext_factor() -> f32 {
+    -1.0 // --yarn-ext-factor N (-1 不拼接)
+}
+
+fn default_yarn_attn_factor() -> f32 {
+    -1.0 // --yarn-attn-factor N (-1 不拼接)
+}
+
+fn default_yarn_beta_slow() -> f32 {
+    -1.0 // --yarn-beta-slow N (-1 不拼接)
+}
+
+fn default_yarn_beta_fast() -> f32 {
+    -1.0 // --yarn-beta-fast N (-1 不拼接)
+}
+
+fn default_frequency_penalty() -> f32 {
+    0.0 // --frequency-penalty N (0 不拼接)
+}
+
+fn default_repeat_last_n() -> i64 {
+    -1 // --repeat-last-n N (-1 不拼接)
+}
+
+fn default_dry_multiplier() -> f32 {
+    0.0 // --dry-multiplier N (0 不拼接 = 禁用)
+}
+
+fn default_dry_base() -> f32 {
+    1.75 // --dry-base N
+}
+
+fn default_dry_allowed_length() -> i64 {
+    2 // --dry-allowed-length N
+}
+
+fn default_dry_penalty_last_n() -> i64 {
+    64 // --dry-penalty-last-n N
+}
+
+fn default_dry_sequence_breaker() -> String {
+    String::new() // --dry-sequence-breaker STRING (空不拼接)
+}
+
+fn default_logit_bias() -> String {
+    String::new() // --logit-bias (如 EOS-inf, 空不拼接)
+}
+
+fn default_lora_path() -> String {
+    String::new() // --lora FNAME (逗号分隔多个, 空不拼接)
+}
+
+fn default_lora_scaled() -> String {
+    String::new() // --lora-scaled FNAME:SCALE,... (空不拼接)
+}
+
+fn default_control_vector() -> String {
+    String::new() // --control-vector FNAME (空不拼接)
+}
+
+fn default_slot_save_path() -> String {
+    String::new() // --slot-save-path PATH (空不拼接)
+}
+
+fn default_sleep_idle_seconds() -> i64 {
+    -1 // --sleep-idle-seconds N (-1 不拼接)
+}
+
+fn default_threads_http() -> i64 {
+    -1 // --threads-http N (-1 不拼接)
+}
+
+fn default_metrics_enabled() -> bool {
+    false // --metrics (Prometheus 指标端点)
+}
+
+fn default_api_key_file() -> String {
+    String::new() // --api-key-file FNAME (空不拼接)
+}
+
+fn default_direct_io() -> bool {
+    false // --direct-io / --no-direct-io
+}
+
+fn default_check_tensors() -> bool {
+    false // --check-tensors (加载时校验张量)
+}
+
+fn default_override_kv() -> String {
+    String::new() // --override-kv KEY=TYPE:VALUE,... (空不拼接)
+}
+
+fn default_prio() -> i64 {
+    0 // --prio N (0 不拼接)
+}
+
+fn default_warmup_enabled() -> bool {
+    true // --warmup / --no-warmup (关闭时发 --no-warmup)
+}
+
+fn default_cont_batching() -> bool {
+    true // --cont-batching / --no-cont-batching (关闭时发 --no-)
+}
+
+fn default_grammar_file() -> String {
+    String::new() // --grammar-file FNAME (空不拼接)
+}
+
+fn default_json_schema_file() -> String {
+    String::new() // --json-schema-file FILE (空不拼接)
+}
+
+fn default_embeddings_enabled() -> bool {
+    false // --embeddings (嵌入模式)
+}
+
+fn default_pooling() -> String {
+    String::new() // --pooling {none,mean,cls,last,rank} (空不拼接)
+}
+
+fn default_rerank_enabled() -> bool {
+    false // --rerank / --reranking (重排模式)
+}
+
 fn default_web_ui_enabled() -> bool {
     true
 }
@@ -631,6 +787,84 @@ pub struct Preset {
     pub reuse_port: bool, // --reuse-port
     #[serde(default = "default_numa")]
     pub numa: String, // --numa (空不拼接)
+    #[serde(default = "default_cache_ram_enabled")]
+    pub cache_ram_enabled: bool, // --cache-ram 启用开关 (prompt cache 内存上限)
+    #[serde(default = "default_cache_ram")]
+    pub cache_ram: usize, // --cache-ram N (MiB, -1 不限, 0 禁用)
+    #[serde(default = "default_no_host")]
+    pub no_host: bool, // --no-host (绕过 host buffer 以使用额外缓冲区)
+    #[serde(default = "default_rope_scaling")]
+    pub rope_scaling: String, // --rope-scaling {none,linear,yarn} (空不拼接)
+    #[serde(default = "default_rope_scale")]
+    pub rope_scale: f32, // --rope-scale N (上下文扩展倍数)
+    #[serde(default = "default_rope_freq_base")]
+    pub rope_freq_base: f32, // --rope-freq-base N (0 不拼接)
+    #[serde(default = "default_rope_freq_scale")]
+    pub rope_freq_scale: f32, // --rope-freq-scale N (0 不拼接)
+    #[serde(default = "default_yarn_orig_ctx")]
+    pub yarn_orig_ctx: usize, // --yarn-orig-ctx N (0 不拼接)
+    #[serde(default = "default_yarn_ext_factor")]
+    pub yarn_ext_factor: f32, // --yarn-ext-factor N (-1 不拼接)
+    #[serde(default = "default_yarn_attn_factor")]
+    pub yarn_attn_factor: f32, // --yarn-attn-factor N (-1 不拼接)
+    #[serde(default = "default_yarn_beta_slow")]
+    pub yarn_beta_slow: f32, // --yarn-beta-slow N (-1 不拼接)
+    #[serde(default = "default_yarn_beta_fast")]
+    pub yarn_beta_fast: f32, // --yarn-beta-fast N (-1 不拼接)
+    #[serde(default = "default_frequency_penalty")]
+    pub frequency_penalty: f32, // --frequency-penalty N (0 不拼接)
+    #[serde(default = "default_repeat_last_n")]
+    pub repeat_last_n: i64, // --repeat-last-n N (-1 不拼接)
+    #[serde(default = "default_dry_multiplier")]
+    pub dry_multiplier: f32, // --dry-multiplier N (0 不拼接 = 禁用)
+    #[serde(default = "default_dry_base")]
+    pub dry_base: f32, // --dry-base N
+    #[serde(default = "default_dry_allowed_length")]
+    pub dry_allowed_length: i64, // --dry-allowed-length N
+    #[serde(default = "default_dry_penalty_last_n")]
+    pub dry_penalty_last_n: i64, // --dry-penalty-last-n N
+    #[serde(default = "default_dry_sequence_breaker")]
+    pub dry_sequence_breaker: String, // --dry-sequence-breaker STRING (空不拼接)
+    #[serde(default = "default_logit_bias")]
+    pub logit_bias: String, // --logit-bias (如 EOS-inf, 空不拼接)
+    #[serde(default = "default_lora_path")]
+    pub lora_path: String, // --lora FNAME (逗号分隔多个, 空不拼接)
+    #[serde(default = "default_lora_scaled")]
+    pub lora_scaled: String, // --lora-scaled FNAME:SCALE,... (空不拼接)
+    #[serde(default = "default_control_vector")]
+    pub control_vector: String, // --control-vector FNAME (空不拼接)
+    #[serde(default = "default_slot_save_path")]
+    pub slot_save_path: String, // --slot-save-path PATH (空不拼接)
+    #[serde(default = "default_sleep_idle_seconds")]
+    pub sleep_idle_seconds: i64, // --sleep-idle-seconds N (-1 不拼接)
+    #[serde(default = "default_threads_http")]
+    pub threads_http: i64, // --threads-http N (-1 不拼接)
+    #[serde(default = "default_metrics_enabled")]
+    pub metrics_enabled: bool, // --metrics (Prometheus 指标端点)
+    #[serde(default = "default_api_key_file")]
+    pub api_key_file: String, // --api-key-file FNAME (空不拼接)
+    #[serde(default = "default_direct_io")]
+    pub direct_io: bool, // --direct-io / --no-direct-io
+    #[serde(default = "default_check_tensors")]
+    pub check_tensors: bool, // --check-tensors (加载时校验张量)
+    #[serde(default = "default_override_kv")]
+    pub override_kv: String, // --override-kv KEY=TYPE:VALUE,... (空不拼接)
+    #[serde(default = "default_prio")]
+    pub prio: i64, // --prio N (0 不拼接)
+    #[serde(default = "default_warmup_enabled")]
+    pub warmup_enabled: bool, // --warmup / --no-warmup (关闭时发 --no-warmup)
+    #[serde(default = "default_cont_batching")]
+    pub cont_batching: bool, // --cont-batching / --no-cont-batching (关闭时发 --no-)
+    #[serde(default = "default_grammar_file")]
+    pub grammar_file: String, // --grammar-file FNAME (空不拼接)
+    #[serde(default = "default_json_schema_file")]
+    pub json_schema_file: String, // --json-schema-file FILE (空不拼接)
+    #[serde(default = "default_embeddings_enabled")]
+    pub embeddings_enabled: bool, // --embeddings (嵌入模式)
+    #[serde(default = "default_pooling")]
+    pub pooling: String, // --pooling {none,mean,cls,last,rank} (空不拼接)
+    #[serde(default = "default_rerank_enabled")]
+    pub rerank_enabled: bool, // --rerank / --reranking (重排模式)
 
     // 推测解码（Speculative Decoding）配置
     #[serde(default = "default_spec_type")]
@@ -679,8 +913,6 @@ pub struct Preset {
     pub kv_offload: bool,
     pub cache_type_k: String,
     pub cache_type_v: String,
-    pub kv_mlock: bool,   // --mlock
-    pub kv_mmap: bool,    // --mmap / --no-mmap
     pub kv_unified: bool, // --kv-unified
     #[serde(default)]
     pub swa_full: bool, // --swa-full
@@ -864,6 +1096,45 @@ impl Default for Preset {
             ssl_key_file: PathBuf::new(),
             reuse_port: false,
             numa: default_numa(),
+            cache_ram_enabled: default_cache_ram_enabled(),
+            cache_ram: default_cache_ram(),
+            no_host: default_no_host(),
+            rope_scaling: default_rope_scaling(),
+            rope_scale: default_rope_scale(),
+            rope_freq_base: default_rope_freq_base(),
+            rope_freq_scale: default_rope_freq_scale(),
+            yarn_orig_ctx: default_yarn_orig_ctx(),
+            yarn_ext_factor: default_yarn_ext_factor(),
+            yarn_attn_factor: default_yarn_attn_factor(),
+            yarn_beta_slow: default_yarn_beta_slow(),
+            yarn_beta_fast: default_yarn_beta_fast(),
+            frequency_penalty: default_frequency_penalty(),
+            repeat_last_n: default_repeat_last_n(),
+            dry_multiplier: default_dry_multiplier(),
+            dry_base: default_dry_base(),
+            dry_allowed_length: default_dry_allowed_length(),
+            dry_penalty_last_n: default_dry_penalty_last_n(),
+            dry_sequence_breaker: default_dry_sequence_breaker(),
+            logit_bias: default_logit_bias(),
+            lora_path: default_lora_path(),
+            lora_scaled: default_lora_scaled(),
+            control_vector: default_control_vector(),
+            slot_save_path: default_slot_save_path(),
+            sleep_idle_seconds: default_sleep_idle_seconds(),
+            threads_http: default_threads_http(),
+            metrics_enabled: default_metrics_enabled(),
+            api_key_file: default_api_key_file(),
+            direct_io: default_direct_io(),
+            check_tensors: default_check_tensors(),
+            override_kv: default_override_kv(),
+            prio: default_prio(),
+            warmup_enabled: default_warmup_enabled(),
+            cont_batching: default_cont_batching(),
+            grammar_file: default_grammar_file(),
+            json_schema_file: default_json_schema_file(),
+            embeddings_enabled: default_embeddings_enabled(),
+            pooling: default_pooling(),
+            rerank_enabled: default_rerank_enabled(),
             spec_type: default_spec_type(),
             spec_draft_n_max: default_spec_draft_n_max(),
             enable_spec_draft_n_max: false,
@@ -886,8 +1157,6 @@ impl Default for Preset {
             kv_offload: true,
             cache_type_k: "q8_0".to_string(),
             cache_type_v: "q8_0".to_string(),
-            kv_mlock: false,
-            kv_mmap: true,
             kv_unified: true,
             swa_full: false,
             kv_cache_ratio: default_kv_cache_ratio(),
@@ -1010,6 +1279,45 @@ impl Preset {
             ssl_key_file: settings.ssl_key_file.clone(),
             reuse_port: settings.reuse_port,
             numa: settings.numa.clone(),
+            cache_ram_enabled: settings.cache_ram_enabled,
+            cache_ram: settings.cache_ram,
+            no_host: settings.no_host,
+            rope_scaling: settings.rope_scaling.clone(),
+            rope_scale: settings.rope_scale,
+            rope_freq_base: settings.rope_freq_base,
+            rope_freq_scale: settings.rope_freq_scale,
+            yarn_orig_ctx: settings.yarn_orig_ctx,
+            yarn_ext_factor: settings.yarn_ext_factor,
+            yarn_attn_factor: settings.yarn_attn_factor,
+            yarn_beta_slow: settings.yarn_beta_slow,
+            yarn_beta_fast: settings.yarn_beta_fast,
+            frequency_penalty: settings.frequency_penalty,
+            repeat_last_n: settings.repeat_last_n,
+            dry_multiplier: settings.dry_multiplier,
+            dry_base: settings.dry_base,
+            dry_allowed_length: settings.dry_allowed_length,
+            dry_penalty_last_n: settings.dry_penalty_last_n,
+            dry_sequence_breaker: settings.dry_sequence_breaker.clone(),
+            logit_bias: settings.logit_bias.clone(),
+            lora_path: settings.lora_path.clone(),
+            lora_scaled: settings.lora_scaled.clone(),
+            control_vector: settings.control_vector.clone(),
+            slot_save_path: settings.slot_save_path.clone(),
+            sleep_idle_seconds: settings.sleep_idle_seconds,
+            threads_http: settings.threads_http,
+            metrics_enabled: settings.metrics_enabled,
+            api_key_file: settings.api_key_file.clone(),
+            direct_io: settings.direct_io,
+            check_tensors: settings.check_tensors,
+            override_kv: settings.override_kv.clone(),
+            prio: settings.prio,
+            warmup_enabled: settings.warmup_enabled,
+            cont_batching: settings.cont_batching,
+            grammar_file: settings.grammar_file.clone(),
+            json_schema_file: settings.json_schema_file.clone(),
+            embeddings_enabled: settings.embeddings_enabled,
+            pooling: settings.pooling.clone(),
+            rerank_enabled: settings.rerank_enabled,
             spec_type: settings.spec_type.clone(),
             spec_draft_n_max: settings.spec_draft_n_max,
             enable_spec_draft_n_max: settings.enable_spec_draft_n_max,
@@ -1032,8 +1340,6 @@ impl Preset {
             kv_offload: settings.kv_offload,
             cache_type_k: settings.cache_type_k.clone(),
             cache_type_v: settings.cache_type_v.clone(),
-            kv_mlock: settings.kv_mlock,
-            kv_mmap: settings.kv_mmap,
             kv_unified: settings.kv_unified,
             swa_full: settings.swa_full,
             kv_cache_ratio: settings.kv_cache_ratio,
@@ -1157,6 +1463,45 @@ impl Preset {
         settings.ssl_key_file = self.ssl_key_file;
         settings.reuse_port = self.reuse_port;
         settings.numa = self.numa;
+        settings.cache_ram_enabled = self.cache_ram_enabled;
+        settings.cache_ram = self.cache_ram;
+        settings.no_host = self.no_host;
+        settings.rope_scaling = self.rope_scaling;
+        settings.rope_scale = self.rope_scale;
+        settings.rope_freq_base = self.rope_freq_base;
+        settings.rope_freq_scale = self.rope_freq_scale;
+        settings.yarn_orig_ctx = self.yarn_orig_ctx;
+        settings.yarn_ext_factor = self.yarn_ext_factor;
+        settings.yarn_attn_factor = self.yarn_attn_factor;
+        settings.yarn_beta_slow = self.yarn_beta_slow;
+        settings.yarn_beta_fast = self.yarn_beta_fast;
+        settings.frequency_penalty = self.frequency_penalty;
+        settings.repeat_last_n = self.repeat_last_n;
+        settings.dry_multiplier = self.dry_multiplier;
+        settings.dry_base = self.dry_base;
+        settings.dry_allowed_length = self.dry_allowed_length;
+        settings.dry_penalty_last_n = self.dry_penalty_last_n;
+        settings.dry_sequence_breaker = self.dry_sequence_breaker;
+        settings.logit_bias = self.logit_bias;
+        settings.lora_path = self.lora_path;
+        settings.lora_scaled = self.lora_scaled;
+        settings.control_vector = self.control_vector;
+        settings.slot_save_path = self.slot_save_path;
+        settings.sleep_idle_seconds = self.sleep_idle_seconds;
+        settings.threads_http = self.threads_http;
+        settings.metrics_enabled = self.metrics_enabled;
+        settings.api_key_file = self.api_key_file;
+        settings.direct_io = self.direct_io;
+        settings.check_tensors = self.check_tensors;
+        settings.override_kv = self.override_kv;
+        settings.prio = self.prio;
+        settings.warmup_enabled = self.warmup_enabled;
+        settings.cont_batching = self.cont_batching;
+        settings.grammar_file = self.grammar_file;
+        settings.json_schema_file = self.json_schema_file;
+        settings.embeddings_enabled = self.embeddings_enabled;
+        settings.pooling = self.pooling;
+        settings.rerank_enabled = self.rerank_enabled;
         // 推测解码（Speculative Decoding）配置
         settings.spec_type = self.spec_type;
         settings.spec_draft_n_max = self.spec_draft_n_max;
@@ -1180,8 +1525,6 @@ impl Preset {
         settings.kv_offload = self.kv_offload;
         settings.cache_type_k = self.cache_type_k;
         settings.cache_type_v = self.cache_type_v;
-        settings.kv_mlock = self.kv_mlock;
-        settings.kv_mmap = self.kv_mmap;
         settings.kv_unified = self.kv_unified;
         settings.swa_full = self.swa_full;
         settings.kv_cache_ratio = self.kv_cache_ratio;
@@ -1452,6 +1795,84 @@ pub struct AppSettings {
     pub reuse_port: bool, // --reuse-port
     #[serde(default = "default_numa")]
     pub numa: String, // --numa (空不拼接)
+    #[serde(default = "default_cache_ram_enabled")]
+    pub cache_ram_enabled: bool, // --cache-ram 启用开关 (prompt cache 内存上限)
+    #[serde(default = "default_cache_ram")]
+    pub cache_ram: usize, // --cache-ram N (MiB, -1 不限, 0 禁用)
+    #[serde(default = "default_no_host")]
+    pub no_host: bool, // --no-host (绕过 host buffer 以使用额外缓冲区)
+    #[serde(default = "default_rope_scaling")]
+    pub rope_scaling: String, // --rope-scaling {none,linear,yarn} (空不拼接)
+    #[serde(default = "default_rope_scale")]
+    pub rope_scale: f32, // --rope-scale N (上下文扩展倍数)
+    #[serde(default = "default_rope_freq_base")]
+    pub rope_freq_base: f32, // --rope-freq-base N (0 不拼接)
+    #[serde(default = "default_rope_freq_scale")]
+    pub rope_freq_scale: f32, // --rope-freq-scale N (0 不拼接)
+    #[serde(default = "default_yarn_orig_ctx")]
+    pub yarn_orig_ctx: usize, // --yarn-orig-ctx N (0 不拼接)
+    #[serde(default = "default_yarn_ext_factor")]
+    pub yarn_ext_factor: f32, // --yarn-ext-factor N (-1 不拼接)
+    #[serde(default = "default_yarn_attn_factor")]
+    pub yarn_attn_factor: f32, // --yarn-attn-factor N (-1 不拼接)
+    #[serde(default = "default_yarn_beta_slow")]
+    pub yarn_beta_slow: f32, // --yarn-beta-slow N (-1 不拼接)
+    #[serde(default = "default_yarn_beta_fast")]
+    pub yarn_beta_fast: f32, // --yarn-beta-fast N (-1 不拼接)
+    #[serde(default = "default_frequency_penalty")]
+    pub frequency_penalty: f32, // --frequency-penalty N (0 不拼接)
+    #[serde(default = "default_repeat_last_n")]
+    pub repeat_last_n: i64, // --repeat-last-n N (-1 不拼接)
+    #[serde(default = "default_dry_multiplier")]
+    pub dry_multiplier: f32, // --dry-multiplier N (0 不拼接 = 禁用)
+    #[serde(default = "default_dry_base")]
+    pub dry_base: f32, // --dry-base N
+    #[serde(default = "default_dry_allowed_length")]
+    pub dry_allowed_length: i64, // --dry-allowed-length N
+    #[serde(default = "default_dry_penalty_last_n")]
+    pub dry_penalty_last_n: i64, // --dry-penalty-last-n N
+    #[serde(default = "default_dry_sequence_breaker")]
+    pub dry_sequence_breaker: String, // --dry-sequence-breaker STRING (空不拼接)
+    #[serde(default = "default_logit_bias")]
+    pub logit_bias: String, // --logit-bias (如 EOS-inf, 空不拼接)
+    #[serde(default = "default_lora_path")]
+    pub lora_path: String, // --lora FNAME (逗号分隔多个, 空不拼接)
+    #[serde(default = "default_lora_scaled")]
+    pub lora_scaled: String, // --lora-scaled FNAME:SCALE,... (空不拼接)
+    #[serde(default = "default_control_vector")]
+    pub control_vector: String, // --control-vector FNAME (空不拼接)
+    #[serde(default = "default_slot_save_path")]
+    pub slot_save_path: String, // --slot-save-path PATH (空不拼接)
+    #[serde(default = "default_sleep_idle_seconds")]
+    pub sleep_idle_seconds: i64, // --sleep-idle-seconds N (-1 不拼接)
+    #[serde(default = "default_threads_http")]
+    pub threads_http: i64, // --threads-http N (-1 不拼接)
+    #[serde(default = "default_metrics_enabled")]
+    pub metrics_enabled: bool, // --metrics (Prometheus 指标端点)
+    #[serde(default = "default_api_key_file")]
+    pub api_key_file: String, // --api-key-file FNAME (空不拼接)
+    #[serde(default = "default_direct_io")]
+    pub direct_io: bool, // --direct-io / --no-direct-io
+    #[serde(default = "default_check_tensors")]
+    pub check_tensors: bool, // --check-tensors (加载时校验张量)
+    #[serde(default = "default_override_kv")]
+    pub override_kv: String, // --override-kv KEY=TYPE:VALUE,... (空不拼接)
+    #[serde(default = "default_prio")]
+    pub prio: i64, // --prio N (0 不拼接)
+    #[serde(default = "default_warmup_enabled")]
+    pub warmup_enabled: bool, // --warmup / --no-warmup (关闭时发 --no-warmup)
+    #[serde(default = "default_cont_batching")]
+    pub cont_batching: bool, // --cont-batching / --no-cont-batching (关闭时发 --no-)
+    #[serde(default = "default_grammar_file")]
+    pub grammar_file: String, // --grammar-file FNAME (空不拼接)
+    #[serde(default = "default_json_schema_file")]
+    pub json_schema_file: String, // --json-schema-file FILE (空不拼接)
+    #[serde(default = "default_embeddings_enabled")]
+    pub embeddings_enabled: bool, // --embeddings (嵌入模式)
+    #[serde(default = "default_pooling")]
+    pub pooling: String, // --pooling {none,mean,cls,last,rank} (空不拼接)
+    #[serde(default = "default_rerank_enabled")]
+    pub rerank_enabled: bool, // --rerank / --reranking (重排模式)
 
     // 推测解码（Speculative Decoding）配置
     #[serde(default = "default_spec_type")]
@@ -1500,8 +1921,6 @@ pub struct AppSettings {
     pub kv_offload: bool,
     pub cache_type_k: String,
     pub cache_type_v: String,
-    pub kv_mlock: bool,   // --mlock
-    pub kv_mmap: bool,    // --mmap / --no-mmap
     pub kv_unified: bool, // --kv-unified
     #[serde(default)]
     pub swa_full: bool, // --swa-full
@@ -1805,6 +2224,45 @@ impl Default for AppSettings {
             ssl_key_file: PathBuf::new(),
             reuse_port: false,
             numa: default_numa(),
+            cache_ram_enabled: default_cache_ram_enabled(),
+            cache_ram: default_cache_ram(),
+            no_host: default_no_host(),
+            rope_scaling: default_rope_scaling(),
+            rope_scale: default_rope_scale(),
+            rope_freq_base: default_rope_freq_base(),
+            rope_freq_scale: default_rope_freq_scale(),
+            yarn_orig_ctx: default_yarn_orig_ctx(),
+            yarn_ext_factor: default_yarn_ext_factor(),
+            yarn_attn_factor: default_yarn_attn_factor(),
+            yarn_beta_slow: default_yarn_beta_slow(),
+            yarn_beta_fast: default_yarn_beta_fast(),
+            frequency_penalty: default_frequency_penalty(),
+            repeat_last_n: default_repeat_last_n(),
+            dry_multiplier: default_dry_multiplier(),
+            dry_base: default_dry_base(),
+            dry_allowed_length: default_dry_allowed_length(),
+            dry_penalty_last_n: default_dry_penalty_last_n(),
+            dry_sequence_breaker: default_dry_sequence_breaker(),
+            logit_bias: default_logit_bias(),
+            lora_path: default_lora_path(),
+            lora_scaled: default_lora_scaled(),
+            control_vector: default_control_vector(),
+            slot_save_path: default_slot_save_path(),
+            sleep_idle_seconds: default_sleep_idle_seconds(),
+            threads_http: default_threads_http(),
+            metrics_enabled: default_metrics_enabled(),
+            api_key_file: default_api_key_file(),
+            direct_io: default_direct_io(),
+            check_tensors: default_check_tensors(),
+            override_kv: default_override_kv(),
+            prio: default_prio(),
+            warmup_enabled: default_warmup_enabled(),
+            cont_batching: default_cont_batching(),
+            grammar_file: default_grammar_file(),
+            json_schema_file: default_json_schema_file(),
+            embeddings_enabled: default_embeddings_enabled(),
+            pooling: default_pooling(),
+            rerank_enabled: default_rerank_enabled(),
             spec_type: default_spec_type(),
             spec_draft_n_max: default_spec_draft_n_max(),
             enable_spec_draft_n_max: false,
@@ -1827,8 +2285,6 @@ impl Default for AppSettings {
             kv_offload: true,
             cache_type_k: "q8_0".to_string(),
             cache_type_v: "q8_0".to_string(),
-            kv_mlock: false,
-            kv_mmap: true,
             kv_unified: true,
             swa_full: false,
             kv_cache_ratio: default_kv_cache_ratio(),
