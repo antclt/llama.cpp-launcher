@@ -349,7 +349,7 @@ pub fn ui(
                 ui.add_space(8.0);
                 ui.separator();
                 ui.add_space(4.0);
-                ui.horizontal_wrapped(|ui| {
+                ui.horizontal(|ui| {
                     // 生成服务文件按钮
                     if ui
                         .add(widgets::rounded_button(
@@ -367,6 +367,13 @@ pub fn ui(
                             Err(e) => log::warn!("[system-service] 创建服务失败: {}", e),
                         }
                     }
+
+                    // 右侧显示服务文件路径
+                    ui.label(
+                        egui::RichText::new("/etc/systemd/system/llama-server.service")
+                            .color(egui::Color32::GRAY)
+                            .small(),
+                    );
                 });
             } else {
                 // 非 Linux 平台：显示不可用提示
@@ -627,7 +634,7 @@ fn run_systemctl(action: &str) -> Result<String, String> {
     }
 }
 
-/// 生成服务文件并安装
+/// 生成服务文件并复制到 systemd 目录
 fn create_service_file(content: &str) -> Result<String, String> {
     // 写入临时文件
     let temp_path = "/tmp/llama-server.service";
@@ -643,25 +650,5 @@ fn create_service_file(content: &str) -> Result<String, String> {
         return Err("复制文件失败".to_string());
     }
 
-    // 重新加载 systemd
-    let output = std::process::Command::new("pkexec")
-        .args(["systemctl", "daemon-reload"])
-        .output()
-        .map_err(|e| format!("重新加载失败: {}", e))?;
-
-    if !output.status.success() {
-        return Err("重新加载 systemd 失败".to_string());
-    }
-
-    // 启用服务
-    let output = std::process::Command::new("pkexec")
-        .args(["systemctl", "enable", "llama-server.service"])
-        .output()
-        .map_err(|e| format!("启用服务失败: {}", e))?;
-
-    if !output.status.success() {
-        return Err("启用服务失败".to_string());
-    }
-
-    Ok("服务已创建并启用".to_string())
+    Ok("/etc/systemd/system/llama-server.service".to_string())
 }
