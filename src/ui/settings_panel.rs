@@ -177,8 +177,10 @@ pub fn ui(
                 // 服务状态显示
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
+                    // ★ 不用 .strong()（浅色模式下 strong_text_color=白色→隐形），改用显式主文本色
                 ui.label(
                     RichText::new(i18n::t(i18n::Key::SystemServiceStatus, lang))
+                        .color(ui.visuals().text_color())
                         .strong(),
                 );
                     let status = check_service_status();
@@ -260,8 +262,10 @@ pub fn ui(
                 ui.add_space(8.0);
                 ui.separator();
                 ui.add_space(4.0);
+                // ★ 不用 .strong()（浅色模式下 strong_text_color=白色→隐形），改用显式主文本色
                 ui.label(
                     RichText::new(i18n::t(i18n::Key::SystemServiceSelectPreset, lang))
+                        .color(ui.visuals().text_color())
                         .strong(),
                 );
 
