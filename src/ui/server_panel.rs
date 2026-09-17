@@ -620,6 +620,12 @@ pub fn ui(
                 ui.text_edit_singleline(&mut settings.api_prefix);
                 helper::help_button_inline(ui, i18n::t(i18n::Key::HelpApiPrefix, lang));
             });
+            // API Key File
+            ui.horizontal(|ui| {
+                ui.label(i18n::t(i18n::Key::AdvApiKeyFile, lang));
+                ui.text_edit_singleline(&mut settings.api_key_file);
+                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvApiKeyFileHint, lang));
+            });
             // CORS Origins
             ui.horizontal(|ui| {
                 ui.label(i18n::t(i18n::Key::LabelCorsOrigins, lang));

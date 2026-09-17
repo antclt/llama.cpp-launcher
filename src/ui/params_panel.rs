@@ -1782,11 +1782,6 @@ pub fn ui(ui: &mut egui::Ui, settings: &mut AppSettings, lang: &i18n::Language) 
                     widgets::toggle(ui, &mut settings.metrics_enabled, "", accent);
                 });
             });
-            ui.horizontal(|ui| {
-                ui.label(i18n::t(i18n::Key::AdvApiKeyFile, lang));
-                ui.text_edit_singleline(&mut settings.api_key_file);
-                helper::help_button_inline(ui, i18n::t(i18n::Key::AdvApiKeyFileHint, lang));
-            });
         },
     );
 
