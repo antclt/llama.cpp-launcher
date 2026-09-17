@@ -87,6 +87,7 @@ pub enum Key {
     SystemServiceCreated,
     SystemServiceError,
     SystemServiceRefresh,
+    SystemServiceNotFound,
     SystemServiceViewDetails,
     SystemServiceDetailsServiceWindowTitle,
 
@@ -934,6 +935,8 @@ impl Key {
             (Key::SystemServiceError, &Language::En) => "Operation Failed",
             (Key::SystemServiceRefresh, &Language::Zh) => "刷新状态",
             (Key::SystemServiceRefresh, &Language::En) => "Refresh Status",
+            (Key::SystemServiceNotFound, &Language::Zh) => "服务未安装，请先生成服务文件",
+            (Key::SystemServiceNotFound, &Language::En) => "Service not installed, please generate service file first",
             (Key::SystemServiceViewDetails, &Language::Zh) => "查看服务详情",
             (Key::SystemServiceViewDetails, &Language::En) => "View Service Details",
             (Key::SystemServiceDetailsServiceWindowTitle, &Language::Zh) => "服务详情",

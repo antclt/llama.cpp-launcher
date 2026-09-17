@@ -203,6 +203,7 @@ pub fn ui(
 
                 // 服务控制按钮
                 ui.add_space(8.0);
+                let service_exists = check_service_exists();
                 ui.horizontal_wrapped(|ui| {
                     let status = check_service_status();
 
@@ -271,6 +272,16 @@ pub fn ui(
                         settings.show_system_service_details = true;
                     }
                 });
+
+                // 服务不存在时的提示
+                if !service_exists {
+                    ui.add_space(4.0);
+                    ui.label(
+                        RichText::new(i18n::t(i18n::Key::SystemServiceNotFound, lang))
+                            .color(egui::Color32::GRAY)
+                            .italics(),
+                    );
+                }
 
                 // 预设选择和应用
                 ui.add_space(8.0);
@@ -667,6 +678,20 @@ fn check_service_status() -> String {
             }
         }
         Err(_) => "unknown".to_string(),
+    }
+}
+
+/// 检查服务是否存在
+fn check_service_exists() -> bool {
+    let output = std::process::Command::new("systemctl")
+        .args(["list-unit-files", "llama-server.service"])
+        .output();
+    match output {
+        Ok(o) => {
+            let stdout = String::from_utf8_lossy(&o.stdout);
+            stdout.contains("llama-server.service")
+        }
+        Err(_) => false,
     }
 }
 
