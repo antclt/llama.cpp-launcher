@@ -14,6 +14,7 @@ pub fn ui(
     settings: &mut AppSettings,
     settings_manager: &SettingsManager,
     lang: &i18n::Language,
+    server_manager: &crate::engine::server::ServerManager,
     show_about: &mut bool,
     debug_mode: &mut bool,
     updater: &crate::updater::UpdaterHandle,
@@ -160,6 +161,87 @@ pub fn ui(
             });
         },
     );
+
+    // ── 系统服务 ──
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SettingsSystemService, lang),
+        accent,
+        |ui| {
+            ui.label(i18n::t(i18n::Key::SystemServiceDescription, lang));
+
+            if true {
+                // cfg!(target_os = "linux") - 暂时注释掉用于开发调试
+                // Linux 平台：显示生成按钮
+                if ui
+                    .add(widgets::rounded_button(
+                        i18n::t(i18n::Key::SystemServiceGenerate, lang),
+                        None,
+                    ))
+                    .clicked()
+                {
+                    // 生成 systemd 服务文件
+                    let template = i18n::t(i18n::Key::LinuxServiceFileContent, lang);
+                    let cmd = server_manager.build_launch_command(settings);
+                    let content = build_systemd_service_file(&template, &cmd);
+
+                    let mut content = content;
+                    ui.add_space(8.0);
+                    egui::ScrollArea::vertical()
+                        .max_height(300.0)
+                        .show(ui, |ui| {
+                            ui.add(
+                                egui::TextEdit::multiline(&mut content)
+                                    .font(egui::TextStyle::Monospace)
+                                    .desired_width(f32::INFINITY),
+                            );
+                        });
+
+                    ui.add_space(4.0);
+                    ui.horizontal_wrapped(|ui| {
+                        if ui
+                            .add(widgets::rounded_button(
+                                i18n::t(i18n::Key::BtnCopyServiceFile, lang),
+                                None,
+                            ))
+                            .clicked()
+                        {
+                            ui.ctx().copy_text(content.to_string());
+                        }
+                        if ui
+                            .add(widgets::rounded_button(
+                                i18n::t(i18n::Key::BtnSaveServiceFile, lang),
+                                None,
+                            ))
+                            .clicked()
+                        {
+                            if let Some(path) = rfd::FileDialog::new()
+                                .set_file_name("llama-server.service")
+                                .save_file()
+                            {
+                                let path_str = path.to_string_lossy().to_string();
+                                let mut f = std::fs::File::create(&path_str)
+                                    .expect("Failed to create service file");
+                                use std::io::Write;
+                                f.write_all(content.as_bytes())
+                                    .expect("Failed to write service file");
+                            }
+                        }
+                    });
+                }
+            } else {
+                // 非 Linux 平台：显示不可用提示
+                ui.add_space(4.0);
+                ui.label(
+                    egui::RichText::new(i18n::t(i18n::Key::SystemServiceNotAvailable, lang))
+                        .color(egui::Color32::GRAY)
+                        .italics(),
+                );
+            }
+        },
+    );
+
+    // ── 调试 ──
 
     // ── 调试 ──
     widgets::card(
@@ -318,4 +400,51 @@ pub fn ui(
             ui.add(egui::ProgressBar::new(frac));
         }
     });
+}
+
+/// 构建 systemd 服务文件内容
+/// 将模板中的 ExecStart 行替换为实际的启动命令，并自动填充当前用户信息
+fn build_systemd_service_file(template: &str, cmd: &str) -> String {
+    // 获取当前用户名
+    let username = std::env::var("USER")
+        .or_else(|_| std::env::var("USERNAME"))
+        .unwrap_or_else(|_| "your-username".to_string());
+
+    // 获取用户 home 目录
+    let home_dir = dirs::home_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| format!("/home/{}", username));
+
+    // 先替换用户信息占位符
+    let template = template
+        .replace("your-username", &username)
+        .replace("/home/your-username", &home_dir);
+
+    let mut lines: Vec<String> = template.lines().map(String::from).collect();
+    let mut in_exec_start = false;
+
+    for line in &mut lines {
+        if line.starts_with("ExecStart=") {
+            *line = format!("ExecStart={}", cmd);
+            in_exec_start = true;
+        } else if in_exec_start && line.starts_with("    ") {
+            // 跳过原模板中 ExecStart 的续行
+            line.clear();
+        } else {
+            in_exec_start = false;
+        }
+    }
+
+    // 移除连续的空行
+    let mut result = Vec::new();
+    let mut prev_empty = false;
+    for line in lines {
+        let is_empty = line.trim().is_empty();
+        if !is_empty || !prev_empty {
+            result.push(line);
+        }
+        prev_empty = is_empty;
+    }
+
+    result.join("\n")
 }

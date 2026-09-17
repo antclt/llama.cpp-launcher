@@ -393,9 +393,24 @@ pub fn ui(
                 ui.label(i18n::t(i18n::Key::LinuxServiceFileHint, lang));
                 ui.separator();
 
-                // 获取服务器启动命令，替换模板中的 ExecStart 行
+                // 获取服务器启动命令，替换模板中的 ExecStart 行，并自动填充用户信息
                 let template = i18n::t(i18n::Key::LinuxServiceFileContent, lang);
                 let content = {
+                    // 获取当前用户名
+                    let username = std::env::var("USER")
+                        .or_else(|_| std::env::var("USERNAME"))
+                        .unwrap_or_else(|_| "your-username".to_string());
+
+                    // 获取用户 home 目录
+                    let home_dir = dirs::home_dir()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or_else(|| format!("/home/{}", username));
+
+                    // 先替换用户信息占位符
+                    let template = template
+                        .replace("your-username", &username)
+                        .replace("/home/your-username", &home_dir);
+
                     // 根据当前设置构建启动命令
                     let cmd = server_manager.build_launch_command(settings);
                     // 将启动命令按行分割，替换 ExecStart 行
