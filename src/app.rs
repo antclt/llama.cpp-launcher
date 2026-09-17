@@ -798,6 +798,7 @@ impl eframe::App for LlamaLauncherApp {
                                 &mut self.settings,
                                 &self.settings_manager,
                                 &self.lang,
+                                &self.server_manager,
                                 &mut self.show_about,
                                 &mut self.debug_mode,
                                 &self.updater,

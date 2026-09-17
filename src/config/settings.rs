@@ -2140,6 +2140,10 @@ pub struct AppSettings {
     // 最大上下文计算 Promise（运行时缓存，不序列化）
     #[serde(skip, default)]
     pub max_context_promise: MaxContextPromiseWrapper,
+
+    /// 系统服务面板选中的预设名称
+    #[serde(default)]
+    pub system_service_selected_preset: String,
 }
 
 impl Default for AppSettings {
@@ -2357,6 +2361,7 @@ impl Default for AppSettings {
             kv_cache_result: None,
             kv_cache_promise: KvCachePromiseWrapper::default(),
             max_context_promise: MaxContextPromiseWrapper::default(),
+            system_service_selected_preset: String::new(),
         }
     }
 }

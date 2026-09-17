@@ -173,62 +173,197 @@ pub fn ui(
             if true {
                 // cfg!(target_os = "linux") - 暂时注释掉用于开发调试
                 // Linux 平台：显示生成按钮
-                if ui
-                    .add(widgets::rounded_button(
-                        i18n::t(i18n::Key::SystemServiceGenerate, lang),
-                        None,
-                    ))
-                    .clicked()
-                {
-                    // 生成 systemd 服务文件
-                    let template = i18n::t(i18n::Key::LinuxServiceFileContent, lang);
-                    let cmd = server_manager.build_launch_command(settings);
-                    let content = build_systemd_service_file(&template, &cmd);
 
-                    let mut content = content;
-                    ui.add_space(8.0);
-                    egui::ScrollArea::vertical()
-                        .max_height(300.0)
-                        .show(ui, |ui| {
-                            ui.add(
-                                egui::TextEdit::multiline(&mut content)
-                                    .font(egui::TextStyle::Monospace)
-                                    .desired_width(f32::INFINITY),
-                            );
-                        });
+                // 服务状态显示
+                ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new(i18n::t(i18n::Key::SystemServiceStatus, lang))
+                        .strong(),
+                );
+                    let status = check_service_status();
+                    let (status_text, status_color) = match status.as_str() {
+                        "running" => (
+                            i18n::t(i18n::Key::SystemServiceStatusRunning, lang),
+                            Color32::from_rgb(52, 199, 89), // 绿色
+                        ),
+                        "stopped" => (
+                            i18n::t(i18n::Key::SystemServiceStatusStopped, lang),
+                            Color32::from_rgb(255, 59, 48), // 红色
+                        ),
+                        _ => (
+                            i18n::t(i18n::Key::SystemServiceStatusUnknown, lang),
+                            Color32::GRAY,
+                        ),
+                    };
+                    ui.label(RichText::new(status_text).color(status_color));
+                });
 
-                    ui.add_space(4.0);
-                    ui.horizontal_wrapped(|ui| {
-                        if ui
-                            .add(widgets::rounded_button(
-                                i18n::t(i18n::Key::BtnCopyServiceFile, lang),
+                // 服务控制按钮
+                ui.add_space(8.0);
+                ui.horizontal_wrapped(|ui| {
+                    let status = check_service_status();
+
+                    // 启动按钮（仅在停止时可用）
+                    if ui
+                        .add_enabled(
+                            status != "running",
+                            widgets::rounded_button(
+                                i18n::t(i18n::Key::SystemServiceStart, lang),
                                 None,
-                            ))
-                            .clicked()
-                        {
-                            ui.ctx().copy_text(content.to_string());
+                            ),
+                        )
+                        .clicked()
+                    {
+                        match run_systemctl("start") {
+                            Ok(_) => { /* 状态会在下次刷新时更新 */ }
+                            Err(e) => log::warn!("[system-service] 启动失败: {}", e),
                         }
-                        if ui
-                            .add(widgets::rounded_button(
-                                i18n::t(i18n::Key::BtnSaveServiceFile, lang),
+                    }
+
+                    // 停止按钮（仅在运行时可用）
+                    if ui
+                        .add_enabled(
+                            status == "running",
+                            widgets::rounded_button(
+                                i18n::t(i18n::Key::SystemServiceStop, lang),
                                 None,
-                            ))
-                            .clicked()
+                            ),
+                        )
+                        .clicked()
+                    {
+                        match run_systemctl("stop") {
+                            Ok(_) => { /* 状态会在下次刷新时更新 */ }
+                            Err(e) => log::warn!("[system-service] 停止失败: {}", e),
+                        }
+                    }
+
+                    // 重启按钮（仅在运行时可用）
+                    if ui
+                        .add_enabled(
+                            status == "running",
+                            widgets::rounded_button(
+                                i18n::t(i18n::Key::SystemServiceRestart, lang),
+                                None,
+                            ),
+                        )
+                        .clicked()
+                    {
+                        match run_systemctl("restart") {
+                            Ok(_) => { /* 状态会在下次刷新时更新 */ }
+                            Err(e) => log::warn!("[system-service] 重启失败: {}", e),
+                        }
+                    }
+                });
+
+                // 预设选择和应用
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(4.0);
+                ui.label(
+                    RichText::new(i18n::t(i18n::Key::SystemServiceSelectPreset, lang))
+                        .strong(),
+                );
+
+                // 预设选择下拉框
+                let preset_names: Vec<String> =
+                    settings.presets.iter().map(|p| p.name.clone()).collect();
+                let has_presets = !preset_names.is_empty();
+                let mut selected_preset = settings.system_service_selected_preset.clone();
+
+                ui.add_enabled_ui(has_presets, |ui| {
+                    let placeholder = i18n::t(i18n::Key::SystemServiceNoPresets, lang);
+                    egui::ComboBox::from_id_salt("system_service_preset")
+                        .selected_text(if has_presets {
+                            selected_preset.as_str()
+                        } else {
+                            placeholder.as_ref()
+                        })
+                        .show_ui(ui, |ui| {
+                            for name in &preset_names {
+                                if ui
+                                    .selectable_value(&mut selected_preset, name.clone(), name)
+                                    .changed()
+                                {
+                                    break;
+                                }
+                            }
+                        });
+                });
+
+                settings.system_service_selected_preset = selected_preset.clone();
+
+                ui.add_space(4.0);
+                ui.horizontal_wrapped(|ui| {
+                    // 应用预设按钮
+                    if ui
+                        .add_enabled(
+                            !selected_preset.is_empty(),
+                            widgets::rounded_button(
+                                i18n::t(i18n::Key::SystemServiceApplyPreset, lang),
+                                None,
+                            ),
+                        )
+                        .clicked()
+                    {
+                        if let Some(preset) =
+                            settings.presets.iter().find(|p| p.name == selected_preset)
                         {
-                            if let Some(path) = rfd::FileDialog::new()
-                                .set_file_name("llama-server.service")
-                                .save_file()
-                            {
-                                let path_str = path.to_string_lossy().to_string();
-                                let mut f = std::fs::File::create(&path_str)
-                                    .expect("Failed to create service file");
-                                use std::io::Write;
-                                f.write_all(content.as_bytes())
-                                    .expect("Failed to write service file");
+                            preset.clone().apply_to(settings);
+                        }
+                    }
+
+                    // 更新配置按钮
+                    if ui
+                        .add_enabled(
+                            !selected_preset.is_empty(),
+                            widgets::rounded_button(
+                                i18n::t(i18n::Key::SystemServiceUpdateConfig, lang),
+                                None,
+                            ),
+                        )
+                        .clicked()
+                    {
+                        if let Some(preset) =
+                            settings.presets.iter().find(|p| p.name == selected_preset)
+                        {
+                            let mut temp_settings = settings.clone();
+                            preset.clone().apply_to(&mut temp_settings);
+                            let template = i18n::t(i18n::Key::LinuxServiceFileContent, lang);
+                            let cmd = server_manager.build_launch_command(&temp_settings);
+                            let content = build_systemd_service_file(&template, &cmd);
+
+                            match create_service_file(&content) {
+                                Ok(_) => { /* 成功 */ }
+                                Err(e) => log::warn!("[system-service] 更新配置失败: {}", e),
                             }
                         }
-                    });
-                }
+                    }
+                });
+
+                // 生成和安装服务文件
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(4.0);
+                ui.horizontal_wrapped(|ui| {
+                    // 生成服务文件按钮
+                    if ui
+                        .add(widgets::rounded_button(
+                            i18n::t(i18n::Key::SystemServiceGenerate, lang),
+                            None,
+                        ))
+                        .clicked()
+                    {
+                        let template = i18n::t(i18n::Key::LinuxServiceFileContent, lang);
+                        let cmd = server_manager.build_launch_command(settings);
+                        let content = build_systemd_service_file(&template, &cmd);
+
+                        match create_service_file(&content) {
+                            Ok(_) => { /* 成功 */ }
+                            Err(e) => log::warn!("[system-service] 创建服务失败: {}", e),
+                        }
+                    }
+                });
             } else {
                 // 非 Linux 平台：显示不可用提示
                 ui.add_space(4.0);
@@ -447,4 +582,82 @@ fn build_systemd_service_file(template: &str, cmd: &str) -> String {
     }
 
     result.join("\n")
+}
+
+/// 检查服务状态
+fn check_service_status() -> String {
+    let output = std::process::Command::new("systemctl")
+        .args(["is-active", "llama-server.service"])
+        .output();
+    match output {
+        Ok(o) => {
+            let status = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            if status == "active" {
+                "running".to_string()
+            } else if status == "inactive" || status == "failed" {
+                "stopped".to_string()
+            } else {
+                "unknown".to_string()
+            }
+        }
+        Err(_) => "unknown".to_string(),
+    }
+}
+
+/// 执行 systemctl 命令（需要 pkexec）
+fn run_systemctl(action: &str) -> Result<String, String> {
+    let output = std::process::Command::new("pkexec")
+        .args(["systemctl", action, "llama-server.service"])
+        .output()
+        .map_err(|e| format!("执行失败: {}", e))?;
+
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        Err(if stderr.is_empty() {
+            "操作被取消".to_string()
+        } else {
+            stderr
+        })
+    }
+}
+
+/// 生成服务文件并安装
+fn create_service_file(content: &str) -> Result<String, String> {
+    // 写入临时文件
+    let temp_path = "/tmp/llama-server.service";
+    std::fs::write(temp_path, content).map_err(|e| format!("写入临时文件失败: {}", e))?;
+
+    // 使用 pkexec 复制到 systemd 目录
+    let output = std::process::Command::new("pkexec")
+        .args(["cp", temp_path, "/etc/systemd/system/llama-server.service"])
+        .output()
+        .map_err(|e| format!("复制文件失败: {}", e))?;
+
+    if !output.status.success() {
+        return Err("复制文件失败".to_string());
+    }
+
+    // 重新加载 systemd
+    let output = std::process::Command::new("pkexec")
+        .args(["systemctl", "daemon-reload"])
+        .output()
+        .map_err(|e| format!("重新加载失败: {}", e))?;
+
+    if !output.status.success() {
+        return Err("重新加载 systemd 失败".to_string());
+    }
+
+    // 启用服务
+    let output = std::process::Command::new("pkexec")
+        .args(["systemctl", "enable", "llama-server.service"])
+        .output()
+        .map_err(|e| format!("启用服务失败: {}", e))?;
+
+    if !output.status.success() {
+        return Err("启用服务失败".to_string());
+    }
+
+    Ok("服务已创建并启用".to_string())
 }
