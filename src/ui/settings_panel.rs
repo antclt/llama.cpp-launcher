@@ -256,6 +256,20 @@ pub fn ui(
                             Err(e) => log::warn!("[system-service] 重启失败: {}", e),
                         }
                     }
+
+                    // 查看服务详情按钮（需要选中预设才能查看）
+                    if ui
+                        .add_enabled(
+                            !settings.system_service_selected_preset.is_empty(),
+                            widgets::rounded_button(
+                                i18n::t(i18n::Key::SystemServiceViewDetails, lang),
+                                None,
+                            ),
+                        )
+                        .clicked()
+                    {
+                        settings.show_system_service_details = true;
+                    }
                 });
 
                 // 预设选择和应用
@@ -386,6 +400,47 @@ pub fn ui(
             }
         },
     );
+
+    // ── 服务详情弹窗 ──
+    if settings.show_system_service_details {
+        let mut open = settings.show_system_service_details;
+        egui::Window::new(i18n::t(i18n::Key::SystemServiceDetailsServiceWindowTitle, lang))
+            .collapsible(false)
+            .resizable(true)
+            .default_width(520.0)
+            .default_height(400.0)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .open(&mut open)
+            .show(ui.ctx(), |ui| {
+                // 根据选中预设生成服务文件
+                let template = i18n::t(i18n::Key::LinuxServiceFileContent, lang);
+                let cmd = if let Some(preset) = settings
+                    .presets
+                    .iter()
+                    .find(|p| p.name == settings.system_service_selected_preset)
+                {
+                    let mut temp_settings = settings.clone();
+                    preset.clone().apply_to(&mut temp_settings);
+                    server_manager.build_launch_command(&temp_settings)
+                } else {
+                    server_manager.build_launch_command(settings)
+                };
+                let content = build_systemd_service_file(&template, &cmd);
+                let mut content = content;
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.add(
+                        egui::TextEdit::multiline(&mut content)
+                            .font(egui::TextStyle::Monospace)
+                            .desired_width(f32::INFINITY),
+                    );
+                });
+                ui.separator();
+                if ui.button(i18n::t(i18n::Key::BtnCopyServiceFile, lang)).clicked() {
+                    ui.ctx().copy_text(content.to_string());
+                }
+            });
+        settings.show_system_service_details = open;
+    }
 
     // ── 调试 ──
 

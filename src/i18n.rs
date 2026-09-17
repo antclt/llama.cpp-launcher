@@ -87,6 +87,8 @@ pub enum Key {
     SystemServiceCreated,
     SystemServiceError,
     SystemServiceRefresh,
+    SystemServiceViewDetails,
+    SystemServiceDetailsServiceWindowTitle,
 
     // 按钮
     BtnStartServer,
@@ -932,6 +934,10 @@ impl Key {
             (Key::SystemServiceError, &Language::En) => "Operation Failed",
             (Key::SystemServiceRefresh, &Language::Zh) => "刷新状态",
             (Key::SystemServiceRefresh, &Language::En) => "Refresh Status",
+            (Key::SystemServiceViewDetails, &Language::Zh) => "查看服务详情",
+            (Key::SystemServiceViewDetails, &Language::En) => "View Service Details",
+            (Key::SystemServiceDetailsServiceWindowTitle, &Language::Zh) => "服务详情",
+            (Key::SystemServiceDetailsServiceWindowTitle, &Language::En) => "Service Details",
 
             // 按钮
             (Key::BtnStartServer, &Language::Zh) => "启动 Server",
@@ -948,8 +954,8 @@ impl Key {
             (Key::LinuxServiceFileWindowTitle, &Language::En) => "Linux Service File",
             (Key::LinuxServiceFileHint, &Language::Zh) => "以下是用于创建 llama.cpp 服务器 systemd 服务的配置文件内容，请根据你的实际环境修改路径和用户名后使用。",
             (Key::LinuxServiceFileHint, &Language::En) => "Below is the systemd service configuration for llama.cpp server. Modify paths and username to match your environment.",
-            (Key::LinuxServiceFileContent, &Language::Zh) => "[Unit]\nDescription=llama.cpp server\nAfter=network.target\n\n[Service]\nType=simple\nUser=your-username\nGroup=your-username\nWorkingDirectory=/home/your-username\n\n# 核心启动命令（请替换为你的实际路径和模型）\nExecStart=/home/your-username/llama.cpp/build/bin/llama-server \\\n    --model /home/your-username/models/your-model.gguf \\\n    --host 127.0.0.1 \\\n    --port 8080 \\\n    --ctx-size 2048\n\n# 日志输出到 journald\nStandardOutput=journal\nStandardError=journal\nSyslogIdentifier=llama-server\n\n# 优雅停止信号\nKillSignal=SIGINT\nTimeoutStopSec=30\n\n# 自动重启设置\nRestart=on-failure\nRestartSec=10\n\n[Install]\nWantedBy=multi-user.target",
-            (Key::LinuxServiceFileContent, &Language::En) => "[Unit]\nDescription=llama.cpp server\nAfter=network.target\n\n[Service]\nType=simple\nUser=your-username\nGroup=your-username\nWorkingDirectory=/home/your-username\n\n# Core startup command (replace with your actual paths and model)\nExecStart=/home/your-username/llama.cpp/build/bin/llama-server \\\n    --model /home/your-username/models/your-model.gguf \\\n    --host 127.0.0.1 \\\n    --port 8080 \\\n    --ctx-size 2048\n\n# Log output to journald\nStandardOutput=journal\nStandardError=journal\nSyslogIdentifier=llama-server\n\n# Graceful stop signal\nKillSignal=SIGINT\nTimeoutStopSec=30\n\n# Auto restart settings\nRestart=on-failure\nRestartSec=10\n\n[Install]\nWantedBy=multi-user.target",
+            (Key::LinuxServiceFileContent, &Language::Zh) => "[Unit]\nDescription=llama.cpp server\nAfter=network.target\n\n[Service]\nType=simple\nUser=your-username\nGroup=your-username\nWorkingDirectory=/home/your-username\n\n# 核心启动命令\nExecStart=/home/your-username/llama.cpp/build/bin/llama-server \\\n    --model /home/your-username/models/your-model.gguf \\\n    --host 127.0.0.1 \\\n    --port 8080 \\\n    --ctx-size 2048\n\n# 日志输出到 journald\nStandardOutput=journal\nStandardError=journal\nSyslogIdentifier=llama-server\n\n# 优雅停止信号\nKillSignal=SIGINT\nTimeoutStopSec=30\n\n# 自动重启设置\nRestart=on-failure\nRestartSec=10\n\n[Install]\nWantedBy=multi-user.target",
+            (Key::LinuxServiceFileContent, &Language::En) => "[Unit]\nDescription=llama.cpp server\nAfter=network.target\n\n[Service]\nType=simple\nUser=your-username\nGroup=your-username\nWorkingDirectory=/home/your-username\n\n# Core startup command\nExecStart=/home/your-username/llama.cpp/build/bin/llama-server \\\n    --model /home/your-username/models/your-model.gguf \\\n    --host 127.0.0.1 \\\n    --port 8080 \\\n    --ctx-size 2048\n\n# Log output to journald\nStandardOutput=journal\nStandardError=journal\nSyslogIdentifier=llama-server\n\n# Graceful stop signal\nKillSignal=SIGINT\nTimeoutStopSec=30\n\n# Auto restart settings\nRestart=on-failure\nRestartSec=10\n\n[Install]\nWantedBy=multi-user.target",
             (Key::BtnCopyServiceFile, &Language::Zh) => "复制到剪贴板",
             (Key::BtnCopyServiceFile, &Language::En) => "Copy to Clipboard",
             (Key::BtnSaveServiceFile, &Language::Zh) => "保存为文件",

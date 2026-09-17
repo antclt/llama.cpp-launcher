@@ -2144,6 +2144,9 @@ pub struct AppSettings {
     /// 系统服务面板选中的预设名称
     #[serde(default)]
     pub system_service_selected_preset: String,
+    /// 是否显示服务详情弹窗
+    #[serde(default)]
+    pub show_system_service_details: bool,
 }
 
 impl Default for AppSettings {
@@ -2361,8 +2364,9 @@ impl Default for AppSettings {
             kv_cache_result: None,
             kv_cache_promise: KvCachePromiseWrapper::default(),
             max_context_promise: MaxContextPromiseWrapper::default(),
-            system_service_selected_preset: String::new(),
-        }
+        system_service_selected_preset: String::new(),
+        show_system_service_details: false,
+    }
     }
 }
 
