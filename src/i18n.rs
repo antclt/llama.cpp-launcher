@@ -88,6 +88,7 @@ pub enum Key {
     SystemServiceError,
     SystemServiceRefresh,
     SystemServiceNotFound,
+    SystemServiceApplyAndUpdate,
     SystemServiceViewDetails,
     SystemServiceDetailsServiceWindowTitle,
 
@@ -901,8 +902,8 @@ impl Key {
             (Key::SystemServiceDescription, &Language::En) => "Package llama.cpp startup command as a systemd service configuration, Linux only",
             (Key::SystemServiceNotAvailable, &Language::Zh) => "仅在 Linux 下可用",
             (Key::SystemServiceNotAvailable, &Language::En) => "Only available on Linux",
-            (Key::SystemServiceGenerate, &Language::Zh) => "生成服务文件",
-            (Key::SystemServiceGenerate, &Language::En) => "Generate Service File",
+            (Key::SystemServiceGenerate, &Language::Zh) => "通过当前参数生成服务文件",
+            (Key::SystemServiceGenerate, &Language::En) => "Generate Service File with Current Params",
 
             // 系统服务面板扩展
             (Key::SystemServiceStatus, &Language::Zh) => "服务状态",
@@ -937,6 +938,8 @@ impl Key {
             (Key::SystemServiceRefresh, &Language::En) => "Refresh Status",
             (Key::SystemServiceNotFound, &Language::Zh) => "服务未安装，请先生成服务文件",
             (Key::SystemServiceNotFound, &Language::En) => "Service not installed, please generate service file first",
+            (Key::SystemServiceApplyAndUpdate, &Language::Zh) => "应用预设并更新服务文件",
+            (Key::SystemServiceApplyAndUpdate, &Language::En) => "Apply Preset and Update Service File",
             (Key::SystemServiceViewDetails, &Language::Zh) => "查看服务详情",
             (Key::SystemServiceViewDetails, &Language::En) => "View Service Details",
             (Key::SystemServiceDetailsServiceWindowTitle, &Language::Zh) => "服务详情",

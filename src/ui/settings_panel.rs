@@ -323,52 +323,34 @@ pub fn ui(
                 settings.system_service_selected_preset = selected_preset.clone();
 
                 ui.add_space(4.0);
-                ui.horizontal_wrapped(|ui| {
-                    // 应用预设按钮
-                    if ui
-                        .add_enabled(
-                            !selected_preset.is_empty(),
-                            widgets::rounded_button(
-                                i18n::t(i18n::Key::SystemServiceApplyPreset, lang),
-                                None,
-                            ),
-                        )
-                        .clicked()
+                // 应用预设并更新服务配置按钮
+                if ui
+                    .add_enabled(
+                        !selected_preset.is_empty(),
+                        widgets::rounded_button(
+                            i18n::t(i18n::Key::SystemServiceApplyAndUpdate, lang),
+                            None,
+                        ),
+                    )
+                    .clicked()
+                {
+                    if let Some(preset) =
+                        settings.presets.iter().find(|p| p.name == selected_preset)
                     {
-                        if let Some(preset) =
-                            settings.presets.iter().find(|p| p.name == selected_preset)
-                        {
-                            preset.clone().apply_to(settings);
+                        // 1. 应用预设到当前设置
+                        preset.clone().apply_to(settings);
+
+                        // 2. 生成服务文件并写入
+                        let template = i18n::t(i18n::Key::LinuxServiceFileContent, lang);
+                        let cmd = server_manager.build_launch_command(settings);
+                        let content = build_systemd_service_file(&template, &cmd);
+
+                        match create_service_file(&content) {
+                            Ok(_) => { /* 成功 */ }
+                            Err(e) => log::warn!("[system-service] 更新配置失败: {}", e),
                         }
                     }
-
-                    // 更新配置按钮
-                    if ui
-                        .add_enabled(
-                            !selected_preset.is_empty(),
-                            widgets::rounded_button(
-                                i18n::t(i18n::Key::SystemServiceUpdateConfig, lang),
-                                None,
-                            ),
-                        )
-                        .clicked()
-                    {
-                        if let Some(preset) =
-                            settings.presets.iter().find(|p| p.name == selected_preset)
-                        {
-                            let mut temp_settings = settings.clone();
-                            preset.clone().apply_to(&mut temp_settings);
-                            let template = i18n::t(i18n::Key::LinuxServiceFileContent, lang);
-                            let cmd = server_manager.build_launch_command(&temp_settings);
-                            let content = build_systemd_service_file(&template, &cmd);
-
-                            match create_service_file(&content) {
-                                Ok(_) => { /* 成功 */ }
-                                Err(e) => log::warn!("[system-service] 更新配置失败: {}", e),
-                            }
-                        }
-                    }
-                });
+                }
 
                 // 生成和安装服务文件
                 ui.add_space(8.0);
@@ -395,7 +377,7 @@ pub fn ui(
 
                     // 右侧显示服务文件路径
                     ui.label(
-                        egui::RichText::new("/etc/systemd/system/llama-server.service")
+                        egui::RichText::new("路径: /etc/systemd/system/llama-server.service")
                             .color(egui::Color32::GRAY)
                             .small(),
                     );
