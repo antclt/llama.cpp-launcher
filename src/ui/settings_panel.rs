@@ -271,6 +271,23 @@ pub fn ui(
                     {
                         settings.show_system_service_details = true;
                     }
+
+                    // 卸载服务按钮（仅在服务存在时可用）
+                    if ui
+                        .add_enabled(
+                            service_exists,
+                            widgets::rounded_button(
+                                i18n::t(i18n::Key::SystemServiceUninstall, lang),
+                                None,
+                            ),
+                        )
+                        .clicked()
+                    {
+                        match uninstall_service() {
+                            Ok(_) => { /* 状态会在下次刷新时更新 */ }
+                            Err(e) => log::warn!("[system-service] 卸载失败: {}", e),
+                        }
+                    }
                 });
 
                 // 服务不存在时的提示
@@ -713,4 +730,36 @@ fn create_service_file(content: &str) -> Result<String, String> {
     }
 
     Ok("/etc/systemd/system/llama-server.service".to_string())
+}
+
+/// 卸载服务：先停止（如果运行中），再删除服务文件
+fn uninstall_service() -> Result<String, String> {
+    // 检查服务是否在运行
+    let status = check_service_status();
+    if status == "running" {
+        // 先停止服务
+        run_systemctl("stop")?;
+    }
+
+    // 删除服务文件
+    let output = std::process::Command::new("pkexec")
+        .args(["rm", "/etc/systemd/system/llama-server.service"])
+        .output()
+        .map_err(|e| format!("删除服务文件失败: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(if stderr.is_empty() {
+            "删除服务文件失败".to_string()
+        } else {
+            stderr
+        });
+    }
+
+    // 重新加载 systemd 配置
+    let _ = std::process::Command::new("pkexec")
+        .args(["systemctl", "daemon-reload"])
+        .output();
+
+    Ok("服务已卸载".to_string())
 }

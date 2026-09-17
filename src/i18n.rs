@@ -90,6 +90,7 @@ pub enum Key {
     SystemServiceNotFound,
     SystemServiceApplyAndUpdate,
     SystemServiceViewDetails,
+    SystemServiceUninstall,
     SystemServiceDetailsServiceWindowTitle,
 
     // 按钮
@@ -942,6 +943,8 @@ impl Key {
             (Key::SystemServiceApplyAndUpdate, &Language::En) => "Apply Preset and Update Service File",
             (Key::SystemServiceViewDetails, &Language::Zh) => "查看服务详情",
             (Key::SystemServiceViewDetails, &Language::En) => "View Service Details",
+            (Key::SystemServiceUninstall, &Language::Zh) => "卸载服务",
+            (Key::SystemServiceUninstall, &Language::En) => "Uninstall Service",
             (Key::SystemServiceDetailsServiceWindowTitle, &Language::Zh) => "服务详情",
             (Key::SystemServiceDetailsServiceWindowTitle, &Language::En) => "Service Details",
 
