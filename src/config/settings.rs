@@ -441,6 +441,19 @@ fn default_rocm_gpu_target() -> String {
     "gfx103X".to_string()
 }
 
+// llama.cpp 编译配置默认值
+fn default_build_git_repo() -> String {
+    "https://github.com/ggml-org/llama.cpp.git".to_string()
+}
+
+fn default_build_branch() -> String {
+    "main".to_string()
+}
+
+fn default_build_opt_level() -> String {
+    "Release".to_string()
+}
+
 // context / batch_size / ubatch_size 以 k 为单位存储 (1k = 1024)
 // 反序列化时兼容旧版原始值（如 4096 → 自动转为 4）
 
@@ -2147,6 +2160,35 @@ pub struct AppSettings {
     /// 是否显示服务详情弹窗
     #[serde(default)]
     pub show_system_service_details: bool,
+
+    // ── llama.cpp 编译配置 ──
+    /// 是否启用从源码编译模式（禁用时使用预编译下载）
+    #[serde(default)]
+    pub build_enabled: bool,
+    /// Git 仓库 URL（默认 llama.cpp 官方仓库）
+    #[serde(default = "default_build_git_repo")]
+    pub build_git_repo: String,
+    /// Git 分支名（默认 main）
+    #[serde(default = "default_build_branch")]
+    pub build_branch: String,
+    /// Git tag 或 commit hash（空字符串表示使用分支最新）
+    #[serde(default)]
+    pub build_tag: String,
+    /// 编译产物输出目录（空字符串表示默认路径）
+    #[serde(default)]
+    pub build_output_dir: String,
+    /// 编译优化级别：Release / RelWithDebInfo / Debug
+    #[serde(default = "default_build_opt_level")]
+    pub build_opt_level: String,
+    /// CUDA 后端开关
+    #[serde(default)]
+    pub build_cuda_enabled: bool,
+    /// ROCm 后端开关
+    #[serde(default)]
+    pub build_rocm_enabled: bool,
+    /// Vulkan 后端开关
+    #[serde(default)]
+    pub build_vulkan_enabled: bool,
 }
 
 impl Default for AppSettings {
@@ -2366,6 +2408,16 @@ impl Default for AppSettings {
             max_context_promise: MaxContextPromiseWrapper::default(),
         system_service_selected_preset: String::new(),
         show_system_service_details: false,
+        // ── llama.cpp 编译配置 ──
+        build_enabled: false,
+        build_git_repo: default_build_git_repo(),
+        build_branch: default_build_branch(),
+        build_tag: String::new(),
+        build_output_dir: String::new(),
+        build_opt_level: default_build_opt_level(),
+        build_cuda_enabled: false,
+        build_rocm_enabled: false,
+        build_vulkan_enabled: false,
     }
     }
 }

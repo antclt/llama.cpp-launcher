@@ -452,7 +452,94 @@ pub fn ui(
         settings.show_system_service_details = open;
     }
 
-    // ── 调试 ──
+    // ── llama.cpp 编译 ──
+    widgets::card(
+        ui,
+        i18n::t(i18n::Key::SettingsBuild, lang),
+        accent,
+        |ui| {
+            // 编译模式开关
+            let mut build_enabled = settings.build_enabled;
+            if widgets::toggle(
+                ui,
+                &mut build_enabled,
+                i18n::t(i18n::Key::BuildEnable, lang),
+                accent,
+            ) {
+                settings.build_enabled = build_enabled;
+            }
+
+            if settings.build_enabled {
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(4.0);
+
+                // Git 仓库
+                ui.label(i18n::t(i18n::Key::BuildGitRepo, lang));
+                ui.text_edit_singleline(&mut settings.build_git_repo);
+
+                // 分支
+                ui.label(i18n::t(i18n::Key::BuildBranch, lang));
+                ui.text_edit_singleline(&mut settings.build_branch);
+
+                // Tag
+                ui.label(i18n::t(i18n::Key::BuildTag, lang));
+                ui.text_edit_singleline(&mut settings.build_tag);
+
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(4.0);
+
+                // 编译优化级别
+                ui.label(i18n::t(i18n::Key::BuildOptLevel, lang));
+                let opt_opts = ["Release", "RelWithDebInfo", "Debug"];
+                let mut opt_idx = match settings.build_opt_level.as_str() {
+                    "RelWithDebInfo" => 1,
+                    "Debug" => 2,
+                    _ => 0,
+                };
+                widgets::segmented(ui, &opt_opts, &mut opt_idx, accent);
+                settings.build_opt_level = opt_opts[opt_idx].to_string();
+
+                ui.add_space(8.0);
+                ui.separator();
+                ui.add_space(4.0);
+
+                // 后端选择
+                ui.label(i18n::t(i18n::Key::BuildBackend, lang));
+                let mut cuda = settings.build_cuda_enabled;
+                if widgets::toggle(ui, &mut cuda, i18n::t(i18n::Key::BuildCuda, lang), accent) {
+                    settings.build_cuda_enabled = cuda;
+                }
+                let mut rocm = settings.build_rocm_enabled;
+                if widgets::toggle(ui, &mut rocm, i18n::t(i18n::Key::BuildRocm, lang), accent) {
+                    settings.build_rocm_enabled = rocm;
+                }
+                let mut vulkan = settings.build_vulkan_enabled;
+                if widgets::toggle(ui, &mut vulkan, i18n::t(i18n::Key::BuildVulkan, lang), accent) {
+                    settings.build_vulkan_enabled = vulkan;
+                }
+
+                ui.add_space(8.0);
+
+                // 操作按钮
+                ui.horizontal_wrapped(|ui| {
+                    if ui.add(widgets::rounded_button(
+                        i18n::t(i18n::Key::BuildBtnClone, lang),
+                        None,
+                    )).clicked() {
+                        // TODO: 克隆仓库逻辑
+                    }
+                    if ui.add(widgets::rounded_button(
+                        i18n::t(i18n::Key::BuildBtnBuild, lang),
+                        None,
+                    )).clicked() {
+                        // TODO: 编译逻辑
+                    }
+                });
+            }
+        },
+    );
 
     // ── 调试 ──
     widgets::card(
