@@ -458,21 +458,9 @@ pub fn ui(
         i18n::t(i18n::Key::SettingsBuild, lang),
         accent,
         |ui| {
-            // 编译模式开关
-            let mut build_enabled = settings.build_enabled;
-            if widgets::toggle(
-                ui,
-                &mut build_enabled,
-                i18n::t(i18n::Key::BuildEnable, lang),
-                accent,
-            ) {
-                settings.build_enabled = build_enabled;
-            }
-
-            if settings.build_enabled {
-                ui.add_space(8.0);
-                ui.separator();
-                ui.add_space(4.0);
+            ui.add_space(8.0);
+            ui.separator();
+            ui.add_space(4.0);
 
                 // Git 仓库
                 ui.label(i18n::t(i18n::Key::BuildGitRepo, lang));
@@ -537,7 +525,6 @@ pub fn ui(
                         // TODO: 编译逻辑
                     }
                 });
-            }
         },
     );
 

@@ -2162,9 +2162,6 @@ pub struct AppSettings {
     pub show_system_service_details: bool,
 
     // ── llama.cpp 编译配置 ──
-    /// 是否启用从源码编译模式（禁用时使用预编译下载）
-    #[serde(default)]
-    pub build_enabled: bool,
     /// Git 仓库 URL（默认 llama.cpp 官方仓库）
     #[serde(default = "default_build_git_repo")]
     pub build_git_repo: String,
@@ -2409,7 +2406,6 @@ impl Default for AppSettings {
         system_service_selected_preset: String::new(),
         show_system_service_details: false,
         // ── llama.cpp 编译配置 ──
-        build_enabled: false,
         build_git_repo: default_build_git_repo(),
         build_branch: default_build_branch(),
         build_tag: String::new(),

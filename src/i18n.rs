@@ -787,7 +787,6 @@ pub enum Key {
 
     // llama.cpp 编译
     SettingsBuild,
-    BuildEnable,
     BuildBackend,
     BuildGitRepo,
     BuildBranch,
@@ -2286,8 +2285,6 @@ impl Key {
             // llama.cpp 编译
             (Key::SettingsBuild, &Language::Zh) => "llama.cpp 编译",
             (Key::SettingsBuild, &Language::En) => "llama.cpp Build",
-            (Key::BuildEnable, &Language::Zh) => "启用从源码编译",
-            (Key::BuildEnable, &Language::En) => "Enable Build from Source",
             (Key::BuildBackend, &Language::Zh) => "编译后端",
             (Key::BuildBackend, &Language::En) => "Build Backends",
             (Key::BuildGitRepo, &Language::Zh) => "Git 仓库",
