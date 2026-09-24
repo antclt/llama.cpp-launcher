@@ -208,8 +208,8 @@ impl DownloadVariant {
             DownloadVariant::WinRocmLemonade(gpu_target) => {
                 format!("llama-.*-windows-rocm-{}-x64\\.zip", gpu_target)
             }
-            // 官方 ggml-org ROCm 10（无 GPU 目标后缀）
-            DownloadVariant::WinRocm10 => "llama-.*-bin-win-rocm-10\\.0-x64\\.zip".to_string(),
+            // 官方 ggml-org ROCm 10（无 GPU 目标后缀，正则匹配任何小版本号）
+            DownloadVariant::WinRocm10 => "llama-.*-bin-win-rocm-10\\.[0-9]+-x64\\.zip".to_string(),
             DownloadVariant::WinVulkan => "bin-win-vulkan-x64".to_string(),
             DownloadVariant::WinCpuArm64 => "bin-win-cpu-arm64".to_string(),
             DownloadVariant::LinuxCpu => "bin-ubuntu-x64".to_string(),
@@ -220,9 +220,9 @@ impl DownloadVariant {
             DownloadVariant::LinuxRocmLemonade(gpu_target) => {
                 format!("llama-.*-ubuntu-rocm-{}-x64\\.zip", gpu_target)
             }
-            // 官方 ggml-org ROCm 10 Linux 版本（无 GPU 目标后缀）
+            // 官方 ggml-org ROCm 10 Linux 版本（无 GPU 目标后缀，正则匹配任何小版本号）
             DownloadVariant::LinuxRocm10 => {
-                "llama-.*-bin-ubuntu-rocm-10\\.0-x64\\.tar\\.gz".to_string()
+                "llama-.*-bin-ubuntu-rocm-10\\.[0-9]+-x64\\.tar\\.gz".to_string()
             }
             // SYCL / OpenVINO 变体
             DownloadVariant::WinSycl => "bin-win-sycl-x64".to_string(),
