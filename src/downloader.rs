@@ -201,9 +201,10 @@ impl DownloadVariant {
         // ggml-org / lemonade-sdk 默认命名格式
         match self {
             DownloadVariant::WinCpu => "bin-win-cpu-x64".to_string(),
-            DownloadVariant::WinCuda124 => "bin-win-cuda-12.4-x64".to_string(),
-            DownloadVariant::WinCuda133 => "bin-win-cuda-13.3-x64".to_string(),
-            DownloadVariant::WinCuda134Arm64 => "bin-win-cuda-13.4-arm64".to_string(),
+            // 使用正则匹配 CUDA 主版本号，自动兼容任何小版本号（如 12.4/12.5/12.6...）
+            DownloadVariant::WinCuda124 => "bin-win-cuda-12\\.[0-9]+-x64".to_string(),
+            DownloadVariant::WinCuda133 => "bin-win-cuda-13\\.[0-9]+-x64".to_string(),
+            DownloadVariant::WinCuda134Arm64 => "bin-win-cuda-13\\.[0-9]+-arm64".to_string(),
             DownloadVariant::WinRocmLemonade(gpu_target) => {
                 format!("llama-.*-windows-rocm-{}-x64\\.zip", gpu_target)
             }
@@ -1074,20 +1075,23 @@ pub fn pick_asset<'a>(
     })
 }
 
-/// 按 CUDA 版本匹配 cudart 资产（cudart-llama-bin-win-cuda-{version}-{arch}.zip）
+/// 按 CUDA 主版本号匹配 cudart 资产（cudart-llama-bin-win-cuda-{major}.{minor}-{arch}.zip）
 /// 用于在主下载完成后额外下载 CUDA runtime 库
+/// 使用正则表达式自动匹配任何小版本号（如 12.4/12.5/12.6...）
 fn pick_cudart_asset<'a>(assets: &'a [Asset], variant: &DownloadVariant) -> Option<&'a Asset> {
     // 仅 CUDA 变体有效
-    let (cuda_version, arch) = match variant {
-        DownloadVariant::WinCuda124 => ("12.4", "x64"),
-        DownloadVariant::WinCuda133 => ("13.3", "x64"),
-        DownloadVariant::WinCuda134Arm64 => ("13.4", "arm64"),
+    let (cuda_major, arch) = match variant {
+        DownloadVariant::WinCuda124 => ("12", "x64"),
+        DownloadVariant::WinCuda133 => ("13", "x64"),
+        DownloadVariant::WinCuda134Arm64 => ("13", "arm64"),
         _ => return None,
     };
-    let prefix = format!("cudart-llama-bin-win-cuda-{}-{}", cuda_version, arch);
+    // 正则匹配任何小版本号
+    let pattern = format!("cudart-llama-bin-win-cuda-{}\\.[0-9]+-{}.zip", cuda_major, arch);
+    let re = regex::Regex::new(&pattern).ok()?;
     assets
         .iter()
-        .find(|a| a.name.starts_with(&prefix) && a.name.ends_with(".zip"))
+        .find(|a| re.is_match(&a.name))
 }
 
 /// 定位解压后的 llama-server 二进制：
